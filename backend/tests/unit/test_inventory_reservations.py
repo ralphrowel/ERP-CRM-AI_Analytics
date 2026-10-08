@@ -206,33 +206,50 @@ def test_opening_balances_posting_and_ledger(
         inv_service.post_opening_balances(srv_payload)
 
 
+def _get_or_create_stock_product(db_session, sku: str, name: str, tax_rate_id: int) -> Product:
+    stmt = select(Product).where(Product.sku == sku)
+    p = db_session.execute(stmt).scalar_one_or_none()
+    if not p:
+        p = Product(
+            sku=sku,
+            name=name,
+            product_type="stock",
+            uom="pc",
+            list_price=Decimal("150.0000"),
+            reorder_point=Decimal("5.000"),
+            tax_rate_id=tax_rate_id,
+            is_active=True,
+        )
+        db_session.add(p)
+        db_session.flush()
+    return p
+
+
 def test_order_confirmation_reserves_stock_concurrency(
     inv_service,
     sales_service,
     db_session,
     default_warehouse,
     sample_customer,
-    sample_stock_product,
+    default_tax_rate,
 ):
-    # Ensure opening balance: 15 units
-    bal = db_session.get(InventoryBalance, (sample_stock_product.id, default_warehouse.id))
+    prod = _get_or_create_stock_product(
+        db_session, "SKU-ORD-01", "Order Concurrency Widget", default_tax_rate.id
+    )
+    bal = db_session.get(InventoryBalance, (prod.id, default_warehouse.id))
     if not bal:
         inv_service.post_opening_balances(
             OpeningBalancesCreatePayload(
                 warehouse_id=default_warehouse.id,
                 items=[
                     OpeningBalanceItemPayload(
-                        product_id=sample_stock_product.id,
+                        product_id=prod.id,
                         quantity=Decimal("15.000"),
                         unit_cost=Decimal("75.0000"),
                     )
                 ],
             )
         )
-    else:
-        bal.qty_on_hand = Decimal("15.000")
-        bal.qty_reserved = Decimal("0.000")
-        db_session.flush()
 
     # Create draft sales order for 6 units
     so_payload = SalesOrderCreatePayload(
@@ -240,8 +257,8 @@ def test_order_confirmation_reserves_stock_concurrency(
         warehouse_id=default_warehouse.id,
         items=[
             LineItemPayload(
-                product_id=sample_stock_product.id,
-                description="Industrial Widget A",
+                product_id=prod.id,
+                description="Order Concurrency Widget",
                 uom="pc",
                 quantity=Decimal("6.000"),
                 unit_price=Decimal("150.0000"),
@@ -257,14 +274,14 @@ def test_order_confirmation_reserves_stock_concurrency(
 
     # Verify inventory balance reserved qty
     db_session.expire_all()
-    updated_bal = db_session.get(InventoryBalance, (sample_stock_product.id, default_warehouse.id))
+    updated_bal = db_session.get(InventoryBalance, (prod.id, default_warehouse.id))
     assert updated_bal.qty_on_hand == Decimal("15.000")
     assert updated_bal.qty_reserved == Decimal("6.000")
     assert updated_bal.qty_available == Decimal("9.000")
 
     # Verify reservation record
     res_stmt = select(StockReservation).where(
-        StockReservation.product_id == sample_stock_product.id,
+        StockReservation.product_id == prod.id,
         StockReservation.warehouse_id == default_warehouse.id,
         StockReservation.status == "active",
     )
@@ -279,23 +296,25 @@ def test_insufficient_stock_rejection(
     db_session,
     default_warehouse,
     sample_customer,
-    sample_stock_product,
+    default_tax_rate,
 ):
-    # Set available stock to 4 units
-    bal = db_session.get(InventoryBalance, (sample_stock_product.id, default_warehouse.id))
+    prod = _get_or_create_stock_product(
+        db_session, "SKU-INSUFF-01", "Insufficient Stock Widget", default_tax_rate.id
+    )
+    bal = db_session.get(InventoryBalance, (prod.id, default_warehouse.id))
     if not bal:
-        bal = InventoryBalance(
-            product_id=sample_stock_product.id,
-            warehouse_id=default_warehouse.id,
-            qty_on_hand=Decimal("4.000"),
-            qty_reserved=Decimal("0.000"),
-            avg_unit_cost=Decimal("75.0000"),
+        inv_service.post_opening_balances(
+            OpeningBalancesCreatePayload(
+                warehouse_id=default_warehouse.id,
+                items=[
+                    OpeningBalanceItemPayload(
+                        product_id=prod.id,
+                        quantity=Decimal("4.000"),
+                        unit_cost=Decimal("75.0000"),
+                    )
+                ],
+            )
         )
-        db_session.add(bal)
-    else:
-        bal.qty_on_hand = Decimal("4.000")
-        bal.qty_reserved = Decimal("0.000")
-    db_session.flush()
 
     # Create draft order requesting 10 units (exceeds available 4)
     so_payload = SalesOrderCreatePayload(
@@ -303,8 +322,8 @@ def test_insufficient_stock_rejection(
         warehouse_id=default_warehouse.id,
         items=[
             LineItemPayload(
-                product_id=sample_stock_product.id,
-                description="Industrial Widget A",
+                product_id=prod.id,
+                description="Insufficient Stock Widget",
                 uom="pc",
                 quantity=Decimal("10.000"),
                 unit_price=Decimal("150.0000"),
@@ -320,7 +339,7 @@ def test_insufficient_stock_rejection(
 
     # Verify balance was NOT touched
     db_session.expire_all()
-    bal_after = db_session.get(InventoryBalance, (sample_stock_product.id, default_warehouse.id))
+    bal_after = db_session.get(InventoryBalance, (prod.id, default_warehouse.id))
     assert bal_after.qty_reserved == Decimal("0.000")
     assert bal_after.qty_available == Decimal("4.000")
 
@@ -357,23 +376,25 @@ def test_cancel_order_releases_reservations(
     db_session,
     default_warehouse,
     sample_customer,
-    sample_stock_product,
+    default_tax_rate,
 ):
-    # Setup: 20 on hand, 0 reserved
-    bal = db_session.get(InventoryBalance, (sample_stock_product.id, default_warehouse.id))
+    prod = _get_or_create_stock_product(
+        db_session, "SKU-CANCEL-01", "Cancellable Widget", default_tax_rate.id
+    )
+    bal = db_session.get(InventoryBalance, (prod.id, default_warehouse.id))
     if not bal:
-        bal = InventoryBalance(
-            product_id=sample_stock_product.id,
-            warehouse_id=default_warehouse.id,
-            qty_on_hand=Decimal("20.000"),
-            qty_reserved=Decimal("0.000"),
-            avg_unit_cost=Decimal("75.0000"),
+        inv_service.post_opening_balances(
+            OpeningBalancesCreatePayload(
+                warehouse_id=default_warehouse.id,
+                items=[
+                    OpeningBalanceItemPayload(
+                        product_id=prod.id,
+                        quantity=Decimal("20.000"),
+                        unit_cost=Decimal("75.0000"),
+                    )
+                ],
+            )
         )
-        db_session.add(bal)
-    else:
-        bal.qty_on_hand = Decimal("20.000")
-        bal.qty_reserved = Decimal("0.000")
-    db_session.flush()
 
     # Create and confirm order for 5 units
     so_payload = SalesOrderCreatePayload(
@@ -381,8 +402,8 @@ def test_cancel_order_releases_reservations(
         warehouse_id=default_warehouse.id,
         items=[
             LineItemPayload(
-                product_id=sample_stock_product.id,
-                description="Industrial Widget A",
+                product_id=prod.id,
+                description="Cancellable Widget",
                 uom="pc",
                 quantity=Decimal("5.000"),
                 unit_price=Decimal("150.0000"),
@@ -394,7 +415,7 @@ def test_cancel_order_releases_reservations(
 
     # Check reserved = 5
     db_session.expire_all()
-    bal_mid = db_session.get(InventoryBalance, (sample_stock_product.id, default_warehouse.id))
+    bal_mid = db_session.get(InventoryBalance, (prod.id, default_warehouse.id))
     assert bal_mid.qty_reserved == Decimal("5.000")
 
     # Cancel sales order
@@ -403,7 +424,7 @@ def test_cancel_order_releases_reservations(
 
     # Check reservation was released
     db_session.expire_all()
-    bal_after = db_session.get(InventoryBalance, (sample_stock_product.id, default_warehouse.id))
+    bal_after = db_session.get(InventoryBalance, (prod.id, default_warehouse.id))
     assert bal_after.qty_reserved == Decimal("0.000")
     assert bal_after.qty_available == Decimal("20.000")
 
@@ -415,12 +436,29 @@ def test_cancel_order_releases_reservations(
     assert res.released_at is not None
 
 
-def test_reconciliation_integrity(inv_service, db_session, default_warehouse, sample_stock_product):
-    # Ensure ledger transactions sum equals qty_on_hand
-    bal = db_session.get(InventoryBalance, (sample_stock_product.id, default_warehouse.id))
-    if bal:
-        recon = inv_service.get_inventory_reconciliation()
-        assert recon.discrepant_count == 0
-        for item in recon.items:
-            assert item.is_reconciled is True
-            assert item.qty_discrepancy == Decimal("0.000")
+def test_reconciliation_integrity(inv_service, db_session, default_warehouse, default_tax_rate):
+    prod = _get_or_create_stock_product(
+        db_session, "SKU-RECON-01", "Reconciled Product", default_tax_rate.id
+    )
+    bal = db_session.get(InventoryBalance, (prod.id, default_warehouse.id))
+    if not bal:
+        inv_service.post_opening_balances(
+            OpeningBalancesCreatePayload(
+                warehouse_id=default_warehouse.id,
+                items=[
+                    OpeningBalanceItemPayload(
+                        product_id=prod.id,
+                        quantity=Decimal("25.000"),
+                        unit_cost=Decimal("50.0000"),
+                    )
+                ],
+            )
+        )
+
+    recon = inv_service.get_inventory_reconciliation()
+    assert recon.discrepant_count == 0
+    assert recon.total_items_checked >= 1
+    for item in recon.items:
+        assert item.is_reconciled is True
+        assert item.qty_discrepancy == Decimal("0.000")
+        assert item.cost_discrepancy == Decimal("0.0000")

@@ -91,6 +91,10 @@ def db_session() -> Generator[Session, None, None]:
             yield session
         finally:
             session.close()
+            with engine.connect() as conn:
+                for table in reversed(Base.metadata.sorted_tables):
+                    conn.execute(table.delete())
+                conn.commit()
 
 
 @pytest.fixture
