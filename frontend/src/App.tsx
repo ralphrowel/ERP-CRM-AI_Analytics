@@ -4,12 +4,14 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import { CompanySettingsPage } from './pages/CompanySettingsPage'
 import { CustomersPage } from './pages/CustomersPage'
 import { EmployeesPage } from './pages/EmployeesPage'
+import { LeadsPage } from './pages/LeadsPage'
 import { LoginPage } from './pages/LoginPage'
+import { PipelinePage } from './pages/PipelinePage'
 import { ProductsPage } from './pages/ProductsPage'
 
 const MainRouter: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth()
-  const [activeTab, setActiveTab] = useState<NavTab>('customers')
+  const [activeTab, setActiveTab] = useState<NavTab>('leads')
 
   if (isLoading) {
     return (
@@ -53,6 +55,8 @@ const MainRouter: React.FC = () => {
 
   return (
     <AppLayout activeTab={activeTab} onTabChange={setActiveTab}>
+      {activeTab === 'leads' && <LeadsPage />}
+      {activeTab === 'pipeline' && <PipelinePage />}
       {activeTab === 'customers' && <CustomersPage />}
       {activeTab === 'products' && <ProductsPage />}
       {activeTab === 'employees' && <EmployeesPage />}

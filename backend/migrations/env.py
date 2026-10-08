@@ -7,8 +7,16 @@ from sqlalchemy import engine_from_config, pool
 from app.core.config import settings
 from app.core.database import Base
 from app.core.numbering import DocumentSequence  # noqa: F401
+from app.core.status_history import StatusHistory  # noqa: F401
 from app.modules.catalog.models import Product, ProductCategory  # noqa: F401
-from app.modules.crm.models import Customer, CustomerAddress  # noqa: F401
+from app.modules.crm.models import (  # noqa: F401
+    Activity,
+    Contact,
+    Customer,
+    CustomerAddress,
+    Lead,
+    Opportunity,
+)
 from app.modules.identity.models import User, UserSession  # noqa: F401
 from app.modules.organization.models import CompanySettings, Department, Employee  # noqa: F401
 

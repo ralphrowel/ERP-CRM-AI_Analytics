@@ -45,6 +45,20 @@ async def lifespan(app: FastAPI):
                 padding=4,
                 next_value=1,
             ),
+            DocumentSequence(
+                doc_type="lead",
+                prefix="LEAD",
+                include_year=False,
+                padding=6,
+                next_value=1,
+            ),
+            DocumentSequence(
+                doc_type="opportunity",
+                prefix="OPP",
+                include_year=False,
+                padding=6,
+                next_value=1,
+            ),
         ]
         for seq in sequences:
             existing = db.execute(
