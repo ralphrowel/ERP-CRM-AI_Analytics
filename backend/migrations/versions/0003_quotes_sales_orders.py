@@ -172,9 +172,7 @@ def upgrade() -> None:
         sa.CheckConstraint("quantity > 0", name="ck_quote_items_quantity_positive"),
         sa.CheckConstraint("unit_price >= 0", name="ck_quote_items_unit_price_non_negative"),
         sa.CheckConstraint("discount_amount >= 0", name="ck_quote_items_discount_non_negative"),
-        sa.CheckConstraint(
-            "line_total = line_net + line_tax", name="ck_quote_items_total_matches"
-        ),
+        sa.CheckConstraint("line_total = line_net + line_tax", name="ck_quote_items_total_matches"),
         sa.ForeignKeyConstraint(["quote_id"], ["quotes.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["product_id"], ["products.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["tax_rate_id"], ["tax_rates.id"], ondelete="RESTRICT"),
@@ -183,9 +181,7 @@ def upgrade() -> None:
     op.create_index("ix_quote_items_quote_id", "quote_items", ["quote_id"])
     op.create_index("ix_quote_items_product_id", "quote_items", ["product_id"])
     op.create_index("ix_quote_items_tax_rate_id", "quote_items", ["tax_rate_id"])
-    op.create_index(
-        "uq_quote_items_line", "quote_items", ["quote_id", "line_no"], unique=True
-    )
+    op.create_index("uq_quote_items_line", "quote_items", ["quote_id", "line_no"], unique=True)
 
     # 5. sales_orders table
     op.create_table(
@@ -295,9 +291,7 @@ def upgrade() -> None:
         sa.CheckConstraint("quantity > 0", name="ck_so_items_quantity_positive"),
         sa.CheckConstraint("unit_price >= 0", name="ck_so_items_unit_price_non_negative"),
         sa.CheckConstraint("discount_amount >= 0", name="ck_so_items_discount_non_negative"),
-        sa.CheckConstraint(
-            "line_total = line_net + line_tax", name="ck_so_items_total_matches"
-        ),
+        sa.CheckConstraint("line_total = line_net + line_tax", name="ck_so_items_total_matches"),
         sa.CheckConstraint(
             "quantity_invoiced >= 0 AND quantity_invoiced <= quantity",
             name="ck_so_items_quantity_invoiced_valid",

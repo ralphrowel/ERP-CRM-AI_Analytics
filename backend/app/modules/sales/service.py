@@ -194,7 +194,9 @@ class SalesService:
 
     # --- Quotes API ---
 
-    def create_quote(self, payload: QuoteCreatePayload, current_user_id: int | None = None) -> Quote:
+    def create_quote(
+        self, payload: QuoteCreatePayload, current_user_id: int | None = None
+    ) -> Quote:
         customer = self.db.get(Customer, payload.customer_id)
         if not customer:
             raise NotFoundError(f"Customer #{payload.customer_id} not found.")
@@ -244,11 +246,7 @@ class SalesService:
         return quote
 
     def get_quote(self, quote_id: int) -> Quote:
-        stmt = (
-            select(Quote)
-            .options(joinedload(Quote.items))
-            .where(Quote.id == quote_id)
-        )
+        stmt = select(Quote).options(joinedload(Quote.items)).where(Quote.id == quote_id)
         quote = self.db.execute(stmt).unique().scalar_one_or_none()
         if not quote:
             raise NotFoundError(f"Quote #{quote_id} not found.")
@@ -282,7 +280,8 @@ class SalesService:
         quote = self.get_quote(quote_id)
         if quote.status != "draft":
             raise BusinessRuleError(
-                "QUOTE_IMMUTABLE", f"Cannot edit quote in status '{quote.status}'. Only drafts are editable."
+                "QUOTE_IMMUTABLE",
+                f"Cannot edit quote in status '{quote.status}'. Only drafts are editable.",
             )
         if quote.version != payload.version:
             raise ConflictError("Quote was modified by another transaction. Please reload.")
@@ -314,7 +313,8 @@ class SalesService:
         quote = self.get_quote(quote_id)
         if quote.status != "draft":
             raise BusinessRuleError(
-                "INVALID_TRANSITION", f"Only draft quotes can be sent. Current status: '{quote.status}'"
+                "INVALID_TRANSITION",
+                f"Only draft quotes can be sent. Current status: '{quote.status}'",
             )
 
         from_status = quote.status
@@ -343,7 +343,8 @@ class SalesService:
         quote = self.get_quote(quote_id)
         if quote.status != "sent":
             raise BusinessRuleError(
-                "INVALID_TRANSITION", f"Only sent quotes can be accepted. Current status: '{quote.status}'"
+                "INVALID_TRANSITION",
+                f"Only sent quotes can be accepted. Current status: '{quote.status}'",
             )
 
         # Check expiration
@@ -419,7 +420,8 @@ class SalesService:
         quote = self.get_quote(quote_id)
         if quote.status != "sent":
             raise BusinessRuleError(
-                "INVALID_TRANSITION", f"Only sent quotes can be rejected. Current status: '{quote.status}'"
+                "INVALID_TRANSITION",
+                f"Only sent quotes can be rejected. Current status: '{quote.status}'",
             )
 
         from_status = quote.status
@@ -637,7 +639,8 @@ class SalesService:
         so = self.get_sales_order(order_id)
         if so.status != "draft":
             raise BusinessRuleError(
-                "ORDER_IMMUTABLE", f"Cannot edit order in status '{so.status}'. Only drafts are editable."
+                "ORDER_IMMUTABLE",
+                f"Cannot edit order in status '{so.status}'. Only drafts are editable.",
             )
         if so.version != payload.version:
             raise ConflictError("Sales order was modified by another transaction. Please reload.")
@@ -680,9 +683,7 @@ class SalesService:
         parts.append(addr.country_code)
         return ", ".join(parts)
 
-    def confirm_sales_order(
-        self, order_id: int, current_user_id: int | None = None
-    ) -> SalesOrder:
+    def confirm_sales_order(self, order_id: int, current_user_id: int | None = None) -> SalesOrder:
         """
         Roadmap Rule 6 & 7:
         - Must have >= 1 line.
@@ -695,7 +696,8 @@ class SalesService:
         so = self.get_sales_order(order_id)
         if so.status != "draft":
             raise BusinessRuleError(
-                "INVALID_TRANSITION", f"Only draft orders can be confirmed. Current status: '{so.status}'"
+                "INVALID_TRANSITION",
+                f"Only draft orders can be confirmed. Current status: '{so.status}'",
             )
 
         if not so.items:
@@ -707,7 +709,8 @@ class SalesService:
 
         if customer.status == "inactive":
             raise BusinessRuleError(
-                "CUSTOMER_INACTIVE", f"Cannot confirm order for inactive customer '{customer.name}'."
+                "CUSTOMER_INACTIVE",
+                f"Cannot confirm order for inactive customer '{customer.name}'.",
             )
 
         # Check all products are active
@@ -716,12 +719,15 @@ class SalesService:
             inactive_prods = list(
                 self.db.execute(
                     select(Product).where(Product.id.in_(prod_ids), Product.is_active == False)  # noqa: E712
-                ).scalars().all()
+                )
+                .scalars()
+                .all()
             )
             if inactive_prods:
                 names = ", ".join(p.name for p in inactive_prods)
                 raise BusinessRuleError(
-                    "PRODUCT_INACTIVE", f"Cannot confirm order containing inactive products: {names}"
+                    "PRODUCT_INACTIVE",
+                    f"Cannot confirm order containing inactive products: {names}",
                 )
 
         # Roadmap Rule 7: Credit Limit Check
@@ -744,18 +750,26 @@ class SalesService:
                 )
 
         # Snapshots: Billing & Shipping addresses
-        b_stmt = select(CustomerAddress).where(
-            CustomerAddress.customer_id == customer.id,
-            CustomerAddress.address_type == "billing",
-            CustomerAddress.is_active == True,  # noqa: E712
-        ).order_by(CustomerAddress.is_default.desc())
+        b_stmt = (
+            select(CustomerAddress)
+            .where(
+                CustomerAddress.customer_id == customer.id,
+                CustomerAddress.address_type == "billing",
+                CustomerAddress.is_active == True,  # noqa: E712
+            )
+            .order_by(CustomerAddress.is_default.desc())
+        )
         billing_addr = self.db.execute(b_stmt).scalars().first()
 
-        s_stmt = select(CustomerAddress).where(
-            CustomerAddress.customer_id == customer.id,
-            CustomerAddress.address_type == "shipping",
-            CustomerAddress.is_active == True,  # noqa: E712
-        ).order_by(CustomerAddress.is_default.desc())
+        s_stmt = (
+            select(CustomerAddress)
+            .where(
+                CustomerAddress.customer_id == customer.id,
+                CustomerAddress.address_type == "shipping",
+                CustomerAddress.is_active == True,  # noqa: E712
+            )
+            .order_by(CustomerAddress.is_default.desc())
+        )
         shipping_addr = self.db.execute(s_stmt).scalars().first() or billing_addr
 
         so.billing_address_snapshot = self._format_address(billing_addr)
@@ -805,7 +819,8 @@ class SalesService:
         so = self.get_sales_order(order_id)
         if so.status != "confirmed":
             raise BusinessRuleError(
-                "INVALID_TRANSITION", f"Only confirmed orders can be placed on hold. Current status: '{so.status}'"
+                "INVALID_TRANSITION",
+                f"Only confirmed orders can be placed on hold. Current status: '{so.status}'",
             )
 
         from_status = so.status
@@ -832,7 +847,8 @@ class SalesService:
         so = self.get_sales_order(order_id)
         if so.status != "on_hold":
             raise BusinessRuleError(
-                "INVALID_TRANSITION", f"Only orders on hold can be released. Current status: '{so.status}'"
+                "INVALID_TRANSITION",
+                f"Only orders on hold can be released. Current status: '{so.status}'",
             )
 
         from_status = so.status
@@ -868,7 +884,8 @@ class SalesService:
         # If confirmed or on_hold, check nothing has been invoiced
         if any(item.quantity_invoiced > Decimal("0.000") for item in so.items):
             raise BusinessRuleError(
-                "ORDER_ALREADY_INVOICED", "Cannot cancel an order that has already been partially or fully invoiced."
+                "ORDER_ALREADY_INVOICED",
+                "Cannot cancel an order that has already been partially or fully invoiced.",
             )
 
         from_status = so.status

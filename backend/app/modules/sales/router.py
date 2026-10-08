@@ -216,7 +216,9 @@ def hold_sales_order(
     service: Annotated[SalesService, Depends(get_sales_service)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> SalesOrderOut:
-    order = service.hold_sales_order(order_id, reason=payload.reason, current_user_id=current_user.id)
+    order = service.hold_sales_order(
+        order_id, reason=payload.reason, current_user_id=current_user.id
+    )
     return SalesOrderOut.model_validate(order)
 
 
@@ -237,5 +239,7 @@ def cancel_sales_order(
     service: Annotated[SalesService, Depends(get_sales_service)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> SalesOrderOut:
-    order = service.cancel_sales_order(order_id, reason=payload.reason, current_user_id=current_user.id)
+    order = service.cancel_sales_order(
+        order_id, reason=payload.reason, current_user_id=current_user.id
+    )
     return SalesOrderOut.model_validate(order)

@@ -32,12 +32,16 @@ def test_db():
     # Seed sequences
     seqs = [
         DocumentSequence(doc_type="quote", prefix="QT", include_year=True, padding=6, next_value=1),
-        DocumentSequence(doc_type="sales_order", prefix="SO", include_year=True, padding=6, next_value=1),
+        DocumentSequence(
+            doc_type="sales_order", prefix="SO", include_year=True, padding=6, next_value=1
+        ),
     ]
     session.add_all(seqs)
 
     # Seed tax rate
-    tr12 = TaxRate(code="VAT12", name="VAT 12%", rate=Decimal("0.1200"), is_default=True, is_active=True)
+    tr12 = TaxRate(
+        code="VAT12", name="VAT 12%", rate=Decimal("0.1200"), is_default=True, is_active=True
+    )
     session.add(tr12)
 
     # Seed test user

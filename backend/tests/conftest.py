@@ -17,6 +17,7 @@ from app.main import app
 def compile_big_int_sqlite(type_, compiler, **kw):
     return "INTEGER"
 
+
 # Check if PostgreSQL is available via DATABASE_URL
 DATABASE_URL = os.getenv("TEST_DATABASE_URL") or os.getenv("DATABASE_URL") or settings.DATABASE_URL
 

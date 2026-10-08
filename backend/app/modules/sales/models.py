@@ -28,7 +28,12 @@ class TaxRate(Base, AuditMixin):
     __tablename__ = "tax_rates"
     __table_args__ = (
         CheckConstraint("rate >= 0 AND rate < 1", name="ck_tax_rates_rate_valid"),
-        Index("uq_tax_rates_single_default", "is_default", unique=True, postgresql_where=text("is_default")),
+        Index(
+            "uq_tax_rates_single_default",
+            "is_default",
+            unique=True,
+            postgresql_where=text("is_default"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -93,7 +98,10 @@ class Quote(Base, AuditMixin, VersionMixin):
     opportunity: Mapped["Opportunity | None"] = relationship("Opportunity")
     contact: Mapped["Contact | None"] = relationship("Contact")
     items: Mapped[list["QuoteItem"]] = relationship(
-        "QuoteItem", back_populates="quote", cascade="all, delete-orphan", order_by="QuoteItem.line_no"
+        "QuoteItem",
+        back_populates="quote",
+        cascade="all, delete-orphan",
+        order_by="QuoteItem.line_no",
     )
 
 
@@ -170,7 +178,9 @@ class SalesOrder(Base, AuditMixin, VersionMixin):
     # Snapshots taken at confirmation (Roadmap Rule 6)
     billing_address_snapshot: Mapped[str] = mapped_column(Text, nullable=False, default="")
     shipping_address_snapshot: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    payment_terms_days_snapshot: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
+    payment_terms_days_snapshot: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, default=0
+    )
 
     cancel_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     owner_user_id: Mapped[int | None] = mapped_column(
@@ -198,7 +208,10 @@ class SalesOrder(Base, AuditMixin, VersionMixin):
     quote: Mapped["Quote | None"] = relationship("Quote")
     contact: Mapped["Contact | None"] = relationship("Contact")
     items: Mapped[list["SalesOrderItem"]] = relationship(
-        "SalesOrderItem", back_populates="order", cascade="all, delete-orphan", order_by="SalesOrderItem.line_no"
+        "SalesOrderItem",
+        back_populates="order",
+        cascade="all, delete-orphan",
+        order_by="SalesOrderItem.line_no",
     )
 
 
