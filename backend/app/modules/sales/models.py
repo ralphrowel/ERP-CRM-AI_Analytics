@@ -23,6 +23,7 @@ from app.core.database import AuditMixin, Base, VersionMixin
 if TYPE_CHECKING:
     from app.modules.catalog.models import Product
     from app.modules.crm.models import Contact, Customer, Opportunity
+    from app.modules.inventory.models import Warehouse
 
 
 class TaxRate(Base, AuditMixin):
@@ -166,6 +167,9 @@ class SalesOrder(Base, AuditMixin, VersionMixin):
     customer_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("customers.id", ondelete="RESTRICT"), nullable=False, index=True
     )
+    warehouse_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
     quote_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("quotes.id", ondelete="SET NULL"), nullable=True, index=True
     )
@@ -206,6 +210,7 @@ class SalesOrder(Base, AuditMixin, VersionMixin):
 
     # Relationships
     customer: Mapped["Customer"] = relationship("Customer")
+    warehouse: Mapped["Warehouse"] = relationship("Warehouse")
     quote: Mapped["Quote | None"] = relationship("Quote")
     contact: Mapped["Contact | None"] = relationship("Contact")
     items: Mapped[list["SalesOrderItem"]] = relationship(

@@ -134,6 +134,7 @@ class PaginatedQuotes(BaseModel):
 
 class SalesOrderCreatePayload(BaseModel):
     customer_id: int
+    warehouse_id: int | None = None
     quote_id: int | None = None
     contact_id: int | None = None
     order_date: date | None = None
@@ -143,6 +144,7 @@ class SalesOrderCreatePayload(BaseModel):
 
 
 class SalesOrderUpdatePayload(BaseModel):
+    warehouse_id: int | None = None
     contact_id: int | None = None
     requested_delivery_date: date | None = None
     notes: str | None = None
@@ -156,6 +158,7 @@ class SalesOrderOut(BaseModel):
     id: int
     order_no: str
     customer_id: int
+    warehouse_id: int
     quote_id: int | None
     contact_id: int | None
     status: str

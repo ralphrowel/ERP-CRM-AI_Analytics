@@ -21,33 +21,76 @@ def compile_big_int_sqlite(type_, compiler, **kw):
 # Check if PostgreSQL is available via DATABASE_URL
 DATABASE_URL = os.getenv("TEST_DATABASE_URL") or os.getenv("DATABASE_URL") or settings.DATABASE_URL
 
-# For tests, we use the configured database or fallback
-test_engine = create_engine(DATABASE_URL, pool_pre_ping=True)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+_use_sqlite = False
+try:
+    _temp_engine = create_engine(
+        DATABASE_URL, pool_pre_ping=True, connect_args={"connect_timeout": 2}
+    )
+    with _temp_engine.connect() as _conn:
+        pass
+except Exception:
+    _use_sqlite = True
 
 
-@pytest.fixture(scope="session")
-def setup_test_db():
-    """Initializes tables for test suite if connecting to accessible test database."""
-    try:
-        Base.metadata.create_all(bind=test_engine)
-        yield
-    except Exception:
-        # If DB server isn't running locally yet, yield gracefully so unit tests can still run
-        yield
+def _seed_document_sequences(session: Session) -> None:
+    from app.core.numbering import DocumentSequence
+
+    existing = {s.doc_type for s in session.query(DocumentSequence).all()}
+    defaults = [
+        DocumentSequence(
+            doc_type="customer", prefix="CUS", include_year=False, padding=6, next_value=1
+        ),
+        DocumentSequence(doc_type="quote", prefix="QT", include_year=True, padding=6, next_value=1),
+        DocumentSequence(
+            doc_type="sales_order", prefix="SO", include_year=True, padding=6, next_value=1
+        ),
+        DocumentSequence(
+            doc_type="invoice", prefix="INV", include_year=True, padding=6, next_value=1
+        ),
+        DocumentSequence(
+            doc_type="payment", prefix="PAY", include_year=True, padding=6, next_value=1
+        ),
+        DocumentSequence(
+            doc_type="credit_note", prefix="CN", include_year=True, padding=6, next_value=1
+        ),
+    ]
+    for s in defaults:
+        if s.doc_type not in existing:
+            session.add(s)
+    session.flush()
 
 
 @pytest.fixture
-def db_session(setup_test_db) -> Generator[Session, None, None]:
-    connection = test_engine.connect()
-    transaction = connection.begin()
-    session = TestingSessionLocal(bind=connection)
+def db_session() -> Generator[Session, None, None]:
+    if _use_sqlite:
+        from sqlalchemy.pool import StaticPool
 
-    yield session
-
-    session.close()
-    transaction.rollback()
-    connection.close()
+        engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        Base.metadata.create_all(engine)
+        session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        session = session_factory()
+        _seed_document_sequences(session)
+        session.commit()
+        try:
+            yield session
+        finally:
+            session.close()
+            engine.dispose()
+    else:
+        engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+        Base.metadata.create_all(engine)
+        session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        session = session_factory()
+        _seed_document_sequences(session)
+        session.commit()
+        try:
+            yield session
+        finally:
+            session.close()
 
 
 @pytest.fixture

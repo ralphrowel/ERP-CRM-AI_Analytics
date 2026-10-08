@@ -94,6 +94,12 @@ export interface SalesOrder {
   customer_id: number
   quote_id?: number | null
   contact_id?: number | null
+  warehouse_id?: number | null
+  warehouse?: {
+    id: number
+    code: string
+    name: string
+  } | null
   status: SalesOrderStatus
   order_date: string
   requested_delivery_date?: string | null
@@ -123,6 +129,7 @@ export interface PaginatedSalesOrders {
 
 export interface SalesOrderCreatePayload {
   customer_id: number
+  warehouse_id?: number | null
   quote_id?: number | null
   contact_id?: number | null
   order_date?: string | null
