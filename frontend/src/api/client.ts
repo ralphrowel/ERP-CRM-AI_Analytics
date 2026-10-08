@@ -92,12 +92,12 @@ export async function apiRequest<T>(
 }
 
 export const api = {
-  get: <T>(url: string) => apiRequest<T>(url, { method: 'GET' }),
-  post: <T>(url: string, body?: unknown) =>
-    apiRequest<T>(url, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
-  put: <T>(url: string, body?: unknown) =>
-    apiRequest<T>(url, { method: 'PUT', body: body ? JSON.stringify(body) : undefined }),
-  patch: <T>(url: string, body?: unknown) =>
-    apiRequest<T>(url, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
-  delete: <T>(url: string) => apiRequest<T>(url, { method: 'DELETE' }),
+  get: <T>(url: string, headers?: HeadersInit) => apiRequest<T>(url, { method: 'GET', headers }),
+  post: <T>(url: string, body?: unknown, headers?: HeadersInit) =>
+    apiRequest<T>(url, { method: 'POST', body: body ? JSON.stringify(body) : undefined, headers }),
+  put: <T>(url: string, body?: unknown, headers?: HeadersInit) =>
+    apiRequest<T>(url, { method: 'PUT', body: body ? JSON.stringify(body) : undefined, headers }),
+  patch: <T>(url: string, body?: unknown, headers?: HeadersInit) =>
+    apiRequest<T>(url, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined, headers }),
+  delete: <T>(url: string, headers?: HeadersInit) => apiRequest<T>(url, { method: 'DELETE', headers }),
 }

@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   CheckCircle,
   FileCheck,
+  FileText,
   History,
   Pause,
   Play,
@@ -173,6 +174,21 @@ export const SalesOrdersPage: React.FC = () => {
       loadData()
     } catch (err: unknown) {
       if (err instanceof ApiError) setGeneralError(err)
+    }
+  }
+
+  const handleCreateInvoice = async (so: SalesOrder) => {
+    try {
+      await salesApi.createInvoiceFromOrder(so.id)
+      setSuccessMessage(`Draft invoice created for Sales Order ${so.order_no}! You can review and issue it in Invoices.`)
+      setTimeout(() => setSuccessMessage(null), 5000)
+      loadData()
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        setGeneralError(err)
+      } else {
+        setGeneralError(new Error('Failed to create invoice from sales order'))
+      }
     }
   }
 
@@ -382,6 +398,14 @@ export const SalesOrdersPage: React.FC = () => {
 
                         {so.status === 'confirmed' && (
                           <>
+                            <button
+                              className="btn btn-primary"
+                              style={{ padding: '0.35rem 0.55rem', fontSize: '0.75rem' }}
+                              onClick={() => handleCreateInvoice(so)}
+                              title="Create Invoice from this Order"
+                            >
+                              <FileText size={12} /> Invoice
+                            </button>
                             <button
                               className="btn btn-secondary"
                               style={{ padding: '0.35rem 0.55rem', fontSize: '0.75rem', color: 'var(--amber-400)' }}
