@@ -1,0 +1,67 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: erp_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: erp_crm
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_superuser_password
+      APP_DB_USER: ${POSTGRES_USER:-erp_app}
+      APP_DB_PASSWORD: ${POSTGRES_PASSWORD:-erp_app_password}
+      OWNER_DB_USER: ${POSTGRES_OWNER_USER:-erp_owner}
+      OWNER_DB_PASSWORD: ${POSTGRES_OWNER_PASSWORD:-erp_owner_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d erp_crm"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: erp_backend
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-erp_app}:${POSTGRES_PASSWORD:-erp_app_password}@postgres:5432/erp_crm
+      - MIGRATION_DATABASE_URL=postgresql+psycopg://${POSTGRES_OWNER_USER:-erp_owner}:${POSTGRES_OWNER_PASSWORD:-erp_owner_password}@postgres:5432/erp_crm
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=erp_crm
+      - POSTGRES_USER=${POSTGRES_USER:-erp_app}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-erp_app_password}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: erp_frontend
+    restart: unless-stopped
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_PROXY_TARGET=http://backend:8000
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
