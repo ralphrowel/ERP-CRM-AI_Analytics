@@ -1,6 +1,6 @@
 """V0.3b schema: Financial Obligation (Invoices, Payments, Credit Notes, Idempotency)
 
-Revision ID: 0004_invoices_payments_credit_notes
+Revision ID: 0004_financial_obligation
 Revises: 0003_quotes_sales_orders
 Create Date: 2026-10-08 15:10:00.000000
 
@@ -11,7 +11,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0004_invoices_payments_credit_notes"
+revision: str = "0004_financial_obligation"
 down_revision: str | None = "0003_quotes_sales_orders"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
