@@ -4,8 +4,10 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import { CompanySettingsPage } from './pages/CompanySettingsPage'
 import { CustomersPage } from './pages/CustomersPage'
 import { EmployeesPage } from './pages/EmployeesPage'
+import { InvoicesPage } from './pages/InvoicesPage'
 import { LeadsPage } from './pages/LeadsPage'
 import { LoginPage } from './pages/LoginPage'
+import { PaymentsPage } from './pages/PaymentsPage'
 import { PipelinePage } from './pages/PipelinePage'
 import { ProductsPage } from './pages/ProductsPage'
 import { QuotesPage } from './pages/QuotesPage'
@@ -61,6 +63,8 @@ const MainRouter: React.FC = () => {
       {activeTab === 'pipeline' && <PipelinePage />}
       {activeTab === 'quotes' && <QuotesPage />}
       {activeTab === 'orders' && <SalesOrdersPage />}
+      {activeTab === 'invoices' && <InvoicesPage />}
+      {activeTab === 'payments' && <PaymentsPage />}
       {activeTab === 'customers' && <CustomersPage />}
       {activeTab === 'products' && <ProductsPage />}
       {activeTab === 'employees' && <EmployeesPage />}

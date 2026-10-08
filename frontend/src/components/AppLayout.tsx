@@ -1,10 +1,12 @@
 import React from 'react'
 import {
   Building2,
+  CreditCard,
   FileText,
   Kanban,
   LogOut,
   Package,
+  Receipt,
   ShieldCheck,
   ShoppingCart,
   UserCheck,
@@ -18,6 +20,8 @@ export type NavTab =
   | 'pipeline'
   | 'quotes'
   | 'orders'
+  | 'invoices'
+  | 'payments'
   | 'customers'
   | 'products'
   | 'employees'
@@ -40,6 +44,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
   const salesItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
     { id: 'quotes', label: 'Quotes & Proposals', icon: <FileText size={18} /> },
     { id: 'orders', label: 'Sales Orders', icon: <ShoppingCart size={18} /> },
+    { id: 'invoices', label: 'Invoices & AR', icon: <Receipt size={18} /> },
+    { id: 'payments', label: 'Payments & Credit', icon: <CreditCard size={18} /> },
   ]
 
   const masterDataItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [

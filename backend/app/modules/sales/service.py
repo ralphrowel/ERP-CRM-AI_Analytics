@@ -1,22 +1,43 @@
+import json
+from datetime import date, timedelta
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.clock import Clock, get_clock
-from app.core.errors import BusinessRuleError, ConflictError, NotFoundError
+from app.core.errors import AppException, BusinessRuleError, ConflictError, NotFoundError
 from app.core.money import calculate_line, round_money
 from app.core.numbering import generate_next_number
 from app.core.status_history import record_status_change
 from app.modules.catalog.models import Product
 from app.modules.crm.models import Customer, CustomerAddress, Opportunity
-from app.modules.sales.models import Quote, QuoteItem, SalesOrder, SalesOrderItem, TaxRate
+from app.modules.sales.models import (
+    CreditNote,
+    CreditNoteItem,
+    IdempotencyKey,
+    Invoice,
+    InvoiceItem,
+    Payment,
+    PaymentAllocation,
+    Quote,
+    QuoteItem,
+    SalesOrder,
+    SalesOrderItem,
+    TaxRate,
+)
 from app.modules.sales.schemas import (
+    CreditNoteCreatePayload,
+    CustomerStatementOut,
+    InvoiceCreateFromOrderPayload,
     LineItemPayload,
+    PaymentCreatePayload,
     QuoteCreatePayload,
     QuoteUpdatePayload,
     SalesOrderCreatePayload,
     SalesOrderUpdatePayload,
+    StatementTransactionOut,
 )
 
 
@@ -908,3 +929,983 @@ class SalesService:
         self.db.commit()
         self.db.refresh(so)
         return so
+
+    # --- Invoices (Milestone V0.3b) ---
+
+    def create_invoice_from_order(
+        self,
+        order_id: int,
+        payload: InvoiceCreateFromOrderPayload | None = None,
+        current_user_id: int | None = None,
+    ) -> Invoice:
+        stmt = (
+            select(SalesOrder)
+            .where(SalesOrder.id == order_id)
+            .options(joinedload(SalesOrder.items), joinedload(SalesOrder.customer))
+        )
+        so = self.db.execute(stmt).unique().scalar_one_or_none()
+        if not so:
+            raise NotFoundError(f"Sales order with ID {order_id} not found.")
+
+        if so.status != "confirmed":
+            raise BusinessRuleError(
+                "INVALID_TRANSITION",
+                f"Cannot create invoice from order in status '{so.status}'. Order must be 'confirmed'.",
+            )
+
+        invoice_items: list[InvoiceItem] = []
+        subtotal = Decimal("0.00")
+        discount_total = Decimal("0.00")
+        tax_total = Decimal("0.00")
+
+        if payload and payload.items:
+            # Custom requested items / quantities
+            so_items_map = {item.id: item for item in so.items}
+            for idx, req_item in enumerate(payload.items, start=1):
+                if req_item.sales_order_item_id not in so_items_map:
+                    raise BusinessRuleError(
+                        "INVALID_ORDER_ITEM",
+                        f"Order item {req_item.sales_order_item_id} does not belong to sales order {so.order_no}.",
+                    )
+                so_item = so_items_map[req_item.sales_order_item_id]
+                remaining_qty = so_item.quantity - so_item.quantity_invoiced
+                if req_item.quantity > remaining_qty:
+                    raise BusinessRuleError(
+                        "OVER_INVOICE_QUANTITY",
+                        f"Requested quantity {req_item.quantity} exceeds remaining uninvoiced quantity {remaining_qty} for line {so_item.line_no}.",
+                    )
+
+                calc = calculate_line(
+                    quantity=req_item.quantity,
+                    unit_price=so_item.unit_price,
+                    discount_amount=req_item.discount_amount,
+                    tax_rate=so_item.tax_rate,
+                )
+                inv_item = InvoiceItem(
+                    line_no=idx,
+                    sales_order_item_id=so_item.id,
+                    product_id=so_item.product_id,
+                    description=req_item.description or so_item.description,
+                    uom=req_item.uom or so_item.uom,
+                    quantity=req_item.quantity,
+                    unit_price=so_item.unit_price,
+                    discount_amount=req_item.discount_amount,
+                    tax_rate_id=so_item.tax_rate_id,
+                    tax_rate=so_item.tax_rate,
+                    line_net=calc["line_net"],
+                    line_tax=calc["line_tax"],
+                    line_total=calc["line_total"],
+                )
+                invoice_items.append(inv_item)
+                subtotal += calc["line_net"]
+                discount_total += req_item.discount_amount
+                tax_total += calc["line_tax"]
+        else:
+            # Auto-populate all remaining un-invoiced items
+            eligible_items = [
+                item
+                for item in so.items
+                if item.quantity - item.quantity_invoiced > Decimal("0.000")
+            ]
+            if not eligible_items:
+                raise BusinessRuleError(
+                    "ORDER_FULLY_INVOICED",
+                    f"All items on sales order {so.order_no} have already been fully invoiced.",
+                )
+
+            for idx, so_item in enumerate(eligible_items, start=1):
+                qty_to_invoice = so_item.quantity - so_item.quantity_invoiced
+                calc = calculate_line(
+                    quantity=qty_to_invoice,
+                    unit_price=so_item.unit_price,
+                    discount_amount=so_item.discount_amount,
+                    tax_rate=so_item.tax_rate,
+                )
+                inv_item = InvoiceItem(
+                    line_no=idx,
+                    sales_order_item_id=so_item.id,
+                    product_id=so_item.product_id,
+                    description=so_item.description,
+                    uom=so_item.uom,
+                    quantity=qty_to_invoice,
+                    unit_price=so_item.unit_price,
+                    discount_amount=so_item.discount_amount,
+                    tax_rate_id=so_item.tax_rate_id,
+                    tax_rate=so_item.tax_rate,
+                    line_net=calc["line_net"],
+                    line_tax=calc["line_tax"],
+                    line_total=calc["line_total"],
+                )
+                invoice_items.append(inv_item)
+                subtotal += calc["line_net"]
+                discount_total += so_item.discount_amount
+                tax_total += calc["line_tax"]
+
+        subtotal = round_money(subtotal)
+        discount_total = round_money(discount_total)
+        tax_total = round_money(tax_total)
+        grand_total = round_money(subtotal + tax_total)
+
+        invoice = Invoice(
+            customer_id=so.customer_id,
+            sales_order_id=so.id,
+            status="draft",
+            currency_code=so.currency_code,
+            subtotal=subtotal,
+            discount_total=discount_total,
+            tax_total=tax_total,
+            grand_total=grand_total,
+            amount_paid=Decimal("0.00"),
+            amount_credited=Decimal("0.00"),
+            balance_due=grand_total,
+            items=invoice_items,
+            created_by=current_user_id,
+            updated_by=current_user_id,
+        )
+
+        self.db.add(invoice)
+        self.db.commit()
+        self.db.refresh(invoice)
+
+        record_status_change(
+            self.db,
+            entity_type="invoice",
+            entity_id=invoice.id,
+            from_status=None,
+            to_status="draft",
+            reason=f"Draft invoice created from Sales Order {so.order_no}",
+            changed_by=current_user_id,
+            clock=self.clock,
+        )
+        self.db.commit()
+        self.db.refresh(invoice)
+        return invoice
+
+    def get_invoice(self, invoice_id: int) -> Invoice:
+        stmt = (
+            select(Invoice)
+            .where(Invoice.id == invoice_id)
+            .options(
+                joinedload(Invoice.items),
+                joinedload(Invoice.customer),
+                joinedload(Invoice.allocations),
+                joinedload(Invoice.credit_notes),
+            )
+        )
+        inv = self.db.execute(stmt).unique().scalar_one_or_none()
+        if not inv:
+            raise NotFoundError(f"Invoice with ID {invoice_id} not found.")
+        return inv
+
+    def list_invoices(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        customer_id: int | None = None,
+        status: str | None = None,
+        sales_order_id: int | None = None,
+    ) -> tuple[list[Invoice], int]:
+        stmt = select(Invoice).options(joinedload(Invoice.items))
+        if customer_id is not None:
+            stmt = stmt.where(Invoice.customer_id == customer_id)
+        if status is not None:
+            stmt = stmt.where(Invoice.status == status)
+        if sales_order_id is not None:
+            stmt = stmt.where(Invoice.sales_order_id == sales_order_id)
+
+        count_stmt = select(func.count(Invoice.id))
+        if customer_id is not None:
+            count_stmt = count_stmt.where(Invoice.customer_id == customer_id)
+        if status is not None:
+            count_stmt = count_stmt.where(Invoice.status == status)
+        if sales_order_id is not None:
+            count_stmt = count_stmt.where(Invoice.sales_order_id == sales_order_id)
+
+        total = self.db.execute(count_stmt).scalar() or 0
+        stmt = stmt.order_by(Invoice.id.desc()).offset((page - 1) * page_size).limit(page_size)
+        items = list(self.db.execute(stmt).unique().scalars().all())
+        return items, total
+
+    def issue_invoice(
+        self,
+        invoice_id: int,
+        issue_date: date | None = None,
+        due_date: date | None = None,
+        current_user_id: int | None = None,
+    ) -> Invoice:
+        inv = self.get_invoice(invoice_id)
+        if inv.status != "draft":
+            raise BusinessRuleError(
+                "INVALID_TRANSITION",
+                f"Only draft invoices can be issued. Current status: '{inv.status}'",
+            )
+        if not inv.items:
+            raise BusinessRuleError("EMPTY_DOCUMENT", "Cannot issue an invoice with no line items.")
+
+        customer = self.db.execute(
+            select(Customer).where(Customer.id == inv.customer_id)
+        ).scalar_one()
+
+        actual_issue_date = issue_date or self.clock.now().date()
+        invoice_no = generate_next_number(self.db, "invoice", self.clock)
+
+        # Snapshots
+        inv.invoice_no = invoice_no
+        inv.issue_date = actual_issue_date
+        inv.customer_name_snapshot = getattr(customer, "legal_name", None) or customer.name
+        inv.customer_tin_snapshot = getattr(customer, "tax_id", None) or customer.tin
+
+        # Billing address snapshot
+        b_stmt = (
+            select(CustomerAddress)
+            .where(
+                CustomerAddress.customer_id == customer.id,
+                CustomerAddress.address_type == "billing",
+                CustomerAddress.is_active == True,  # noqa: E712
+            )
+            .order_by(CustomerAddress.is_default.desc())
+        )
+        billing_addr = self.db.execute(b_stmt).scalars().first()
+        inv.billing_address_snapshot = self._format_address(billing_addr)
+
+        # Payment terms & Due date
+        terms_days = customer.payment_terms_days or 30
+        inv.due_date = due_date or (actual_issue_date + timedelta(days=terms_days))
+
+        # Update sales order invoiced quantities and check completion
+        if inv.sales_order_id:
+            so = self.get_sales_order(inv.sales_order_id)
+            so_items_map = {item.id: item for item in so.items}
+            for inv_item in inv.items:
+                if inv_item.sales_order_item_id and inv_item.sales_order_item_id in so_items_map:
+                    so_item = so_items_map[inv_item.sales_order_item_id]
+                    so_item.quantity_invoiced += inv_item.quantity
+
+            # Check if all order lines are fully invoiced -> complete order
+            if all(si.quantity_invoiced >= si.quantity for si in so.items):
+                so_from = so.status
+                so.status = "completed"
+                so.version += 1
+                so.updated_by = current_user_id
+                record_status_change(
+                    self.db,
+                    entity_type="sales_order",
+                    entity_id=so.id,
+                    from_status=so_from,
+                    to_status="completed",
+                    reason=f"Order fully invoiced upon issue of Invoice {invoice_no}",
+                    changed_by=current_user_id,
+                    clock=self.clock,
+                )
+
+        from_status = inv.status
+        inv.status = "issued"
+        inv.balance_due = inv.grand_total - inv.amount_paid - inv.amount_credited
+        inv.version += 1
+        inv.updated_by = current_user_id
+
+        record_status_change(
+            self.db,
+            entity_type="invoice",
+            entity_id=inv.id,
+            from_status=from_status,
+            to_status="issued",
+            reason=f"Invoice {invoice_no} officially issued",
+            changed_by=current_user_id,
+            clock=self.clock,
+        )
+
+        self.db.commit()
+        self.db.refresh(inv)
+        return inv
+
+    def void_invoice(
+        self, invoice_id: int, reason: str | None = None, current_user_id: int | None = None
+    ) -> Invoice:
+        inv = self.get_invoice(invoice_id)
+        if inv.status != "issued":
+            raise BusinessRuleError(
+                "INVALID_TRANSITION",
+                f"Only issued invoices can be voided. Current status: '{inv.status}'",
+            )
+        if inv.amount_paid > Decimal("0.00"):
+            raise BusinessRuleError(
+                "INVOICE_HAS_PAYMENTS",
+                "Cannot void invoice that has recorded payment allocations.",
+            )
+        if inv.amount_credited > Decimal("0.00"):
+            raise BusinessRuleError(
+                "INVOICE_HAS_CREDIT_NOTES",
+                "Cannot void invoice that has active credit notes.",
+            )
+
+        # Reverse sales order quantity_invoiced
+        if inv.sales_order_id:
+            so = self.get_sales_order(inv.sales_order_id)
+            so_items_map = {item.id: item for item in so.items}
+            for inv_item in inv.items:
+                if inv_item.sales_order_item_id and inv_item.sales_order_item_id in so_items_map:
+                    so_item = so_items_map[inv_item.sales_order_item_id]
+                    so_item.quantity_invoiced -= inv_item.quantity
+                    if so_item.quantity_invoiced < Decimal("0.000"):
+                        so_item.quantity_invoiced = Decimal("0.000")
+
+            if so.status == "completed":
+                so_from = so.status
+                so.status = "confirmed"
+                so.version += 1
+                so.updated_by = current_user_id
+                record_status_change(
+                    self.db,
+                    entity_type="sales_order",
+                    entity_id=so.id,
+                    from_status=so_from,
+                    to_status="confirmed",
+                    reason=f"Order reverted from completed after Invoice {inv.invoice_no} voided",
+                    changed_by=current_user_id,
+                    clock=self.clock,
+                )
+
+        from_status = inv.status
+        inv.status = "void"
+        inv.voided_at = self.clock.now()
+        inv.void_reason = reason or "Voided by user"
+        inv.balance_due = Decimal("0.00")
+        inv.version += 1
+        inv.updated_by = current_user_id
+
+        record_status_change(
+            self.db,
+            entity_type="invoice",
+            entity_id=inv.id,
+            from_status=from_status,
+            to_status="void",
+            reason=reason or "Invoice voided",
+            changed_by=current_user_id,
+            clock=self.clock,
+        )
+
+        self.db.commit()
+        self.db.refresh(inv)
+        return inv
+
+    # --- Payments & Allocations (Milestone V0.3b) ---
+
+    def create_payment(
+        self, payload: PaymentCreatePayload, current_user_id: int | None = None
+    ) -> Payment:
+        customer = self.db.execute(
+            select(Customer).where(Customer.id == payload.customer_id)
+        ).scalar_one_or_none()
+        if not customer:
+            raise NotFoundError(f"Customer with ID {payload.customer_id} not found.")
+        if customer.status == "inactive":
+            raise BusinessRuleError(
+                "CUSTOMER_INACTIVE", "Cannot accept payment for inactive customer."
+            )
+
+        pay_date = payload.payment_date or self.clock.now().date()
+        payment_no = generate_next_number(self.db, "payment", self.clock)
+
+        payment = Payment(
+            payment_no=payment_no,
+            customer_id=payload.customer_id,
+            payment_date=pay_date,
+            method=payload.method,
+            reference_no=payload.reference_no,
+            amount=round_money(payload.amount),
+            amount_allocated=Decimal("0.00"),
+            status="posted",
+            created_by=current_user_id,
+            updated_by=current_user_id,
+        )
+        self.db.add(payment)
+        self.db.flush()
+
+        # If allocations are provided initially, process them
+        if payload.allocations:
+            for alloc_item in payload.allocations:
+                self._execute_allocation(
+                    payment=payment,
+                    invoice_id=alloc_item.invoice_id,
+                    amount=alloc_item.amount,
+                    current_user_id=current_user_id,
+                )
+
+        self.db.commit()
+        self.db.refresh(payment)
+        return payment
+
+    def get_payment(self, payment_id: int) -> Payment:
+        stmt = (
+            select(Payment)
+            .where(Payment.id == payment_id)
+            .options(joinedload(Payment.allocations), joinedload(Payment.customer))
+        )
+        pay = self.db.execute(stmt).unique().scalar_one_or_none()
+        if not pay:
+            raise NotFoundError(f"Payment with ID {payment_id} not found.")
+        return pay
+
+    def list_payments(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        customer_id: int | None = None,
+        status: str | None = None,
+    ) -> tuple[list[Payment], int]:
+        stmt = select(Payment).options(joinedload(Payment.allocations))
+        if customer_id is not None:
+            stmt = stmt.where(Payment.customer_id == customer_id)
+        if status is not None:
+            stmt = stmt.where(Payment.status == status)
+
+        count_stmt = select(func.count(Payment.id))
+        if customer_id is not None:
+            count_stmt = count_stmt.where(Payment.customer_id == customer_id)
+        if status is not None:
+            count_stmt = count_stmt.where(Payment.status == status)
+
+        total = self.db.execute(count_stmt).scalar() or 0
+        stmt = stmt.order_by(Payment.id.desc()).offset((page - 1) * page_size).limit(page_size)
+        items = list(self.db.execute(stmt).unique().scalars().all())
+        return items, total
+
+    def allocate_payment(
+        self,
+        payment_id: int,
+        invoice_id: int,
+        amount: Decimal,
+        current_user_id: int | None = None,
+    ) -> PaymentAllocation:
+        # Row locking payment and invoice with_for_update()
+        stmt_pay = select(Payment).where(Payment.id == payment_id).with_for_update()
+        pay = self.db.execute(stmt_pay).scalar_one_or_none()
+        if not pay:
+            raise NotFoundError(f"Payment with ID {payment_id} not found.")
+
+        alloc = self._execute_allocation(
+            payment=pay,
+            invoice_id=invoice_id,
+            amount=amount,
+            current_user_id=current_user_id,
+        )
+        self.db.commit()
+        return alloc
+
+    def _execute_allocation(
+        self,
+        payment: Payment,
+        invoice_id: int,
+        amount: Decimal,
+        current_user_id: int | None = None,
+    ) -> PaymentAllocation:
+        if amount <= Decimal("0.00"):
+            raise BusinessRuleError(
+                "INVALID_AMOUNT", "Allocation amount must be strictly greater than zero."
+            )
+
+        if payment.status != "posted":
+            raise BusinessRuleError(
+                "PAYMENT_NOT_POSTED",
+                f"Cannot allocate payment with status '{payment.status}'. Payment must be 'posted'.",
+            )
+
+        # Row lock invoice
+        stmt_inv = select(Invoice).where(Invoice.id == invoice_id).with_for_update()
+        inv = self.db.execute(stmt_inv).scalar_one_or_none()
+        if not inv:
+            raise NotFoundError(f"Invoice with ID {invoice_id} not found.")
+
+        if inv.customer_id != payment.customer_id:
+            raise BusinessRuleError(
+                "CUSTOMER_MISMATCH",
+                "Payment customer and invoice customer must be identical.",
+            )
+
+        if inv.status not in ("issued", "partially_paid"):
+            raise BusinessRuleError(
+                "INVALID_INVOICE_STATUS",
+                f"Cannot allocate payment to invoice with status '{inv.status}'. Must be 'issued' or 'partially_paid'.",
+            )
+
+        available_payment = payment.amount - payment.amount_allocated
+        alloc_amount = round_money(amount)
+
+        if alloc_amount > available_payment:
+            raise BusinessRuleError(
+                "INSUFFICIENT_PAYMENT_BALANCE",
+                f"Allocation amount {alloc_amount} exceeds unallocated payment balance {available_payment}.",
+            )
+
+        if alloc_amount > inv.balance_due:
+            raise BusinessRuleError(
+                "OVER_ALLOCATION",
+                f"Allocation amount {alloc_amount} exceeds invoice balance due {inv.balance_due}.",
+            )
+
+        # Check existing allocation pair
+        stmt_existing = select(PaymentAllocation).where(
+            PaymentAllocation.payment_id == payment.id,
+            PaymentAllocation.invoice_id == inv.id,
+        )
+        alloc = self.db.execute(stmt_existing).scalar_one_or_none()
+        if alloc:
+            alloc.amount += alloc_amount
+        else:
+            alloc = PaymentAllocation(
+                payment_id=payment.id,
+                invoice_id=inv.id,
+                amount=alloc_amount,
+                allocated_at=self.clock.now(),
+                allocated_by=current_user_id,
+            )
+            self.db.add(alloc)
+
+        payment.amount_allocated += alloc_amount
+        inv.amount_paid += alloc_amount
+        inv.balance_due = round_money(inv.grand_total - inv.amount_paid - inv.amount_credited)
+
+        from_status = inv.status
+        if inv.balance_due == Decimal("0.00"):
+            new_status = "paid"
+        else:
+            new_status = "partially_paid"
+
+        if new_status != from_status:
+            inv.status = new_status
+            inv.version += 1
+            inv.updated_by = current_user_id
+            record_status_change(
+                self.db,
+                entity_type="invoice",
+                entity_id=inv.id,
+                from_status=from_status,
+                to_status=new_status,
+                reason=f"Payment {payment.payment_no} allocated {alloc_amount}",
+                changed_by=current_user_id,
+                clock=self.clock,
+            )
+
+        return alloc
+
+    def void_payment(
+        self, payment_id: int, reason: str | None = None, current_user_id: int | None = None
+    ) -> Payment:
+        stmt_pay = (
+            select(Payment)
+            .where(Payment.id == payment_id)
+            .options(joinedload(Payment.allocations))
+            .with_for_update()
+        )
+        pay = self.db.execute(stmt_pay).unique().scalar_one_or_none()
+        if not pay:
+            raise NotFoundError(f"Payment with ID {payment_id} not found.")
+
+        if pay.status != "posted":
+            raise BusinessRuleError(
+                "INVALID_TRANSITION",
+                f"Only posted payments can be voided. Current status: '{pay.status}'",
+            )
+
+        # Reverse allocations on affected invoices
+        for alloc in list(pay.allocations):
+            stmt_inv = select(Invoice).where(Invoice.id == alloc.invoice_id).with_for_update()
+            inv = self.db.execute(stmt_inv).scalar_one()
+
+            inv.amount_paid -= alloc.amount
+            if inv.amount_paid < Decimal("0.00"):
+                inv.amount_paid = Decimal("0.00")
+            inv.balance_due = round_money(inv.grand_total - inv.amount_paid - inv.amount_credited)
+
+            # Revert status
+            from_status = inv.status
+            if inv.balance_due == inv.grand_total and inv.amount_credited == Decimal("0.00"):
+                new_status = "issued"
+            elif inv.balance_due > Decimal("0.00"):
+                new_status = "partially_paid"
+            else:
+                new_status = "paid"
+
+            if new_status != from_status:
+                inv.status = new_status
+                inv.version += 1
+                inv.updated_by = current_user_id
+                record_status_change(
+                    self.db,
+                    entity_type="invoice",
+                    entity_id=inv.id,
+                    from_status=from_status,
+                    to_status=new_status,
+                    reason=f"Payment {pay.payment_no} voided; allocation reversed",
+                    changed_by=current_user_id,
+                    clock=self.clock,
+                )
+            self.db.delete(alloc)
+
+        pay.amount_allocated = Decimal("0.00")
+        pay.status = "void"
+        pay.void_reason = reason or "Voided by user"
+        pay.version += 1
+        pay.updated_by = current_user_id
+
+        self.db.commit()
+        self.db.refresh(pay)
+        return pay
+
+    # --- Credit Notes (Milestone V0.3b) ---
+
+    def create_credit_note(
+        self, payload: CreditNoteCreatePayload, current_user_id: int | None = None
+    ) -> CreditNote:
+        inv = self.get_invoice(payload.invoice_id)
+        if inv.status not in ("issued", "partially_paid", "paid"):
+            raise BusinessRuleError(
+                "INVALID_INVOICE_STATUS",
+                f"Cannot issue credit note against invoice in status '{inv.status}'.",
+            )
+
+        credit_items: list[CreditNoteItem] = []
+        subtotal = Decimal("0.00")
+        discount_total = Decimal("0.00")
+        tax_total = Decimal("0.00")
+
+        if payload.items:
+            inv_items_map = {item.id: item for item in inv.items}
+            for idx, item_data in enumerate(payload.items, start=1):
+                inv_item = (
+                    inv_items_map.get(item_data.invoice_item_id)
+                    if item_data.invoice_item_id
+                    else None
+                )
+                tax_rate_val = inv_item.tax_rate if inv_item else Decimal("0.1200")
+                tax_rate_id_val = inv_item.tax_rate_id if inv_item else 1
+
+                calc = calculate_line(
+                    quantity=item_data.quantity,
+                    unit_price=item_data.unit_price,
+                    discount_amount=item_data.discount_amount,
+                    tax_rate=tax_rate_val,
+                )
+                cn_item = CreditNoteItem(
+                    line_no=idx,
+                    invoice_item_id=inv_item.id if inv_item else None,
+                    product_id=item_data.product_id or (inv_item.product_id if inv_item else None),
+                    description=item_data.description
+                    or (inv_item.description if inv_item else f"Credit item {idx}"),
+                    uom=item_data.uom or (inv_item.uom if inv_item else "pc"),
+                    quantity=item_data.quantity,
+                    unit_price=item_data.unit_price,
+                    discount_amount=item_data.discount_amount,
+                    tax_rate_id=tax_rate_id_val,
+                    tax_rate=tax_rate_val,
+                    line_net=calc["line_net"],
+                    line_tax=calc["line_tax"],
+                    line_total=calc["line_total"],
+                )
+                credit_items.append(cn_item)
+                subtotal += calc["line_net"]
+                discount_total += item_data.discount_amount
+                tax_total += calc["line_tax"]
+        else:
+            # Default full remaining balance
+            if inv.balance_due <= Decimal("0.00"):
+                raise BusinessRuleError(
+                    "INVOICE_ZERO_BALANCE",
+                    "Invoice has zero remaining balance due to credit.",
+                )
+            default_tax = self.get_default_tax_rate()
+            # Pro-rate net and tax from balance due
+            # Or use balance due directly with 0 tax line
+            zero_tax = (
+                self.db.execute(select(TaxRate).where(TaxRate.rate == Decimal("0.0000")))
+                .scalars()
+                .first()
+                or default_tax
+            )
+            calc = calculate_line(
+                quantity=Decimal("1.000"),
+                unit_price=inv.balance_due,
+                discount_amount=Decimal("0.00"),
+                tax_rate=zero_tax.rate,
+            )
+            cn_item = CreditNoteItem(
+                line_no=1,
+                invoice_item_id=None,
+                product_id=None,
+                description=f"Credit note balance adjustment for Invoice {inv.invoice_no}",
+                uom="ea",
+                quantity=Decimal("1.000"),
+                unit_price=inv.balance_due,
+                discount_amount=Decimal("0.00"),
+                tax_rate_id=zero_tax.id,
+                tax_rate=zero_tax.rate,
+                line_net=calc["line_net"],
+                line_tax=calc["line_tax"],
+                line_total=calc["line_total"],
+            )
+            credit_items.append(cn_item)
+            subtotal = calc["line_net"]
+            tax_total = calc["line_tax"]
+
+        subtotal = round_money(subtotal)
+        discount_total = round_money(discount_total)
+        tax_total = round_money(tax_total)
+        grand_total = round_money(subtotal + tax_total)
+
+        max_allowed_credit = inv.grand_total - inv.amount_credited
+        if grand_total > max_allowed_credit:
+            raise BusinessRuleError(
+                "EXCESSIVE_CREDIT",
+                f"Credit note amount {grand_total} exceeds maximum creditable amount {max_allowed_credit}.",
+            )
+
+        if grand_total > inv.balance_due:
+            raise BusinessRuleError(
+                "EXCEEDS_BALANCE_DUE",
+                f"Credit note amount {grand_total} exceeds current balance due {inv.balance_due}.",
+            )
+
+        actual_issue_date = self.clock.now().date()
+        cn_no = generate_next_number(self.db, "credit_note", self.clock)
+
+        credit_note = CreditNote(
+            credit_note_no=cn_no,
+            invoice_id=inv.id,
+            customer_id=inv.customer_id,
+            status="issued",
+            issue_date=actual_issue_date,
+            reason=payload.reason,
+            currency_code=inv.currency_code,
+            subtotal=subtotal,
+            discount_total=discount_total,
+            tax_total=tax_total,
+            grand_total=grand_total,
+            items=credit_items,
+            created_by=current_user_id,
+            updated_by=current_user_id,
+        )
+        self.db.add(credit_note)
+
+        # Apply credit to invoice
+        inv.amount_credited += grand_total
+        inv.balance_due = round_money(inv.grand_total - inv.amount_paid - inv.amount_credited)
+
+        from_status = inv.status
+        if inv.balance_due == Decimal("0.00"):
+            new_status = "paid"
+            if new_status != from_status:
+                inv.status = new_status
+                inv.version += 1
+                inv.updated_by = current_user_id
+                record_status_change(
+                    self.db,
+                    entity_type="invoice",
+                    entity_id=inv.id,
+                    from_status=from_status,
+                    to_status=new_status,
+                    reason=f"Settled by Credit Note {cn_no}",
+                    changed_by=current_user_id,
+                    clock=self.clock,
+                )
+
+        self.db.commit()
+        self.db.refresh(credit_note)
+        return credit_note
+
+    def get_credit_note(self, credit_note_id: int) -> CreditNote:
+        stmt = (
+            select(CreditNote)
+            .where(CreditNote.id == credit_note_id)
+            .options(joinedload(CreditNote.items), joinedload(CreditNote.customer))
+        )
+        cn = self.db.execute(stmt).unique().scalar_one_or_none()
+        if not cn:
+            raise NotFoundError(f"Credit note with ID {credit_note_id} not found.")
+        return cn
+
+    def list_credit_notes(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        customer_id: int | None = None,
+        invoice_id: int | None = None,
+    ) -> tuple[list[CreditNote], int]:
+        stmt = select(CreditNote).options(joinedload(CreditNote.items))
+        if customer_id is not None:
+            stmt = stmt.where(CreditNote.customer_id == customer_id)
+        if invoice_id is not None:
+            stmt = stmt.where(CreditNote.invoice_id == invoice_id)
+
+        count_stmt = select(func.count(CreditNote.id))
+        if customer_id is not None:
+            count_stmt = count_stmt.where(CreditNote.customer_id == customer_id)
+        if invoice_id is not None:
+            count_stmt = count_stmt.where(CreditNote.invoice_id == invoice_id)
+
+        total = self.db.execute(count_stmt).scalar() or 0
+        stmt = stmt.order_by(CreditNote.id.desc()).offset((page - 1) * page_size).limit(page_size)
+        items = list(self.db.execute(stmt).unique().scalars().all())
+        return items, total
+
+    # --- Customer Statement (Milestone V0.3b) ---
+
+    def get_customer_statement(self, customer_id: int) -> CustomerStatementOut:
+        customer = self.db.execute(
+            select(Customer).where(Customer.id == customer_id)
+        ).scalar_one_or_none()
+        if not customer:
+            raise NotFoundError(f"Customer with ID {customer_id} not found.")
+
+        # Invoices
+        inv_stmt = (
+            select(Invoice)
+            .where(Invoice.customer_id == customer_id, Invoice.status.notin_(["draft", "void"]))
+            .order_by(Invoice.issue_date.asc(), Invoice.id.asc())
+        )
+        invoices = list(self.db.execute(inv_stmt).scalars().all())
+
+        # Payments
+        pay_stmt = (
+            select(Payment)
+            .where(Payment.customer_id == customer_id, Payment.status != "void")
+            .order_by(Payment.payment_date.asc(), Payment.id.asc())
+        )
+        payments = list(self.db.execute(pay_stmt).scalars().all())
+
+        # Credit Notes
+        cn_stmt = (
+            select(CreditNote)
+            .where(CreditNote.customer_id == customer_id, CreditNote.status != "void")
+            .order_by(CreditNote.issue_date.asc(), CreditNote.id.asc())
+        )
+        credit_notes = list(self.db.execute(cn_stmt).scalars().all())
+
+        total_invoiced = sum(i.grand_total for i in invoices)
+        total_paid = sum(p.amount for p in payments)
+        total_credited = sum(c.grand_total for c in credit_notes)
+        unallocated_credit = sum(p.amount - p.amount_allocated for p in payments)
+        open_ar_balance = sum(i.balance_due for i in invoices) - unallocated_credit
+
+        # Build chronological transactions ledger
+        raw_events: list[dict[str, Any]] = []
+        for i in invoices:
+            raw_events.append(
+                {
+                    "date": i.issue_date or i.created_at.date(),
+                    "doc_type": "invoice",
+                    "doc_no": i.invoice_no or f"INV-{i.id}",
+                    "reference": f"Due {i.due_date}" if i.due_date else None,
+                    "invoiced": i.grand_total,
+                    "paid": Decimal("0.00"),
+                }
+            )
+        for p in payments:
+            raw_events.append(
+                {
+                    "date": p.payment_date,
+                    "doc_type": "payment",
+                    "doc_no": p.payment_no,
+                    "reference": p.reference_no,
+                    "invoiced": Decimal("0.00"),
+                    "paid": p.amount,
+                }
+            )
+        for c in credit_notes:
+            raw_events.append(
+                {
+                    "date": c.issue_date or c.created_at.date(),
+                    "doc_type": "credit_note",
+                    "doc_no": c.credit_note_no or f"CN-{c.id}",
+                    "reference": c.reason,
+                    "invoiced": Decimal("0.00"),
+                    "paid": c.grand_total,
+                }
+            )
+
+        raw_events.sort(key=lambda x: (x["date"], x["doc_no"]))
+
+        running = Decimal("0.00")
+        txns: list[StatementTransactionOut] = []
+        for ev in raw_events:
+            running += ev["invoiced"] - ev["paid"]
+            txns.append(
+                StatementTransactionOut(
+                    date=ev["date"],
+                    doc_type=ev["doc_type"],
+                    doc_no=ev["doc_no"],
+                    reference=ev["reference"],
+                    amount_invoiced=str(ev["invoiced"]),
+                    amount_paid=str(ev["paid"]),
+                    running_balance=str(round_money(running)),
+                )
+            )
+
+        return CustomerStatementOut(
+            customer_id=customer.id,
+            customer_name=customer.name,
+            statement_date=self.clock.now().date(),
+            total_invoiced=str(round_money(total_invoiced)),
+            total_paid=str(round_money(total_paid)),
+            total_credited=str(round_money(total_credited)),
+            unallocated_credit=str(round_money(unallocated_credit)),
+            open_ar_balance=str(round_money(open_ar_balance)),
+            transactions=txns,
+        )
+
+    # --- Idempotency Support (Milestone V0.3b) ---
+
+    def check_idempotency(
+        self, user_id: int, key: str, request_hash: str
+    ) -> tuple[bool, int | None, Any | None]:
+        stmt = select(IdempotencyKey).where(
+            IdempotencyKey.user_id == user_id, IdempotencyKey.key == key
+        )
+        existing = self.db.execute(stmt).scalar_one_or_none()
+        if not existing:
+            return False, None, None
+
+        if existing.request_hash != request_hash:
+            raise AppException(
+                status_code=422,
+                code="IDEMPOTENCY_CONFLICT",
+                title="Unprocessable Entity",
+                detail="Idempotency key was previously used with a different request payload.",
+            )
+
+        if existing.response_status is not None and existing.response_body is not None:
+            return True, existing.response_status, json.loads(existing.response_body)
+
+        raise ConflictError("A request with this idempotency key is already in progress.")
+
+    def record_idempotency_result(
+        self,
+        user_id: int,
+        key: str,
+        method: str,
+        path: str,
+        request_hash: str,
+        status_code: int,
+        response_body: Any,
+    ) -> None:
+        stmt = select(IdempotencyKey).where(
+            IdempotencyKey.user_id == user_id, IdempotencyKey.key == key
+        )
+        existing = self.db.execute(stmt).scalar_one_or_none()
+        body_str = json.dumps(response_body, default=str)
+        if existing:
+            existing.response_status = status_code
+            existing.response_body = body_str
+        else:
+            new_key = IdempotencyKey(
+                user_id=user_id,
+                key=key,
+                method=method,
+                path=path,
+                request_hash=request_hash,
+                response_status=status_code,
+                response_body=body_str,
+                created_at=self.clock.now(),
+            )
+            self.db.add(new_key)
+        self.db.commit()
