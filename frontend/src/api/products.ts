@@ -18,6 +18,7 @@ export interface Product {
   product_type: 'stock' | 'service'
   uom: 'pc' | 'box' | 'pack' | 'kg' | 'l' | 'm' | 'hr'
   list_price: string
+  reorder_point?: string
   is_active: boolean
   version: number
   created_at: string
@@ -39,6 +40,7 @@ export interface ProductCreatePayload {
   product_type?: 'stock' | 'service'
   uom?: 'pc' | 'box' | 'pack' | 'kg' | 'l' | 'm' | 'hr'
   list_price: string
+  reorder_point?: string
 }
 
 export interface ProductUpdatePayload {
@@ -49,6 +51,7 @@ export interface ProductUpdatePayload {
   product_type?: 'stock' | 'service'
   uom?: 'pc' | 'box' | 'pack' | 'kg' | 'l' | 'm' | 'hr'
   list_price?: string
+  reorder_point?: string
   is_active?: boolean
   version: number
 }

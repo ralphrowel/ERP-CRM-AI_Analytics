@@ -12,6 +12,7 @@ from app.core.numbering import DocumentSequence
 from app.modules.catalog.models import Product, ProductCategory
 from app.modules.crm.models import Customer, CustomerAddress
 from app.modules.identity.models import User
+from app.modules.inventory.models import InventoryBalance, Warehouse
 from app.modules.sales.models import TaxRate
 from app.modules.sales.schemas import (
     CreditNoteCreatePayload,
@@ -85,6 +86,26 @@ def fin_db():
         is_active=True,
     )
     session.add(prod)
+    session.flush()
+
+    wh = Warehouse(
+        code="WH-FIN-01",
+        name="Financial Test Warehouse",
+        address="Makati",
+        is_active=True,
+        is_default=True,
+    )
+    session.add(wh)
+    session.flush()
+
+    bal = InventoryBalance(
+        product_id=prod.id,
+        warehouse_id=wh.id,
+        qty_on_hand=Decimal("1000.000"),
+        qty_reserved=Decimal("0.000"),
+        avg_unit_cost=Decimal("500.0000"),
+    )
+    session.add(bal)
 
     # Seed customer
     cust = Customer(

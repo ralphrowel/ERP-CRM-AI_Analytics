@@ -5,6 +5,7 @@ import { CompanySettingsPage } from './pages/CompanySettingsPage'
 import { CustomersPage } from './pages/CustomersPage'
 import { EmployeesPage } from './pages/EmployeesPage'
 import { InvoicesPage } from './pages/InvoicesPage'
+import { InventoryPage } from './pages/InventoryPage'
 import { LeadsPage } from './pages/LeadsPage'
 import { LoginPage } from './pages/LoginPage'
 import { PaymentsPage } from './pages/PaymentsPage'
@@ -65,6 +66,7 @@ const MainRouter: React.FC = () => {
       {activeTab === 'orders' && <SalesOrdersPage />}
       {activeTab === 'invoices' && <InvoicesPage />}
       {activeTab === 'payments' && <PaymentsPage />}
+      {activeTab === 'inventory' && <InventoryPage />}
       {activeTab === 'customers' && <CustomersPage />}
       {activeTab === 'products' && <ProductsPage />}
       {activeTab === 'employees' && <EmployeesPage />}

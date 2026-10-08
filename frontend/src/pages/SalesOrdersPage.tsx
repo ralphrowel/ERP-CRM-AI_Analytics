@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { ApiError } from '../api/client'
 import { type Customer, customersApi } from '../api/customers'
+import { type Warehouse, warehousesApi } from '../api/inventory'
 import { type Product, productsApi } from '../api/products'
 import {
   type SalesOrder,
@@ -39,6 +40,7 @@ export const SalesOrdersPage: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [taxRates, setTaxRates] = useState<TaxRate[]>([])
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
 
   // Notifications
   const [conflictError, setConflictError] = useState<string | null>(null)
@@ -56,6 +58,7 @@ export const SalesOrdersPage: React.FC = () => {
   // Create form state
   const [formData, setFormData] = useState<SalesOrderCreatePayload>({
     customer_id: 0,
+    warehouse_id: undefined,
     order_date: new Date().toISOString().split('T')[0],
     requested_delivery_date: '',
     notes: '',
@@ -67,17 +70,19 @@ export const SalesOrdersPage: React.FC = () => {
     setConflictError(null)
     setGeneralError(null)
     try {
-      const [ordersRes, custRes, prodRes, trRes] = await Promise.all([
+      const [ordersRes, custRes, prodRes, trRes, whRes] = await Promise.all([
         salesApi.listSalesOrders({ page, page_size: pageSize, status: statusFilter || undefined }),
         customersApi.list({ page: 1, page_size: 100 }),
         productsApi.list({ page: 1, page_size: 100 }),
         salesApi.listTaxRates(),
+        warehousesApi.list(true),
       ])
       setOrders(ordersRes.items)
       setTotal(ordersRes.total)
       setCustomers(custRes.items)
       setProducts(prodRes.items)
       setTaxRates(trRes)
+      setWarehouses(whRes)
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         setGeneralError(err)
@@ -301,6 +306,9 @@ export const SalesOrdersPage: React.FC = () => {
                 Order Date
               </th>
               <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', color: 'var(--text-dim)', textTransform: 'uppercase' }}>
+                Warehouse
+              </th>
+              <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', color: 'var(--text-dim)', textTransform: 'uppercase' }}>
                 Status
               </th>
               <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', color: 'var(--text-dim)', textTransform: 'uppercase', textAlign: 'right' }}>
@@ -314,14 +322,14 @@ export const SalesOrdersPage: React.FC = () => {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-dim)' }}>
+                <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-dim)' }}>
                   <RefreshCw className="animate-spin" size={20} style={{ margin: '0 auto 0.5rem' }} />
                   <div>Loading sales orders...</div>
                 </td>
               </tr>
             ) : orders.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-dim)' }}>
+                <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-dim)' }}>
                   No sales orders found.
                 </td>
               </tr>
@@ -352,6 +360,20 @@ export const SalesOrdersPage: React.FC = () => {
                     </td>
                     <td style={{ padding: '0.85rem 1rem', fontSize: '0.85rem', color: 'var(--text-dim)' }}>
                       {so.order_date}
+                    </td>
+                    <td style={{ padding: '0.85rem 1rem' }}>
+                      <span
+                        style={{
+                          padding: '0.2rem 0.5rem',
+                          borderRadius: '4px',
+                          backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                          color: '#a5b4fc',
+                          fontSize: '0.75rem',
+                          fontFamily: 'monospace',
+                        }}
+                      >
+                        {so.warehouse?.code || 'DEFAULT'}
+                      </span>
                     </td>
                     <td style={{ padding: '0.85rem 1rem' }}>{getStatusBadge(so.status)}</td>
                     <td style={{ padding: '0.85rem 1rem', textAlign: 'right', fontWeight: 700, fontSize: '0.9rem', color: '#38bdf8' }}>
@@ -487,7 +509,7 @@ export const SalesOrdersPage: React.FC = () => {
       {/* Modal: Create Sales Order */}
       <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Create New Sales Order">
         <form onSubmit={handleCreateOrder} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1rem' }}>
             <div>
               <label className="form-label">Customer Account *</label>
               <select
@@ -500,6 +522,26 @@ export const SalesOrdersPage: React.FC = () => {
                 {customers.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name} ({c.customer_no}) - {c.status}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="form-label">Fulfillment Warehouse</label>
+              <select
+                className="input-field"
+                value={formData.warehouse_id || ''}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    warehouse_id: e.target.value ? Number(e.target.value) : undefined,
+                  })
+                }
+              >
+                <option value="">Default Warehouse</option>
+                {warehouses.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.code} - {w.name} {w.is_default ? '(Default)' : ''}
                   </option>
                 ))}
               </select>
@@ -580,13 +622,23 @@ export const SalesOrdersPage: React.FC = () => {
               </div>
             </div>
 
-            <div style={{ padding: '0.85rem', borderRadius: '8px', backgroundColor: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-subtle)' }}>
-              <strong style={{ display: 'block', fontSize: '0.85rem', color: '#f8fafc', marginBottom: '0.35rem' }}>
-                Payment Terms Snapshot
-              </strong>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                {selectedOrder.payment_terms_days_snapshot} days (Cash / Prepaid if 0)
-              </span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div style={{ padding: '0.85rem', borderRadius: '8px', backgroundColor: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-subtle)' }}>
+                <strong style={{ display: 'block', fontSize: '0.85rem', color: '#f8fafc', marginBottom: '0.35rem' }}>
+                  Payment Terms Snapshot
+                </strong>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  {selectedOrder.payment_terms_days_snapshot} days (Cash / Prepaid if 0)
+                </span>
+              </div>
+              <div style={{ padding: '0.85rem', borderRadius: '8px', backgroundColor: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-subtle)' }}>
+                <strong style={{ display: 'block', fontSize: '0.85rem', color: '#34d399', marginBottom: '0.35rem' }}>
+                  Fulfillment Warehouse
+                </strong>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  {selectedOrder.warehouse ? `${selectedOrder.warehouse.code} - ${selectedOrder.warehouse.name}` : 'Default Warehouse'}
+                </span>
+              </div>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>

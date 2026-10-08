@@ -510,10 +510,15 @@ class SalesService:
             raise BusinessRuleError("EMPTY_ORDER", "Quote has no line items.")
 
         order_no = generate_next_number(self.db, "sales_order", self.clock)
+        from app.modules.inventory.service import InventoryService
+
+        inv_service = InventoryService(self.db, self.clock)
+        default_wh = inv_service.get_default_warehouse()
 
         so = SalesOrder(
             order_no=order_no,
             customer_id=quote.customer_id,
+            warehouse_id=default_wh.id,
             quote_id=quote.id,
             contact_id=quote.contact_id,
             status="draft",
@@ -583,10 +588,15 @@ class SalesService:
         )
 
         order_no = generate_next_number(self.db, "sales_order", self.clock)
+        from app.modules.inventory.service import InventoryService
+
+        inv_service = InventoryService(self.db, self.clock)
+        wh_id = payload.warehouse_id or inv_service.get_default_warehouse().id
 
         so = SalesOrder(
             order_no=order_no,
             customer_id=payload.customer_id,
+            warehouse_id=wh_id,
             quote_id=payload.quote_id,
             contact_id=payload.contact_id,
             status="draft",
@@ -671,6 +681,8 @@ class SalesService:
             payload.items, default_tr
         )
 
+        if payload.warehouse_id is not None:
+            so.warehouse_id = payload.warehouse_id
         so.contact_id = payload.contact_id
         so.requested_delivery_date = payload.requested_delivery_date
         so.notes = payload.notes
@@ -797,6 +809,12 @@ class SalesService:
         so.shipping_address_snapshot = self._format_address(shipping_addr)
         so.payment_terms_days_snapshot = customer.payment_terms_days
 
+        # Roadmap §V0.4: Reserve stock in fulfilling warehouse for physical stock items
+        from app.modules.inventory.service import InventoryService
+
+        inv_service = InventoryService(self.db, self.clock)
+        inv_service.reserve_sales_order_stock(so.id)
+
         from_status = so.status
         so.status = "confirmed"
         so.version += 1
@@ -914,6 +932,13 @@ class SalesService:
         so.cancel_reason = reason
         so.version += 1
         so.updated_by = current_user_id
+
+        # Roadmap §V0.4: If cancelling a confirmed/on-hold order, release active reservations
+        if from_status in ("confirmed", "on_hold"):
+            from app.modules.inventory.service import InventoryService
+
+            inv_service = InventoryService(self.db, self.clock)
+            inv_service.release_sales_order_reservations(so.id)
 
         record_status_change(
             self.db,

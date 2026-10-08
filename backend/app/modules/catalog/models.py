@@ -36,6 +36,10 @@ class Product(Base, AuditMixin, VersionMixin):
             name="ck_products_uom",
         ),
         CheckConstraint("list_price >= 0", name="ck_products_list_price_non_negative"),
+        CheckConstraint(
+            "reorder_point IS NULL OR reorder_point >= 0",
+            name="ck_products_reorder_point_non_negative",
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -54,6 +58,7 @@ class Product(Base, AuditMixin, VersionMixin):
         Numeric(19, 4), nullable=False, default=Decimal("0.0000")
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    reorder_point: Mapped[Decimal | None] = mapped_column(Numeric(14, 3), nullable=True)
     tax_rate_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey("tax_rates.id", ondelete="RESTRICT"),

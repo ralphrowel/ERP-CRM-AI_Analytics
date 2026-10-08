@@ -12,6 +12,7 @@ from app.modules.catalog.router import router as catalog_router
 from app.modules.crm.router import router as crm_router
 from app.modules.identity.router import router as identity_router
 from app.modules.identity.service import IdentityService
+from app.modules.inventory.router import router as inventory_router
 from app.modules.organization.router import router as org_router
 from app.modules.organization.service import OrganizationService
 from app.modules.sales.router import router as sales_router
@@ -102,6 +103,22 @@ async def lifespan(app: FastAPI):
             ).scalar_one_or_none()
             if not existing:
                 db.add(seq)
+
+        # Seed default warehouse if not present
+        from app.modules.inventory.models import Warehouse
+
+        existing_wh = db.execute(select(Warehouse).limit(1)).scalar_one_or_none()
+        if not existing_wh:
+            db.add(
+                Warehouse(
+                    code="MNL-MAIN",
+                    name="Main Warehouse - Manila",
+                    address="Port Area, Manila, Philippines",
+                    is_active=True,
+                    is_default=True,
+                )
+            )
+
         db.commit()
 
     yield
@@ -149,3 +166,4 @@ app.include_router(org_router, prefix=API_PREFIX)
 app.include_router(crm_router, prefix=API_PREFIX)
 app.include_router(catalog_router, prefix=API_PREFIX)
 app.include_router(sales_router, prefix=API_PREFIX)
+app.include_router(inventory_router, prefix=API_PREFIX)

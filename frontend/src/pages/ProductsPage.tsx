@@ -51,6 +51,7 @@ export const ProductsPage: React.FC = () => {
     product_type: 'stock',
     uom: 'pc',
     list_price: '150.0000',
+    reorder_point: '0.000',
   })
 
   const [editFormData, setEditFormData] = useState<ProductUpdatePayload>({
@@ -61,6 +62,7 @@ export const ProductsPage: React.FC = () => {
     product_type: 'stock',
     uom: 'pc',
     list_price: '0.0000',
+    reorder_point: '0.000',
     version: 1,
   })
 
@@ -124,6 +126,7 @@ export const ProductsPage: React.FC = () => {
       product_type: prod.product_type,
       uom: prod.uom,
       list_price: prod.list_price,
+      reorder_point: prod.reorder_point || '0.000',
       version: prod.version,
     })
     setIsEditOpen(true)
@@ -277,6 +280,7 @@ export const ProductsPage: React.FC = () => {
               <th>Category</th>
               <th>UOM</th>
               <th>List Price (PHP)</th>
+              <th>Reorder Point</th>
               <th>Status</th>
               <th>Version</th>
               <th style={{ textAlign: 'right' }}>Actions</th>
@@ -285,7 +289,7 @@ export const ProductsPage: React.FC = () => {
           <tbody>
             {products.length === 0 ? (
               <tr>
-                <td colSpan={9} style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-dim)' }}>
+                <td colSpan={10} style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-dim)' }}>
                   {isLoading ? 'Loading catalog items...' : 'No products found.'}
                 </td>
               </tr>
@@ -315,6 +319,15 @@ export const ProductsPage: React.FC = () => {
                     </td>
                     <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
                       ₱{parseFloat(p.list_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                    </td>
+                    <td>
+                      {p.product_type === 'stock' ? (
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                          {parseFloat(p.reorder_point || '0').toFixed(3)}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem' }}>—</span>
+                      )}
                     </td>
                     <td>
                       {p.is_active ? (
@@ -435,7 +448,7 @@ export const ProductsPage: React.FC = () => {
             </select>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.35rem' }}>Type</label>
               <select
@@ -472,6 +485,18 @@ export const ProductsPage: React.FC = () => {
                 onChange={(e) => setFormData({ ...formData, list_price: e.target.value })}
                 className="input-field"
                 placeholder="150.0000"
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.35rem' }}>Reorder Point</label>
+              <input
+                type="number"
+                step="0.001"
+                min="0"
+                value={formData.reorder_point || '0.000'}
+                onChange={(e) => setFormData({ ...formData, reorder_point: e.target.value })}
+                className="input-field"
+                placeholder="0.000"
               />
             </div>
           </div>
@@ -512,7 +537,7 @@ export const ProductsPage: React.FC = () => {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.35rem' }}>Category</label>
               <select
@@ -537,6 +562,18 @@ export const ProductsPage: React.FC = () => {
                 value={editFormData.list_price}
                 onChange={(e) => setEditFormData({ ...editFormData, list_price: e.target.value })}
                 className="input-field"
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.35rem' }}>Reorder Point</label>
+              <input
+                type="number"
+                step="0.001"
+                min="0"
+                value={editFormData.reorder_point || '0.000'}
+                onChange={(e) => setEditFormData({ ...editFormData, reorder_point: e.target.value })}
+                className="input-field"
+                placeholder="0.000"
               />
             </div>
           </div>
