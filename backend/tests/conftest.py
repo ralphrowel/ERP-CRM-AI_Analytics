@@ -4,11 +4,19 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
+from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.types import BigInteger
 
 from app.core.config import settings
 from app.core.database import Base, get_db
 from app.main import app
+
+
+@compiles(BigInteger, "sqlite")
+def compile_big_int_sqlite(type_, compiler, **kw):
+    return "INTEGER"
+
 
 # Check if PostgreSQL is available via DATABASE_URL
 DATABASE_URL = os.getenv("TEST_DATABASE_URL") or os.getenv("DATABASE_URL") or settings.DATABASE_URL

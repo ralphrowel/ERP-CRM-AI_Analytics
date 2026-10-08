@@ -14,6 +14,7 @@ from app.modules.identity.router import router as identity_router
 from app.modules.identity.service import IdentityService
 from app.modules.organization.router import router as org_router
 from app.modules.organization.service import OrganizationService
+from app.modules.sales.router import router as sales_router
 
 # Initialize structured logging
 setup_logging(settings.LOG_LEVEL)
@@ -56,6 +57,20 @@ async def lifespan(app: FastAPI):
                 doc_type="opportunity",
                 prefix="OPP",
                 include_year=False,
+                padding=6,
+                next_value=1,
+            ),
+            DocumentSequence(
+                doc_type="quote",
+                prefix="QT",
+                include_year=True,
+                padding=6,
+                next_value=1,
+            ),
+            DocumentSequence(
+                doc_type="sales_order",
+                prefix="SO",
+                include_year=True,
                 padding=6,
                 next_value=1,
             ),
@@ -112,3 +127,4 @@ app.include_router(identity_router, prefix=API_PREFIX)
 app.include_router(org_router, prefix=API_PREFIX)
 app.include_router(crm_router, prefix=API_PREFIX)
 app.include_router(catalog_router, prefix=API_PREFIX)
+app.include_router(sales_router, prefix=API_PREFIX)

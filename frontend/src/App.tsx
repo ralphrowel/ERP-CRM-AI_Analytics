@@ -8,6 +8,8 @@ import { LeadsPage } from './pages/LeadsPage'
 import { LoginPage } from './pages/LoginPage'
 import { PipelinePage } from './pages/PipelinePage'
 import { ProductsPage } from './pages/ProductsPage'
+import { QuotesPage } from './pages/QuotesPage'
+import { SalesOrdersPage } from './pages/SalesOrdersPage'
 
 const MainRouter: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth()
@@ -57,6 +59,8 @@ const MainRouter: React.FC = () => {
     <AppLayout activeTab={activeTab} onTabChange={setActiveTab}>
       {activeTab === 'leads' && <LeadsPage />}
       {activeTab === 'pipeline' && <PipelinePage />}
+      {activeTab === 'quotes' && <QuotesPage />}
+      {activeTab === 'orders' && <SalesOrdersPage />}
       {activeTab === 'customers' && <CustomersPage />}
       {activeTab === 'products' && <ProductsPage />}
       {activeTab === 'employees' && <EmployeesPage />}

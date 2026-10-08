@@ -19,6 +19,13 @@ from app.modules.crm.models import (  # noqa: F401
 )
 from app.modules.identity.models import User, UserSession  # noqa: F401
 from app.modules.organization.models import CompanySettings, Department, Employee  # noqa: F401
+from app.modules.sales.models import (  # noqa: F401
+    Quote,
+    QuoteItem,
+    SalesOrder,
+    SalesOrderItem,
+    TaxRate,
+)
 
 config = context.config
 
