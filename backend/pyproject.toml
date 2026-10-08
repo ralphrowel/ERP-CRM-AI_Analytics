@@ -48,6 +48,7 @@ select = [
 ]
 ignore = [
     "E501", # line length violations (handled by ruff format)
+    "B008", # do not perform function call in argument defaults (standard for FastAPI Depends/Query)
 ]
 
 [tool.pytest.ini_options]
