@@ -1,17 +1,27 @@
 import React from 'react'
 import {
   Building2,
+  FileText,
   Kanban,
   LogOut,
   Package,
   ShieldCheck,
+  ShoppingCart,
   UserCheck,
   UserPlus,
   Users,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
-export type NavTab = 'leads' | 'pipeline' | 'customers' | 'products' | 'employees' | 'settings'
+export type NavTab =
+  | 'leads'
+  | 'pipeline'
+  | 'quotes'
+  | 'orders'
+  | 'customers'
+  | 'products'
+  | 'employees'
+  | 'settings'
 
 interface AppLayoutProps {
   activeTab: NavTab
@@ -25,6 +35,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
   const crmItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
     { id: 'leads', label: 'Leads & Inbound', icon: <UserPlus size={18} /> },
     { id: 'pipeline', label: 'Deals & Pipeline', icon: <Kanban size={18} /> },
+  ]
+
+  const salesItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
+    { id: 'quotes', label: 'Quotes & Proposals', icon: <FileText size={18} /> },
+    { id: 'orders', label: 'Sales Orders', icon: <ShoppingCart size={18} /> },
   ]
 
   const masterDataItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
@@ -104,6 +119,49 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
           </div>
 
           {crmItems.map((item) => {
+            const isActive = activeTab === item.id
+            return (
+              <button
+                key={item.id}
+                id={`nav-${item.id}`}
+                onClick={() => onTabChange(item.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: isActive ? 600 : 500,
+                  textAlign: 'left',
+                  transition: 'all 0.15s ease',
+                  backgroundColor: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                  color: isActive ? '#a5b4fc' : 'var(--text-muted)',
+                  borderLeft: isActive ? '3px solid #6366f1' : '3px solid transparent',
+                }}
+              >
+                {item.icon}
+                <span>{item.label}</span>
+              </button>
+            )
+          })}
+
+          <div
+            style={{
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              color: 'var(--text-dim)',
+              letterSpacing: '0.08em',
+              padding: '1rem 0.75rem 0.5rem',
+            }}
+          >
+            Commercial Sales
+          </div>
+
+          {salesItems.map((item) => {
             const isActive = activeTab === item.id
             return (
               <button

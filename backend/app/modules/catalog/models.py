@@ -1,9 +1,13 @@
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import BigInteger, Boolean, CheckConstraint, ForeignKey, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import AuditMixin, Base, VersionMixin
+
+if TYPE_CHECKING:
+    from app.modules.sales.models import TaxRate
 
 
 class ProductCategory(Base, AuditMixin):
@@ -50,7 +54,14 @@ class Product(Base, AuditMixin, VersionMixin):
         Numeric(19, 4), nullable=False, default=Decimal("0.0000")
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    tax_rate_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("tax_rates.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
 
     category: Mapped[ProductCategory | None] = relationship(
         "ProductCategory", back_populates="products"
     )
+    tax_rate: Mapped["TaxRate"] = relationship("TaxRate", back_populates="products")

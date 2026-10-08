@@ -224,7 +224,7 @@ class Activity(Base, AuditMixin):
             name="ck_activities_type",
         ),
         CheckConstraint(
-            "num_nonnulls(lead_id, customer_id, contact_id, opportunity_id) >= 1",
+            "(lead_id IS NOT NULL) OR (customer_id IS NOT NULL) OR (contact_id IS NOT NULL) OR (opportunity_id IS NOT NULL)",
             name="ck_activities_at_least_one_relation",
         ),
     )
