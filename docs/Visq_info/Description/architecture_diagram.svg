@@ -1,0 +1,299 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 780" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0d14"/>
+      <stop offset="100%" stop-color="#101726"/>
+    </linearGradient>
+
+    <!-- Card Gradients -->
+    <linearGradient id="cardBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0.95"/>
+    </linearGradient>
+
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+
+    <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#14b8a6"/>
+    </linearGradient>
+
+    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#ef4444"/>
+    </linearGradient>
+
+    <!-- Filter for soft glow -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <!-- Marker arrows -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#64748b" />
+    </marker>
+    <marker id="arrowAccent" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#818cf8" />
+    </marker>
+  </defs>
+
+  <style>
+    .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 26px; font-weight: 800; fill: #f8fafc; }
+    .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; fill: #94a3b8; }
+    .sec-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; font-weight: 700; fill: #cbd5e1; letter-spacing: 1px; text-transform: uppercase; }
+    .node-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; font-weight: 600; fill: #f8fafc; }
+    .node-sub { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; fill: #94a3b8; }
+    .badge-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; font-weight: 600; fill: #e2e8f0; }
+    .flow-label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; font-weight: 500; fill: #64748b; }
+  </style>
+
+  <!-- Background Canvas -->
+  <rect width="1200" height="780" rx="16" fill="url(#bgGradient)" stroke="#1e293b" stroke-width="1.5"/>
+
+  <!-- Top Header Bar -->
+  <rect x="30" y="24" width="6" height="42" rx="3" fill="url(#accentGrad)" />
+  <text x="48" y="46" class="title">VISIQ SYSTEM ARCHITECTURE</text>
+  <text x="48" y="64" class="subtitle">Autonomous AI Data Analyst Platform • Modular Hybrid Reasoning &amp; Secure Multi-Tenancy</text>
+
+  <!-- Top Right Badges -->
+  <g transform="translate(850, 30)">
+    <rect x="0" y="0" width="90" height="26" rx="13" fill="#1e293b" stroke="#334155"/>
+    <text x="45" y="17" text-anchor="middle" class="badge-text" fill="#818cf8">FASTAPI</text>
+    
+    <rect x="100" y="0" width="105" height="26" rx="13" fill="#1e293b" stroke="#334155"/>
+    <text x="152" y="17" text-anchor="middle" class="badge-text" fill="#38bdf8">REACT + VITE</text>
+
+    <rect x="215" y="0" width="105" height="26" rx="13" fill="#1e293b" stroke="#334155"/>
+    <text x="267" y="17" text-anchor="middle" class="badge-text" fill="#34d399">SQLALCHEMY</text>
+  </g>
+
+  <!-- ==================== COLUMN 1: PRESENTATION & CLIENT ==================== -->
+  <rect x="30" y="90" width="260" height="650" rx="12" fill="#0f172a" fill-opacity="0.6" stroke="#334155" stroke-dasharray="4 4"/>
+  <text x="46" y="116" class="sec-title">CLIENT LAYER (SPA)</text>
+
+  <!-- Client Node 1: Chat Canvas -->
+  <g transform="translate(45, 134)">
+    <rect width="230" height="88" rx="8" fill="url(#cardBg)" stroke="#334155"/>
+    <circle cx="24" cy="28" r="12" fill="#3b82f6" fill-opacity="0.2"/>
+    <path d="M 19 28 L 29 28 M 24 23 L 24 33" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"/>
+    <text x="46" y="28" class="node-title">Chat &amp; Stream Canvas</text>
+    <text x="46" y="46" class="node-sub">Real-time Markdown Streaming</text>
+    <text x="46" y="60" class="node-sub">Dynamic Query Suggestions</text>
+    <text x="46" y="74" class="node-sub">Interactive Question Pills</text>
+  </g>
+
+  <!-- Client Node 2: Plotly Visualizer -->
+  <g transform="translate(45, 236)">
+    <rect width="230" height="92" rx="8" fill="url(#cardBg)" stroke="#334155"/>
+    <circle cx="24" cy="28" r="12" fill="#8b5cf6" fill-opacity="0.2"/>
+    <path d="M 18 34 L 22 26 L 26 30 L 30 22" stroke="#a78bfa" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <text x="46" y="28" class="node-title">Plotly Visualizer Canvas</text>
+    <text x="46" y="46" class="node-sub">7 Chart Archetypes (Bar/Scatter/etc)</text>
+    <text x="46" y="60" class="node-sub">Dark &amp; Light Theme Auto-Sync</text>
+    <text x="46" y="74" class="node-sub">PNG / SVG High-Res Export</text>
+  </g>
+
+  <!-- Client Node 3: Live Dataset Editor -->
+  <g transform="translate(45, 342)">
+    <rect width="230" height="88" rx="8" fill="url(#cardBg)" stroke="#334155"/>
+    <circle cx="24" cy="28" r="12" fill="#10b981" fill-opacity="0.2"/>
+    <rect x="18" y="22" width="12" height="12" rx="2" stroke="#34d399" stroke-width="1.8" fill="none"/>
+    <text x="46" y="28" class="node-title">Live Dataset Editor</text>
+    <text x="46" y="46" class="node-sub">Interactive Cell Mutations</text>
+    <text x="46" y="60" class="node-sub">Row Add / Delete Operations</text>
+    <text x="46" y="74" class="node-sub">Copy-On-Write Triggering</text>
+  </g>
+
+  <!-- Client Node 4: Dashboard Widgets Grid -->
+  <g transform="translate(45, 444)">
+    <rect width="230" height="88" rx="8" fill="url(#cardBg)" stroke="#334155"/>
+    <circle cx="24" cy="28" r="12" fill="#f59e0b" fill-opacity="0.2"/>
+    <rect x="18" y="22" width="5" height="5" fill="#fbbf24"/>
+    <rect x="25" y="22" width="5" height="5" fill="#fbbf24"/>
+    <rect x="18" y="29" width="5" height="5" fill="#fbbf24"/>
+    <text x="46" y="28" class="node-title">Pinned Widgets Grid</text>
+    <text x="46" y="46" class="node-sub">Persistent Visual KPI Dashboards</text>
+    <text x="46" y="60" class="node-sub">Recompute on Data Update</text>
+    <text x="46" y="74" class="node-sub">Per-User Widget Layouts</text>
+  </g>
+
+  <!-- Client Node 5: Auth & Quota Header -->
+  <g transform="translate(45, 546)">
+    <rect width="230" height="84" rx="8" fill="url(#cardBg)" stroke="#334155"/>
+    <circle cx="24" cy="28" r="12" fill="#ec4899" fill-opacity="0.2"/>
+    <circle cx="24" cy="26" r="4" stroke="#f472b6" stroke-width="1.6" fill="none"/>
+    <path d="M 18 34 C 18 31 21 29 24 29 C 27 29 30 31 30 34" stroke="#f472b6" stroke-width="1.6" fill="none"/>
+    <text x="46" y="28" class="node-title">Auth &amp; Quota Gauge</text>
+    <text x="46" y="46" class="node-sub">Supabase OAuth / Quick Demo</text>
+    <text x="46" y="60" class="node-sub">50,000 Daily Token Allowance</text>
+    <text x="46" y="74" class="node-sub">Real-time Usage Percentage Bar</text>
+  </g>
+
+  <!-- ==================== COLUMN 2: SECURITY & GATEWAY ==================== -->
+  <rect x="320" y="90" width="240" height="650" rx="12" fill="#0f172a" fill-opacity="0.6" stroke="#334155" stroke-dasharray="4 4"/>
+  <text x="336" y="116" class="sec-title">SECURITY &amp; GATEWAY</text>
+
+  <!-- Gateway Node 1: RequestBoundary -->
+  <g transform="translate(335, 150)">
+    <rect width="210" height="100" rx="8" fill="url(#cardBg)" stroke="#475569"/>
+    <rect x="0" y="0" width="4" height="100" rx="2" fill="url(#amberGrad)"/>
+    <text x="16" y="28" class="node-title">RequestBoundary</text>
+    <text x="16" y="46" class="node-sub">• 5MB Max Body Streaming Limit</text>
+    <text x="16" y="62" class="node-sub">• x-request-id Correlation ID</text>
+    <text x="16" y="78" class="node-sub">• Credential-Safe JSON Logs</text>
+    <text x="16" y="92" class="node-sub">• Denial-of-Service Defense</text>
+  </g>
+
+  <!-- Gateway Node 2: Supabase Auth Guard -->
+  <g transform="translate(335, 275)">
+    <rect width="210" height="100" rx="8" fill="url(#cardBg)" stroke="#475569"/>
+    <rect x="0" y="0" width="4" height="100" rx="2" fill="url(#emeraldGrad)"/>
+    <text x="16" y="28" class="node-title">Supabase Auth Guard</text>
+    <text x="16" y="46" class="node-sub">• RS256 Asymmetric Verification</text>
+    <text x="16" y="62" class="node-sub">• Cached Remote JWKS Keys</text>
+    <text x="16" y="78" class="node-sub">• Audience / Issuer Enforcement</text>
+    <text x="16" y="92" class="node-sub">• Development Demo Token Bypass</text>
+  </g>
+
+  <!-- Gateway Node 3: Daily Quota Manager -->
+  <g transform="translate(335, 400)">
+    <rect width="210" height="100" rx="8" fill="url(#cardBg)" stroke="#475569"/>
+    <rect x="0" y="0" width="4" height="100" rx="2" fill="url(#accentGrad)"/>
+    <text x="16" y="28" class="node-title">Daily Quota Manager</text>
+    <text x="16" y="46" class="node-sub">• 50k Tokens/Day Allowance</text>
+    <text x="16" y="62" class="node-sub">• Atomic DB Increment Guards</text>
+    <text x="16" y="78" class="node-sub">• Automated Midnight Reset</text>
+    <text x="16" y="92" class="node-sub">• Fails Closed on Limit Exceeded</text>
+  </g>
+
+  <!-- Gateway Node 4: Path Containment -->
+  <g transform="translate(335, 525)">
+    <rect width="210" height="100" rx="8" fill="url(#cardBg)" stroke="#475569"/>
+    <rect x="0" y="0" width="4" height="100" rx="2" fill="url(#cyanGrad)"/>
+    <text x="16" y="28" class="node-title">Path Containment Guard</text>
+    <text x="16" y="46" class="node-sub">• Strict inside() Directory Anchor</text>
+    <text x="16" y="62" class="node-sub">• Null Byte &amp; Traversal Filter</text>
+    <text x="16" y="78" class="node-sub">• Windows Device Filter (CON/NUL)</text>
+    <text x="16" y="92" class="node-sub">• Symlink Attack Mitigation</text>
+  </g>
+
+  <!-- ==================== COLUMN 3: AGENT REASONING ENGINE ==================== -->
+  <rect x="590" y="90" width="290" height="650" rx="12" fill="#0f172a" fill-opacity="0.6" stroke="#334155" stroke-dasharray="4 4"/>
+  <text x="606" y="116" class="sec-title">AGENT REASONING &amp; EXECUTION</text>
+
+  <!-- Agent Node 1: Intent Router -->
+  <g transform="translate(605, 140)">
+    <rect width="260" height="90" rx="8" fill="url(#cardBg)" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="16" y="26" class="node-title" fill="#a5b4fc">Tri-Modal Intent Router</text>
+    <text x="16" y="44" class="node-sub">• LLM Semantic Classifier</text>
+    <text x="16" y="60" class="node-sub">• Regex / Lexical Fast Fallback</text>
+    <text x="16" y="76" class="node-sub">• Routes: [Structured | RAG | Hybrid]</text>
+  </g>
+
+  <!-- Branch Cards (Structured / RAG / Hybrid) -->
+  <g transform="translate(605, 250)">
+    <rect width="260" height="74" rx="8" fill="url(#cardBg)" stroke="#334155"/>
+    <text x="16" y="24" class="node-title">1. Structured Engine</text>
+    <text x="16" y="42" class="node-sub">Pandas In-Memory Aggregation Sandbox</text>
+    <text x="16" y="58" class="node-sub">Deterministic Zero-Hallucination Execution</text>
+  </g>
+
+  <g transform="translate(605, 336)">
+    <rect width="260" height="74" rx="8" fill="url(#cardBg)" stroke="#334155"/>
+    <text x="16" y="24" class="node-title">2. Semantic RAG Engine</text>
+    <text x="16" y="42" class="node-sub">TF-IDF Vector Space &amp; Metadata Retriever</text>
+    <text x="16" y="58" class="node-sub">Contextual Knowledge Synthesis</text>
+  </g>
+
+  <g transform="translate(605, 422)">
+    <rect width="260" height="74" rx="8" fill="url(#cardBg)" stroke="#334155"/>
+    <text x="16" y="24" class="node-title">3. Hybrid Engine</text>
+    <text x="16" y="42" class="node-sub">Numerical Subsetting + Domain Context</text>
+    <text x="16" y="58" class="node-sub">Cross-Field Multi-Step Deductions</text>
+  </g>
+
+  <!-- Agent Node 2: Chart Tool -->
+  <g transform="translate(605, 516)">
+    <rect width="260" height="96" rx="8" fill="url(#cardBg)" stroke="#38bdf8"/>
+    <text x="16" y="26" class="node-title" fill="#7dd3fc">Plotly Spec Synthesizer</text>
+    <text x="16" y="44" class="node-sub">• Automatic Dimension Mapping (x, y, color)</text>
+    <text x="16" y="60" class="node-sub">• Fallback to Aggregated Statistics</text>
+    <text x="16" y="76" class="node-sub">• Dark Theme Layout Optimization</text>
+    <text x="16" y="90" class="node-sub">• Emits Clean Plotly-Compatible JSON</text>
+  </g>
+
+  <!-- ==================== COLUMN 4: PERSISTENCE & INFERENCE ==================== -->
+  <rect x="910" y="90" width="260" height="650" rx="12" fill="#0f172a" fill-opacity="0.6" stroke="#334155" stroke-dasharray="4 4"/>
+  <text x="926" y="116" class="sec-title">STORAGE &amp; INFERENCE</text>
+
+  <!-- Inference Node: LLM Providers -->
+  <g transform="translate(925, 140)">
+    <rect width="230" height="120" rx="8" fill="url(#cardBg)" stroke="#a855f7" stroke-width="1.2"/>
+    <text x="16" y="26" class="node-title" fill="#d8b4fe">Multi-LLM Inference</text>
+    <text x="16" y="46" class="node-sub">• Groq Cloud (Ultra-Fast)</text>
+    <text x="32" y="60" class="node-sub" fill="#64748b">Llama-3 / GPT-OSS 120B</text>
+    <text x="16" y="78" class="node-sub">• Google Gemini 2.5 Flash</text>
+    <text x="32" y="92" class="node-sub" fill="#64748b">Deep Reasoning &amp; Fallback</text>
+    <text x="16" y="108" class="node-sub">• Normalized Token Metrology</text>
+  </g>
+
+  <!-- Storage Node: SQLAlchemy 2.0 -->
+  <g transform="translate(925, 280)">
+    <rect width="230" height="140" rx="8" fill="url(#cardBg)" stroke="#10b981" stroke-width="1.2"/>
+    <text x="16" y="26" class="node-title" fill="#6ee7b7">SQLAlchemy 2.0 Store</text>
+    <text x="16" y="46" class="node-sub">• Zero-Config Local SQLite</text>
+    <text x="32" y="60" class="node-sub" fill="#64748b">data/visiq.db (Auto-init)</text>
+    <text x="16" y="78" class="node-sub">• Production PostgreSQL</text>
+    <text x="32" y="92" class="node-sub" fill="#64748b">Connection Pooling &amp; Retries</text>
+    <text x="16" y="110" class="node-sub">• JSON Column Metrology</text>
+    <text x="16" y="126" class="node-sub">• Tenant Isolated Queries</text>
+  </g>
+
+  <!-- Storage Node: File Vault & COW -->
+  <g transform="translate(925, 440)">
+    <rect width="230" height="130" rx="8" fill="url(#cardBg)" stroke="#38bdf8" stroke-width="1.2"/>
+    <text x="16" y="26" class="node-title" fill="#7dd3fc">Secure File Vault</text>
+    <text x="16" y="46" class="node-sub">• Copy-On-Write (COW) Isolation</text>
+    <text x="16" y="64" class="node-sub">• Public Base: data/raw/</text>
+    <text x="16" y="82" class="node-sub">• User Uploads: data/uploads/</text>
+    <text x="16" y="100" class="node-sub">• Knowledge Docs: data/knowledge/</text>
+    <text x="16" y="118" class="node-sub">• Atomic CSV Flushing</text>
+  </g>
+
+  <!-- ==================== CONNECTING ARROWS ==================== -->
+  <!-- Client to Security Gateway -->
+  <path d="M 275 282 L 335 200" stroke="#818cf8" stroke-width="1.5" fill="none" marker-end="url(#arrowAccent)"/>
+  <path d="M 275 386 L 335 325" stroke="#818cf8" stroke-width="1.5" fill="none" marker-end="url(#arrowAccent)"/>
+  <path d="M 275 588 L 335 450" stroke="#818cf8" stroke-width="1.5" fill="none" marker-end="url(#arrowAccent)"/>
+
+  <!-- Security Gateway to Router -->
+  <path d="M 545 450 L 575 450 L 575 185 L 605 185" stroke="#818cf8" stroke-width="1.5" fill="none" marker-end="url(#arrowAccent)"/>
+
+  <!-- Router to Execution Engines -->
+  <path d="M 735 230 L 735 250" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <path d="M 735 324 L 735 336" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <path d="M 735 410 L 735 422" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Engines to Chart Tool -->
+  <path d="M 735 496 L 735 516" stroke="#38bdf8" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Agent to LLM -->
+  <path d="M 865 185 L 925 185" stroke="#a855f7" stroke-width="1.5" fill="none" marker-end="url(#arrowAccent)"/>
+
+  <!-- Agent / Security to Storage -->
+  <path d="M 865 564 L 895 564 L 895 350 L 925 350" stroke="#10b981" stroke-width="1.5" fill="none" marker-end="url(#arrowAccent)"/>
+  <path d="M 545 575 L 570 575 L 570 635 L 900 635 L 900 505 L 925 505" stroke="#38bdf8" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Footer Tagline -->
+  <text x="600" y="760" text-anchor="middle" class="flow-label">Production Tested with 47 Automated Security &amp; Workflow Verifications • Fully Local Development Ready</text>
+</svg>
