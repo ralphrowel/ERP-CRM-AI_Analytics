@@ -111,6 +111,27 @@ async def lifespan(app: FastAPI):
                 padding=6,
                 next_value=1,
             ),
+            DocumentSequence(
+                doc_type="goods_receipt",
+                prefix="GR",
+                include_year=True,
+                padding=6,
+                next_value=1,
+            ),
+            DocumentSequence(
+                doc_type="supplier_invoice",
+                prefix="BILL",
+                include_year=True,
+                padding=6,
+                next_value=1,
+            ),
+            DocumentSequence(
+                doc_type="supplier_payment",
+                prefix="SPAY",
+                include_year=True,
+                padding=6,
+                next_value=1,
+            ),
         ]
         for seq in sequences:
             existing = db.execute(
