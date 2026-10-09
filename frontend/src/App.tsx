@@ -13,6 +13,8 @@ import { PipelinePage } from './pages/PipelinePage'
 import { ProductsPage } from './pages/ProductsPage'
 import { QuotesPage } from './pages/QuotesPage'
 import { SalesOrdersPage } from './pages/SalesOrdersPage'
+import { SuppliersPage } from './pages/SuppliersPage'
+import { PurchaseOrdersPage } from './pages/PurchaseOrdersPage'
 
 const MainRouter: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth()
@@ -66,6 +68,8 @@ const MainRouter: React.FC = () => {
       {activeTab === 'orders' && <SalesOrdersPage />}
       {activeTab === 'invoices' && <InvoicesPage />}
       {activeTab === 'payments' && <PaymentsPage />}
+      {activeTab === 'suppliers' && <SuppliersPage />}
+      {activeTab === 'purchase_orders' && <PurchaseOrdersPage />}
       {activeTab === 'inventory' && <InventoryPage />}
       {activeTab === 'customers' && <CustomersPage />}
       {activeTab === 'products' && <ProductsPage />}

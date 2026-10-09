@@ -1,6 +1,16 @@
 from datetime import date
+from decimal import Decimal
 
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, Date, ForeignKey, SmallInteger, String
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    Date,
+    ForeignKey,
+    Numeric,
+    SmallInteger,
+    String,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import AuditMixin, Base, VersionMixin
@@ -20,6 +30,9 @@ class CompanySettings(Base, AuditMixin):
     address: Mapped[str | None] = mapped_column(String(500), nullable=True)
     currency_code: Mapped[str] = mapped_column(String(3), nullable=False, default="PHP")
     timezone: Mapped[str] = mapped_column(String(50), nullable=False, default="Asia/Manila")
+    bill_price_tolerance_pct: Mapped[Decimal] = mapped_column(
+        Numeric(6, 4), nullable=False, default=Decimal("0.0000")
+    )
 
 
 class Department(Base, AuditMixin):

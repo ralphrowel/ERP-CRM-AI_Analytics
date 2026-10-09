@@ -15,6 +15,7 @@ from app.modules.identity.service import IdentityService
 from app.modules.inventory.router import router as inventory_router
 from app.modules.organization.router import router as org_router
 from app.modules.organization.service import OrganizationService
+from app.modules.purchasing.router import router as purchasing_router
 from app.modules.sales.router import router as sales_router
 
 # Initialize structured logging
@@ -96,6 +97,20 @@ async def lifespan(app: FastAPI):
                 padding=6,
                 next_value=1,
             ),
+            DocumentSequence(
+                doc_type="supplier",
+                prefix="SUP",
+                include_year=False,
+                padding=5,
+                next_value=1,
+            ),
+            DocumentSequence(
+                doc_type="purchase_order",
+                prefix="PO",
+                include_year=True,
+                padding=6,
+                next_value=1,
+            ),
         ]
         for seq in sequences:
             existing = db.execute(
@@ -167,3 +182,4 @@ app.include_router(crm_router, prefix=API_PREFIX)
 app.include_router(catalog_router, prefix=API_PREFIX)
 app.include_router(sales_router, prefix=API_PREFIX)
 app.include_router(inventory_router, prefix=API_PREFIX)
+app.include_router(purchasing_router, prefix=API_PREFIX)
