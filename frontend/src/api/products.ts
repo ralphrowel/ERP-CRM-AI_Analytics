@@ -15,6 +15,7 @@ export interface Product {
   name: string
   description?: string | null
   category_id?: number | null
+  tax_rate_id?: number | null
   product_type: 'stock' | 'service'
   uom: 'pc' | 'box' | 'pack' | 'kg' | 'l' | 'm' | 'hr'
   list_price: string

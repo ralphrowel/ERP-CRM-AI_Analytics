@@ -2,6 +2,7 @@ import React from 'react'
 import {
   Building2,
   CreditCard,
+  FileCheck,
   FileText,
   Kanban,
   LogOut,
@@ -9,6 +10,7 @@ import {
   Receipt,
   ShieldCheck,
   ShoppingCart,
+  Truck,
   UserCheck,
   UserPlus,
   Users,
@@ -23,6 +25,8 @@ export type NavTab =
   | 'orders'
   | 'invoices'
   | 'payments'
+  | 'suppliers'
+  | 'purchase_orders'
   | 'inventory'
   | 'customers'
   | 'products'
@@ -48,6 +52,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
     { id: 'orders', label: 'Sales Orders', icon: <ShoppingCart size={18} /> },
     { id: 'invoices', label: 'Invoices & AR', icon: <Receipt size={18} /> },
     { id: 'payments', label: 'Payments & Credit', icon: <CreditCard size={18} /> },
+  ]
+
+  const procurementItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
+    { id: 'suppliers', label: 'Suppliers & Vendors', icon: <Truck size={18} /> },
+    { id: 'purchase_orders', label: 'Purchase Orders', icon: <FileCheck size={18} /> },
   ]
 
   const inventoryItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
@@ -174,6 +183,49 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
           </div>
 
           {salesItems.map((item) => {
+            const isActive = activeTab === item.id
+            return (
+              <button
+                key={item.id}
+                id={`nav-${item.id}`}
+                onClick={() => onTabChange(item.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: isActive ? 600 : 500,
+                  textAlign: 'left',
+                  transition: 'all 0.15s ease',
+                  backgroundColor: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                  color: isActive ? '#a5b4fc' : 'var(--text-muted)',
+                  borderLeft: isActive ? '3px solid #6366f1' : '3px solid transparent',
+                }}
+              >
+                {item.icon}
+                <span>{item.label}</span>
+              </button>
+            )
+          })}
+
+          <div
+            style={{
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              color: 'var(--text-dim)',
+              letterSpacing: '0.08em',
+              padding: '1rem 0.75rem 0.5rem',
+            }}
+          >
+            Procurement & Purchasing
+          </div>
+
+          {procurementItems.map((item) => {
             const isActive = activeTab === item.id
             return (
               <button
