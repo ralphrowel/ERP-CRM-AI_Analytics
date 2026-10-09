@@ -2,20 +2,28 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 
+from app.core.authorization import ScopeContext, require
 from app.core.config import settings
 from app.modules.identity.dependencies import (
     get_current_user,
     get_current_user_and_session,
     get_identity_service,
-    require_superuser,
 )
 from app.modules.identity.models import User, UserSession
 from app.modules.identity.schemas import (
+    AuthMeResponse,
     LoginRequest,
     LoginResponse,
+    PaginatedRolesResponse,
     PaginatedUsersResponse,
+    PermissionResponse,
+    RoleCreate,
+    RoleResponse,
+    RoleUpdate,
     UserCreate,
     UserResponse,
+    UserRoleAssignmentItem,
+    UserRolesAssignRequest,
     UserUpdate,
 )
 from app.modules.identity.service import IdentityService
@@ -83,14 +91,18 @@ def logout(
     return {"message": "Logged out successfully."}
 
 
-@router.get("/auth/me", response_model=UserResponse)
-def get_me(current_user: Annotated[User, Depends(get_current_user)]) -> User:
-    return current_user
+@router.get("/auth/me", response_model=AuthMeResponse)
+def get_me(
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[IdentityService, Depends(get_identity_service)],
+) -> AuthMeResponse:
+    return service.get_auth_me(current_user)
 
 
+# ── Users Management ───────────────────────────────────────────────────
 @router.get("/users", response_model=PaginatedUsersResponse)
 def list_users(
-    _: Annotated[User, Depends(require_superuser)],
+    _: Annotated[ScopeContext, Depends(require("user:read"))],
     service: Annotated[IdentityService, Depends(get_identity_service)],
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
@@ -107,10 +119,10 @@ def list_users(
 @router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_user(
     payload: UserCreate,
-    current_user: Annotated[User, Depends(require_superuser)],
+    ctx: Annotated[ScopeContext, Depends(require("user:create"))],
     service: Annotated[IdentityService, Depends(get_identity_service)],
 ) -> UserResponse:
-    user = service.create_user(payload, creator_id=current_user.id)
+    user = service.create_user(payload, creator_id=ctx.user.id)
     return UserResponse.model_validate(user)
 
 
@@ -118,8 +130,92 @@ def create_user(
 def update_user(
     user_id: int,
     payload: UserUpdate,
-    current_user: Annotated[User, Depends(require_superuser)],
+    ctx: Annotated[ScopeContext, Depends(require("user:update"))],
     service: Annotated[IdentityService, Depends(get_identity_service)],
 ) -> UserResponse:
-    user = service.update_user(user_id, payload, updater_id=current_user.id)
+    user = service.update_user(user_id, payload, updater_id=ctx.user.id)
     return UserResponse.model_validate(user)
+
+
+# ── Roles & Permissions Management ─────────────────────────────────────
+@router.get("/permissions", response_model=list[PermissionResponse])
+def list_permissions(
+    _: Annotated[ScopeContext, Depends(require("role:read"))],
+    service: Annotated[IdentityService, Depends(get_identity_service)],
+    module: str | None = Query(None),
+) -> list[PermissionResponse]:
+    perms = service.list_permissions(module=module)
+    return [PermissionResponse.model_validate(p) for p in perms]
+
+
+@router.get("/roles", response_model=PaginatedRolesResponse)
+def list_roles(
+    _: Annotated[ScopeContext, Depends(require("role:read"))],
+    service: Annotated[IdentityService, Depends(get_identity_service)],
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+) -> PaginatedRolesResponse:
+    roles, total = service.list_roles(page=page, page_size=page_size)
+    return PaginatedRolesResponse(
+        items=roles,
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.post("/roles", response_model=RoleResponse, status_code=status.HTTP_201_CREATED)
+def create_role(
+    payload: RoleCreate,
+    ctx: Annotated[ScopeContext, Depends(require("role:create"))],
+    service: Annotated[IdentityService, Depends(get_identity_service)],
+) -> RoleResponse:
+    return service.create_role(payload, creator_id=ctx.user.id)
+
+
+@router.get("/roles/{role_id}", response_model=RoleResponse)
+def get_role(
+    role_id: int,
+    _: Annotated[ScopeContext, Depends(require("role:read"))],
+    service: Annotated[IdentityService, Depends(get_identity_service)],
+) -> RoleResponse:
+    return service.get_role(role_id)
+
+
+@router.put("/roles/{role_id}", response_model=RoleResponse)
+def update_role(
+    role_id: int,
+    payload: RoleUpdate,
+    ctx: Annotated[ScopeContext, Depends(require("role:update"))],
+    service: Annotated[IdentityService, Depends(get_identity_service)],
+) -> RoleResponse:
+    return service.update_role(role_id, payload, updater_id=ctx.user.id)
+
+
+@router.delete("/roles/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_role(
+    role_id: int,
+    _: Annotated[ScopeContext, Depends(require("role:delete"))],
+    service: Annotated[IdentityService, Depends(get_identity_service)],
+) -> None:
+    service.delete_role(role_id)
+
+
+# ── User Roles Assignment ──────────────────────────────────────────────
+@router.get("/users/{user_id}/roles", response_model=list[UserRoleAssignmentItem])
+def get_user_roles(
+    user_id: int,
+    _: Annotated[ScopeContext, Depends(require("user:read"))],
+    service: Annotated[IdentityService, Depends(get_identity_service)],
+) -> list[UserRoleAssignmentItem]:
+    return service.get_user_roles(user_id)
+
+
+@router.put("/users/{user_id}/roles", response_model=list[UserRoleAssignmentItem])
+def assign_user_roles(
+    user_id: int,
+    payload: UserRolesAssignRequest,
+    ctx: Annotated[ScopeContext, Depends(require("role:assign"))],
+    service: Annotated[IdentityService, Depends(get_identity_service)],
+) -> list[UserRoleAssignmentItem]:
+    return service.assign_user_roles(user_id, payload.role_ids, assigner_id=ctx.user.id)

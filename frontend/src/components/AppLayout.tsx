@@ -37,6 +37,7 @@ export type NavTab =
   | 'customers'
   | 'products'
   | 'employees'
+  | 'roles'
   | 'settings'
 
 interface AppLayoutProps {
@@ -46,7 +47,7 @@ interface AppLayoutProps {
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, children }) => {
-  const { user, logout } = useAuth()
+  const { user, logout, hasPermission, isSuperuser } = useAuth()
 
   const crmItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
     { id: 'leads', label: 'Leads & Inbound', icon: <UserPlus size={18} /> },
@@ -76,6 +77,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
     { id: 'customers', label: 'Customers', icon: <Users size={18} /> },
     { id: 'products', label: 'Product Catalog', icon: <Package size={18} /> },
     { id: 'employees', label: 'Employees & Org', icon: <UserCheck size={18} /> },
+    ...(isSuperuser || hasPermission('role:read')
+      ? [{ id: 'roles' as NavTab, label: 'Roles & Security', icon: <ShieldCheck size={18} /> }]
+      : []),
     { id: 'settings', label: 'Company Settings', icon: <Building2 size={18} /> },
   ]
 

@@ -3,6 +3,7 @@ from decimal import Decimal
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.authorization import ScopeContext, apply_scope
 from app.core.clock import Clock, get_clock
 from app.core.errors import AppException, ConflictException, NotFoundException
 from app.core.numbering import generate_next_number
@@ -71,6 +72,7 @@ class CRMService:
         status: str | None = None,
         search: str | None = None,
         owner_user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> tuple[list[Customer], int]:
         stmt = select(Customer).options(selectinload(Customer.addresses))
         count_stmt = select(func.count(Customer.id))
@@ -93,6 +95,10 @@ class CRMService:
             stmt = stmt.where(clause)
             count_stmt = count_stmt.where(clause)
 
+        if scope_context:
+            stmt = apply_scope(stmt, Customer, scope_context, self.db)
+            count_stmt = apply_scope(count_stmt, Customer, scope_context, self.db)
+
         total = self.db.execute(count_stmt).scalar_one()
         offset = (page - 1) * page_size
         customers = (
@@ -102,12 +108,14 @@ class CRMService:
         )
         return list(customers), total
 
-    def get_customer(self, customer_id: int) -> Customer:
+    def get_customer(self, customer_id: int, scope_context: ScopeContext | None = None) -> Customer:
         stmt = (
             select(Customer)
             .where(Customer.id == customer_id)
             .options(selectinload(Customer.addresses), selectinload(Customer.contacts))
         )
+        if scope_context:
+            stmt = apply_scope(stmt, Customer, scope_context, self.db)
         cust = self.db.execute(stmt).scalar_one_or_none()
         if not cust:
             raise NotFoundException(detail="Customer not found.")
@@ -175,9 +183,13 @@ class CRMService:
         return self.get_customer(customer.id)
 
     def update_customer(
-        self, customer_id: int, data: CustomerUpdate, updater_id: int | None = None
+        self,
+        customer_id: int,
+        data: CustomerUpdate,
+        updater_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> Customer:
-        customer = self.get_customer(customer_id)
+        customer = self.get_customer(customer_id, scope_context=scope_context)
         if customer.version != data.version:
             raise ConflictException(
                 detail="Customer record was modified by another transaction. Please reload."
@@ -223,10 +235,15 @@ class CRMService:
         customer.version += 1
         customer.updated_by = updater_id
         self.db.commit()
-        return self.get_customer(customer_id)
+        return self.get_customer(customer_id, scope_context=scope_context)
 
-    def deactivate_customer(self, customer_id: int, updater_id: int | None = None) -> Customer:
-        customer = self.get_customer(customer_id)
+    def deactivate_customer(
+        self,
+        customer_id: int,
+        updater_id: int | None = None,
+        scope_context: ScopeContext | None = None,
+    ) -> Customer:
+        customer = self.get_customer(customer_id, scope_context=scope_context)
         old_status = customer.status
         customer.status = "inactive"
         customer.version += 1
@@ -438,6 +455,7 @@ class CRMService:
         source: str | None = None,
         search: str | None = None,
         owner_user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> tuple[list[Lead], int]:
         stmt = select(Lead)
         count_stmt = select(func.count(Lead.id))
@@ -463,6 +481,10 @@ class CRMService:
             stmt = stmt.where(clause)
             count_stmt = count_stmt.where(clause)
 
+        if scope_context:
+            stmt = apply_scope(stmt, Lead, scope_context, self.db)
+            count_stmt = apply_scope(count_stmt, Lead, scope_context, self.db)
+
         total = self.db.execute(count_stmt).scalar_one()
         offset = (page - 1) * page_size
         leads = (
@@ -472,8 +494,11 @@ class CRMService:
         )
         return list(leads), total
 
-    def get_lead(self, lead_id: int) -> Lead:
-        lead = self.db.get(Lead, lead_id)
+    def get_lead(self, lead_id: int, scope_context: ScopeContext | None = None) -> Lead:
+        stmt = select(Lead).where(Lead.id == lead_id)
+        if scope_context:
+            stmt = apply_scope(stmt, Lead, scope_context, self.db)
+        lead = self.db.execute(stmt).scalar_one_or_none()
         if not lead:
             raise NotFoundException(detail="Lead not found.")
         return lead
@@ -522,8 +547,14 @@ class CRMService:
         self.db.refresh(lead)
         return lead
 
-    def update_lead(self, lead_id: int, data: LeadUpdate, updater_id: int | None = None) -> Lead:
-        lead = self.get_lead(lead_id)
+    def update_lead(
+        self,
+        lead_id: int,
+        data: LeadUpdate,
+        updater_id: int | None = None,
+        scope_context: ScopeContext | None = None,
+    ) -> Lead:
+        lead = self.get_lead(lead_id, scope_context=scope_context)
         if lead.version != data.version:
             raise ConflictException(detail="Lead record was modified by another user.")
         if lead.status == "converted":
@@ -560,10 +591,14 @@ class CRMService:
         return lead
 
     def transition_lead(
-        self, lead_id: int, payload: LeadTransitionPayload, user_id: int | None = None
+        self,
+        lead_id: int,
+        payload: LeadTransitionPayload,
+        user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> Lead:
         """Transitions lead between statuses according to the state machine matrix."""
-        lead = self.get_lead(lead_id)
+        lead = self.get_lead(lead_id, scope_context=scope_context)
         from_status = lead.status
         to_status = payload.to_status
 
@@ -616,9 +651,11 @@ class CRMService:
         self.db.refresh(lead)
         return lead
 
-    def check_lead_duplicate_customers(self, lead_id: int) -> list[Customer]:
+    def check_lead_duplicate_customers(
+        self, lead_id: int, scope_context: ScopeContext | None = None
+    ) -> list[Customer]:
         """Rule 3: Warning check for possible duplicate customer matches."""
-        lead = self.get_lead(lead_id)
+        lead = self.get_lead(lead_id, scope_context=scope_context)
         conditions = []
         if lead.email:
             conditions.append(func.lower(Customer.email) == lead.email.lower())
@@ -632,7 +669,11 @@ class CRMService:
         return list(self.db.execute(stmt).scalars().all())
 
     def convert_lead(
-        self, lead_id: int, payload: LeadConvertPayload, user_id: int | None = None
+        self,
+        lead_id: int,
+        payload: LeadConvertPayload,
+        user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> Lead:
         """
         Rule 1: Lead conversion is one atomic DB transaction:
@@ -642,7 +683,7 @@ class CRMService:
         - Sets lead status to 'converted' and records status_history
         Rule 2: Only 'qualified' leads can be converted. Converting twice returns 409 Conflict.
         """
-        lead = self.get_lead(lead_id)
+        lead = self.get_lead(lead_id, scope_context=scope_context)
 
         if lead.status == "converted":
             raise ConflictException(
@@ -779,6 +820,7 @@ class CRMService:
         stage: OpportunityStage | None = None,
         customer_id: int | None = None,
         owner_user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> tuple[list[Opportunity], int]:
         stmt = select(Opportunity)
         count_stmt = select(func.count(Opportunity.id))
@@ -793,6 +835,10 @@ class CRMService:
             stmt = stmt.where(Opportunity.owner_user_id == owner_user_id)
             count_stmt = count_stmt.where(Opportunity.owner_user_id == owner_user_id)
 
+        if scope_context:
+            stmt = apply_scope(stmt, Opportunity, scope_context, self.db)
+            count_stmt = apply_scope(count_stmt, Opportunity, scope_context, self.db)
+
         total = self.db.execute(count_stmt).scalar_one()
         offset = (page - 1) * page_size
         opps = (
@@ -802,8 +848,13 @@ class CRMService:
         )
         return list(opps), total
 
-    def get_opportunity(self, opportunity_id: int) -> Opportunity:
-        opp = self.db.get(Opportunity, opportunity_id)
+    def get_opportunity(
+        self, opportunity_id: int, scope_context: ScopeContext | None = None
+    ) -> Opportunity:
+        stmt = select(Opportunity).where(Opportunity.id == opportunity_id)
+        if scope_context:
+            stmt = apply_scope(stmt, Opportunity, scope_context, self.db)
+        opp = self.db.execute(stmt).scalar_one_or_none()
         if not opp:
             raise NotFoundException(detail="Opportunity not found.")
         return opp
@@ -853,9 +904,13 @@ class CRMService:
         return opp
 
     def update_opportunity(
-        self, opportunity_id: int, data: OpportunityUpdate, updater_id: int | None = None
+        self,
+        opportunity_id: int,
+        data: OpportunityUpdate,
+        updater_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> Opportunity:
-        opp = self.get_opportunity(opportunity_id)
+        opp = self.get_opportunity(opportunity_id, scope_context=scope_context)
         if opp.version != data.version:
             raise ConflictException(detail="Opportunity was modified by another session.")
         if opp.stage in ("won", "lost"):
@@ -886,14 +941,18 @@ class CRMService:
         return opp
 
     def transition_opportunity(
-        self, opportunity_id: int, payload: OpportunityTransitionPayload, user_id: int | None = None
+        self,
+        opportunity_id: int,
+        payload: OpportunityTransitionPayload,
+        user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> Opportunity:
         """
         Enforces opportunity stage machine.
         Rule 4: Won or Lost sets closed_at; Lost requires lost_reason.
         Rule 6: Won opportunity promotes prospect customer to active!
         """
-        opp = self.get_opportunity(opportunity_id)
+        opp = self.get_opportunity(opportunity_id, scope_context=scope_context)
         from_stage = opp.stage
         to_stage = payload.to_stage
 
@@ -962,7 +1021,9 @@ class CRMService:
         self.db.refresh(opp)
         return opp
 
-    def get_pipeline(self, owner_user_id: int | None = None) -> PipelineResponse:
+    def get_pipeline(
+        self, owner_user_id: int | None = None, scope_context: ScopeContext | None = None
+    ) -> PipelineResponse:
         """Returns sales pipeline breakdown grouped by stage with weighted totals."""
         stages: list[OpportunityStage] = ["discovery", "proposal", "negotiation", "won", "lost"]
         stage_items: list[PipelineStageItem] = []
@@ -973,6 +1034,8 @@ class CRMService:
             stmt = select(Opportunity).where(Opportunity.stage == stage_name)
             if owner_user_id is not None:
                 stmt = stmt.where(Opportunity.owner_user_id == owner_user_id)
+            if scope_context:
+                stmt = apply_scope(stmt, Opportunity, scope_context, self.db)
 
             opps = list(self.db.execute(stmt.order_by(Opportunity.id.desc())).scalars().all())
             stage_total = sum((o.estimated_amount for o in opps), Decimal("0.00"))

@@ -14,6 +14,7 @@ import { PipelinePage } from './pages/PipelinePage'
 import { ProductsPage } from './pages/ProductsPage'
 import { PurchaseOrdersPage } from './pages/PurchaseOrdersPage'
 import { QuotesPage } from './pages/QuotesPage'
+import { RolesPage } from './pages/RolesPage'
 import { SalesOrdersPage } from './pages/SalesOrdersPage'
 import { SupplierInvoicesPage } from './pages/SupplierInvoicesPage'
 import { SupplierPaymentsPage } from './pages/SupplierPaymentsPage'
@@ -80,6 +81,7 @@ const MainRouter: React.FC = () => {
       {activeTab === 'customers' && <CustomersPage />}
       {activeTab === 'products' && <ProductsPage />}
       {activeTab === 'employees' && <EmployeesPage />}
+      {activeTab === 'roles' && <RolesPage />}
       {activeTab === 'settings' && <CompanySettingsPage />}
     </AppLayout>
   )
