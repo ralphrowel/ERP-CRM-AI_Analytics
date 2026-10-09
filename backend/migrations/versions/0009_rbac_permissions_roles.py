@@ -60,7 +60,7 @@ def upgrade() -> None:
         CREATE TRIGGER trg_roles_updated_at
         BEFORE UPDATE ON roles
         FOR EACH ROW
-        EXECUTE FUNCTION set_updated_at();
+        EXECUTE FUNCTION update_updated_at_column();
         """
     )
 
