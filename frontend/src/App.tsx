@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import { CompanySettingsPage } from './pages/CompanySettingsPage'
 import { CustomersPage } from './pages/CustomersPage'
 import { EmployeesPage } from './pages/EmployeesPage'
+import { GoodsReceiptsPage } from './pages/GoodsReceiptsPage'
 import { InvoicesPage } from './pages/InvoicesPage'
 import { InventoryPage } from './pages/InventoryPage'
 import { LeadsPage } from './pages/LeadsPage'
@@ -11,10 +12,12 @@ import { LoginPage } from './pages/LoginPage'
 import { PaymentsPage } from './pages/PaymentsPage'
 import { PipelinePage } from './pages/PipelinePage'
 import { ProductsPage } from './pages/ProductsPage'
+import { PurchaseOrdersPage } from './pages/PurchaseOrdersPage'
 import { QuotesPage } from './pages/QuotesPage'
 import { SalesOrdersPage } from './pages/SalesOrdersPage'
+import { SupplierInvoicesPage } from './pages/SupplierInvoicesPage'
+import { SupplierPaymentsPage } from './pages/SupplierPaymentsPage'
 import { SuppliersPage } from './pages/SuppliersPage'
-import { PurchaseOrdersPage } from './pages/PurchaseOrdersPage'
 
 const MainRouter: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth()
@@ -70,6 +73,9 @@ const MainRouter: React.FC = () => {
       {activeTab === 'payments' && <PaymentsPage />}
       {activeTab === 'suppliers' && <SuppliersPage />}
       {activeTab === 'purchase_orders' && <PurchaseOrdersPage />}
+      {activeTab === 'goods_receipts' && <GoodsReceiptsPage />}
+      {activeTab === 'supplier_invoices' && <SupplierInvoicesPage />}
+      {activeTab === 'supplier_payments' && <SupplierPaymentsPage />}
       {activeTab === 'inventory' && <InventoryPage />}
       {activeTab === 'customers' && <CustomersPage />}
       {activeTab === 'products' && <ProductsPage />}

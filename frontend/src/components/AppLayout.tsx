@@ -1,5 +1,6 @@
 import React from 'react'
 import {
+  Boxes,
   Building2,
   CreditCard,
   FileCheck,
@@ -8,12 +9,14 @@ import {
   LogOut,
   Package,
   Receipt,
+  Scale,
   ShieldCheck,
   ShoppingCart,
   Truck,
   UserCheck,
   UserPlus,
   Users,
+  Wallet,
   Warehouse,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -27,6 +30,9 @@ export type NavTab =
   | 'payments'
   | 'suppliers'
   | 'purchase_orders'
+  | 'goods_receipts'
+  | 'supplier_invoices'
+  | 'supplier_payments'
   | 'inventory'
   | 'customers'
   | 'products'
@@ -57,6 +63,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
   const procurementItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
     { id: 'suppliers', label: 'Suppliers & Vendors', icon: <Truck size={18} /> },
     { id: 'purchase_orders', label: 'Purchase Orders', icon: <FileCheck size={18} /> },
+    { id: 'goods_receipts', label: 'Goods Receipts', icon: <Boxes size={18} /> },
+    { id: 'supplier_invoices', label: 'Supplier Bills (3-Way)', icon: <Scale size={18} /> },
+    { id: 'supplier_payments', label: 'AP Payments', icon: <Wallet size={18} /> },
   ]
 
   const inventoryItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
@@ -125,7 +134,16 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
         </div>
 
         {/* Navigation */}
-        <nav style={{ padding: '1.25rem 0.85rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+        <nav
+          style={{
+            padding: '1.25rem 0.85rem',
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.35rem',
+            overflowY: 'auto',
+          }}
+        >
           <div
             style={{
               fontSize: '0.7rem',
