@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.authorization import ScopeContext, apply_scope
 from app.core.clock import Clock, get_clock
 from app.core.errors import AppException, BusinessRuleError, ConflictError, NotFoundError
 from app.core.money import calculate_line, round_money
@@ -266,8 +267,10 @@ class SalesService:
         self.db.refresh(quote)
         return quote
 
-    def get_quote(self, quote_id: int) -> Quote:
+    def get_quote(self, quote_id: int, scope_context: ScopeContext | None = None) -> Quote:
         stmt = select(Quote).options(joinedload(Quote.items)).where(Quote.id == quote_id)
+        if scope_context:
+            stmt = apply_scope(stmt, Quote, scope_context, self.db)
         quote = self.db.execute(stmt).unique().scalar_one_or_none()
         if not quote:
             raise NotFoundError(f"Quote #{quote_id} not found.")
@@ -279,6 +282,7 @@ class SalesService:
         page_size: int = 20,
         customer_id: int | None = None,
         status: str | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> tuple[list[Quote], int]:
         stmt = select(Quote).options(joinedload(Quote.items))
         count_stmt = select(func.count(Quote.id))
@@ -290,15 +294,23 @@ class SalesService:
             stmt = stmt.where(Quote.status == status)
             count_stmt = count_stmt.where(Quote.status == status)
 
+        if scope_context:
+            stmt = apply_scope(stmt, Quote, scope_context, self.db)
+            count_stmt = apply_scope(count_stmt, Quote, scope_context, self.db)
+
         total = self.db.execute(count_stmt).scalar_one()
         stmt = stmt.order_by(Quote.id.desc()).offset((page - 1) * page_size).limit(page_size)
         items = list(self.db.execute(stmt).unique().scalars().all())
         return items, total
 
     def update_quote(
-        self, quote_id: int, payload: QuoteUpdatePayload, current_user_id: int | None = None
+        self,
+        quote_id: int,
+        payload: QuoteUpdatePayload,
+        current_user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> Quote:
-        quote = self.get_quote(quote_id)
+        quote = self.get_quote(quote_id, scope_context=scope_context)
         if quote.status != "draft":
             raise BusinessRuleError(
                 "QUOTE_IMMUTABLE",
@@ -330,8 +342,13 @@ class SalesService:
         self.db.refresh(quote)
         return quote
 
-    def send_quote(self, quote_id: int, current_user_id: int | None = None) -> Quote:
-        quote = self.get_quote(quote_id)
+    def send_quote(
+        self,
+        quote_id: int,
+        current_user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
+    ) -> Quote:
+        quote = self.get_quote(quote_id, scope_context=scope_context)
         if quote.status != "draft":
             raise BusinessRuleError(
                 "INVALID_TRANSITION",
@@ -360,8 +377,13 @@ class SalesService:
         self.db.refresh(quote)
         return quote
 
-    def accept_quote(self, quote_id: int, current_user_id: int | None = None) -> Quote:
-        quote = self.get_quote(quote_id)
+    def accept_quote(
+        self,
+        quote_id: int,
+        current_user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
+    ) -> Quote:
+        quote = self.get_quote(quote_id, scope_context=scope_context)
         if quote.status != "sent":
             raise BusinessRuleError(
                 "INVALID_TRANSITION",
@@ -436,9 +458,13 @@ class SalesService:
         return quote
 
     def reject_quote(
-        self, quote_id: int, reason: str | None = None, current_user_id: int | None = None
+        self,
+        quote_id: int,
+        reason: str | None = None,
+        current_user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> Quote:
-        quote = self.get_quote(quote_id)
+        quote = self.get_quote(quote_id, scope_context=scope_context)
         if quote.status != "sent":
             raise BusinessRuleError(
                 "INVALID_TRANSITION",
@@ -466,9 +492,13 @@ class SalesService:
         return quote
 
     def cancel_quote(
-        self, quote_id: int, reason: str | None = None, current_user_id: int | None = None
+        self,
+        quote_id: int,
+        reason: str | None = None,
+        current_user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> Quote:
-        quote = self.get_quote(quote_id)
+        quote = self.get_quote(quote_id, scope_context=scope_context)
         if quote.status not in ("draft", "sent"):
             raise BusinessRuleError(
                 "INVALID_TRANSITION",
@@ -496,10 +526,13 @@ class SalesService:
         return quote
 
     def create_order_from_quote(
-        self, quote_id: int, current_user_id: int | None = None
+        self,
+        quote_id: int,
+        current_user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> SalesOrder:
         """Roadmap Rule 5: Creates Sales Order directly from accepted (or sent) quote, copying lines and preserving snapshots."""
-        quote = self.get_quote(quote_id)
+        quote = self.get_quote(quote_id, scope_context=scope_context)
         if quote.status not in ("accepted", "sent"):
             raise BusinessRuleError(
                 "INVALID_TRANSITION",
@@ -631,12 +664,16 @@ class SalesService:
         self.db.refresh(so)
         return so
 
-    def get_sales_order(self, order_id: int) -> SalesOrder:
+    def get_sales_order(
+        self, order_id: int, scope_context: ScopeContext | None = None
+    ) -> SalesOrder:
         stmt = (
             select(SalesOrder)
             .options(joinedload(SalesOrder.items))
             .where(SalesOrder.id == order_id)
         )
+        if scope_context:
+            stmt = apply_scope(stmt, SalesOrder, scope_context, self.db)
         so = self.db.execute(stmt).unique().scalar_one_or_none()
         if not so:
             raise NotFoundError(f"Sales order #{order_id} not found.")
@@ -648,6 +685,7 @@ class SalesService:
         page_size: int = 20,
         customer_id: int | None = None,
         status: str | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> tuple[list[SalesOrder], int]:
         stmt = select(SalesOrder).options(joinedload(SalesOrder.items))
         count_stmt = select(func.count(SalesOrder.id))
@@ -659,15 +697,23 @@ class SalesService:
             stmt = stmt.where(SalesOrder.status == status)
             count_stmt = count_stmt.where(SalesOrder.status == status)
 
+        if scope_context:
+            stmt = apply_scope(stmt, SalesOrder, scope_context, self.db)
+            count_stmt = apply_scope(count_stmt, SalesOrder, scope_context, self.db)
+
         total = self.db.execute(count_stmt).scalar_one()
         stmt = stmt.order_by(SalesOrder.id.desc()).offset((page - 1) * page_size).limit(page_size)
         items = list(self.db.execute(stmt).unique().scalars().all())
         return items, total
 
     def update_sales_order(
-        self, order_id: int, payload: SalesOrderUpdatePayload, current_user_id: int | None = None
+        self,
+        order_id: int,
+        payload: SalesOrderUpdatePayload,
+        current_user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> SalesOrder:
-        so = self.get_sales_order(order_id)
+        so = self.get_sales_order(order_id, scope_context=scope_context)
         if so.status != "draft":
             raise BusinessRuleError(
                 "ORDER_IMMUTABLE",
@@ -716,7 +762,12 @@ class SalesService:
         parts.append(addr.country_code)
         return ", ".join(parts)
 
-    def confirm_sales_order(self, order_id: int, current_user_id: int | None = None) -> SalesOrder:
+    def confirm_sales_order(
+        self,
+        order_id: int,
+        current_user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
+    ) -> SalesOrder:
         """
         Roadmap Rule 6 & 7:
         - Must have >= 1 line.
@@ -726,7 +777,7 @@ class SalesService:
         - A prospect customer becomes active.
         - Credit limit check: open AR balance + uninvoiced confirmed orders + this order <= credit_limit.
         """
-        so = self.get_sales_order(order_id)
+        so = self.get_sales_order(order_id, scope_context=scope_context)
         if so.status != "draft":
             raise BusinessRuleError(
                 "INVALID_TRANSITION",
@@ -853,9 +904,13 @@ class SalesService:
         return so
 
     def hold_sales_order(
-        self, order_id: int, reason: str | None = None, current_user_id: int | None = None
+        self,
+        order_id: int,
+        reason: str | None = None,
+        current_user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> SalesOrder:
-        so = self.get_sales_order(order_id)
+        so = self.get_sales_order(order_id, scope_context=scope_context)
         if so.status != "confirmed":
             raise BusinessRuleError(
                 "INVALID_TRANSITION",
@@ -882,8 +937,13 @@ class SalesService:
         self.db.refresh(so)
         return so
 
-    def release_sales_order(self, order_id: int, current_user_id: int | None = None) -> SalesOrder:
-        so = self.get_sales_order(order_id)
+    def release_sales_order(
+        self,
+        order_id: int,
+        current_user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
+    ) -> SalesOrder:
+        so = self.get_sales_order(order_id, scope_context=scope_context)
         if so.status != "on_hold":
             raise BusinessRuleError(
                 "INVALID_TRANSITION",
@@ -911,9 +971,13 @@ class SalesService:
         return so
 
     def cancel_sales_order(
-        self, order_id: int, reason: str | None = None, current_user_id: int | None = None
+        self,
+        order_id: int,
+        reason: str | None = None,
+        current_user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> SalesOrder:
-        so = self.get_sales_order(order_id)
+        so = self.get_sales_order(order_id, scope_context=scope_context)
         # Check if already shipped or invoiced (Roadmap §V0.4: cancel order blocked if shipped)
         if any(item.quantity_shipped > Decimal("0.000") for item in so.items) or so.status in (
             "partially_shipped",
@@ -970,12 +1034,15 @@ class SalesService:
         order_id: int,
         payload: InvoiceCreateFromOrderPayload | None = None,
         current_user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> Invoice:
         stmt = (
             select(SalesOrder)
             .where(SalesOrder.id == order_id)
             .options(joinedload(SalesOrder.items), joinedload(SalesOrder.customer))
         )
+        if scope_context:
+            stmt = apply_scope(stmt, SalesOrder, scope_context, self.db)
         so = self.db.execute(stmt).unique().scalar_one_or_none()
         if not so:
             raise NotFoundError(f"Sales order with ID {order_id} not found.")
@@ -1114,7 +1181,9 @@ class SalesService:
         self.db.refresh(invoice)
         return invoice
 
-    def get_invoice(self, invoice_id: int) -> Invoice:
+    def get_invoice(
+        self, invoice_id: int, scope_context: ScopeContext | None = None
+    ) -> Invoice:
         stmt = (
             select(Invoice)
             .where(Invoice.id == invoice_id)
@@ -1125,6 +1194,8 @@ class SalesService:
                 joinedload(Invoice.credit_notes),
             )
         )
+        if scope_context:
+            stmt = apply_scope(stmt, Invoice, scope_context, self.db)
         inv = self.db.execute(stmt).unique().scalar_one_or_none()
         if not inv:
             raise NotFoundError(f"Invoice with ID {invoice_id} not found.")
@@ -1137,6 +1208,7 @@ class SalesService:
         customer_id: int | None = None,
         status: str | None = None,
         sales_order_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> tuple[list[Invoice], int]:
         stmt = select(Invoice).options(joinedload(Invoice.items))
         if customer_id is not None:
@@ -1154,6 +1226,10 @@ class SalesService:
         if sales_order_id is not None:
             count_stmt = count_stmt.where(Invoice.sales_order_id == sales_order_id)
 
+        if scope_context:
+            stmt = apply_scope(stmt, Invoice, scope_context, self.db)
+            count_stmt = apply_scope(count_stmt, Invoice, scope_context, self.db)
+
         total = self.db.execute(count_stmt).scalar() or 0
         stmt = stmt.order_by(Invoice.id.desc()).offset((page - 1) * page_size).limit(page_size)
         items = list(self.db.execute(stmt).unique().scalars().all())
@@ -1165,8 +1241,9 @@ class SalesService:
         issue_date: date | None = None,
         due_date: date | None = None,
         current_user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> Invoice:
-        inv = self.get_invoice(invoice_id)
+        inv = self.get_invoice(invoice_id, scope_context=scope_context)
         if inv.status != "draft":
             raise BusinessRuleError(
                 "INVALID_TRANSITION",
@@ -1273,9 +1350,13 @@ class SalesService:
         return inv
 
     def void_invoice(
-        self, invoice_id: int, reason: str | None = None, current_user_id: int | None = None
+        self,
+        invoice_id: int,
+        reason: str | None = None,
+        current_user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> Invoice:
-        inv = self.get_invoice(invoice_id)
+        inv = self.get_invoice(invoice_id, scope_context=scope_context)
         if inv.status != "issued":
             raise BusinessRuleError(
                 "INVALID_TRANSITION",
@@ -1389,12 +1470,16 @@ class SalesService:
         self.db.refresh(payment)
         return payment
 
-    def get_payment(self, payment_id: int) -> Payment:
+    def get_payment(
+        self, payment_id: int, scope_context: ScopeContext | None = None
+    ) -> Payment:
         stmt = (
             select(Payment)
             .where(Payment.id == payment_id)
             .options(joinedload(Payment.allocations), joinedload(Payment.customer))
         )
+        if scope_context:
+            stmt = apply_scope(stmt, Payment, scope_context, self.db)
         pay = self.db.execute(stmt).unique().scalar_one_or_none()
         if not pay:
             raise NotFoundError(f"Payment with ID {payment_id} not found.")
@@ -1406,6 +1491,7 @@ class SalesService:
         page_size: int = 20,
         customer_id: int | None = None,
         status: str | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> tuple[list[Payment], int]:
         stmt = select(Payment).options(joinedload(Payment.allocations))
         if customer_id is not None:
@@ -1419,6 +1505,10 @@ class SalesService:
         if status is not None:
             count_stmt = count_stmt.where(Payment.status == status)
 
+        if scope_context:
+            stmt = apply_scope(stmt, Payment, scope_context, self.db)
+            count_stmt = apply_scope(count_stmt, Payment, scope_context, self.db)
+
         total = self.db.execute(count_stmt).scalar() or 0
         stmt = stmt.order_by(Payment.id.desc()).offset((page - 1) * page_size).limit(page_size)
         items = list(self.db.execute(stmt).unique().scalars().all())
@@ -1430,7 +1520,11 @@ class SalesService:
         invoice_id: int,
         amount: Decimal,
         current_user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> PaymentAllocation:
+        if scope_context:
+            self.get_payment(payment_id, scope_context=scope_context)
+
         # Row locking payment and invoice with_for_update()
         stmt_pay = select(Payment).where(Payment.id == payment_id).with_for_update()
         pay = self.db.execute(stmt_pay).scalar_one_or_none()
@@ -1543,8 +1637,15 @@ class SalesService:
         return alloc
 
     def void_payment(
-        self, payment_id: int, reason: str | None = None, current_user_id: int | None = None
+        self,
+        payment_id: int,
+        reason: str | None = None,
+        current_user_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> Payment:
+        if scope_context:
+            self.get_payment(payment_id, scope_context=scope_context)
+
         stmt_pay = (
             select(Payment)
             .where(Payment.id == payment_id)
@@ -1766,12 +1867,16 @@ class SalesService:
         self.db.refresh(credit_note)
         return credit_note
 
-    def get_credit_note(self, credit_note_id: int) -> CreditNote:
+    def get_credit_note(
+        self, credit_note_id: int, scope_context: ScopeContext | None = None
+    ) -> CreditNote:
         stmt = (
             select(CreditNote)
             .where(CreditNote.id == credit_note_id)
             .options(joinedload(CreditNote.items), joinedload(CreditNote.customer))
         )
+        if scope_context:
+            stmt = apply_scope(stmt, CreditNote, scope_context, self.db)
         cn = self.db.execute(stmt).unique().scalar_one_or_none()
         if not cn:
             raise NotFoundError(f"Credit note with ID {credit_note_id} not found.")
@@ -1783,6 +1888,7 @@ class SalesService:
         page_size: int = 20,
         customer_id: int | None = None,
         invoice_id: int | None = None,
+        scope_context: ScopeContext | None = None,
     ) -> tuple[list[CreditNote], int]:
         stmt = select(CreditNote).options(joinedload(CreditNote.items))
         if customer_id is not None:
@@ -1796,6 +1902,10 @@ class SalesService:
         if invoice_id is not None:
             count_stmt = count_stmt.where(CreditNote.invoice_id == invoice_id)
 
+        if scope_context:
+            stmt = apply_scope(stmt, CreditNote, scope_context, self.db)
+            count_stmt = apply_scope(count_stmt, CreditNote, scope_context, self.db)
+
         total = self.db.execute(count_stmt).scalar() or 0
         stmt = stmt.order_by(CreditNote.id.desc()).offset((page - 1) * page_size).limit(page_size)
         items = list(self.db.execute(stmt).unique().scalars().all())
@@ -1803,10 +1913,13 @@ class SalesService:
 
     # --- Customer Statement (Milestone V0.3b) ---
 
-    def get_customer_statement(self, customer_id: int) -> CustomerStatementOut:
-        customer = self.db.execute(
-            select(Customer).where(Customer.id == customer_id)
-        ).scalar_one_or_none()
+    def get_customer_statement(
+        self, customer_id: int, scope_context: ScopeContext | None = None
+    ) -> CustomerStatementOut:
+        cust_stmt = select(Customer).where(Customer.id == customer_id)
+        if scope_context:
+            cust_stmt = apply_scope(cust_stmt, Customer, scope_context, self.db)
+        customer = self.db.execute(cust_stmt).scalar_one_or_none()
         if not customer:
             raise NotFoundError(f"Customer with ID {customer_id} not found.")
 

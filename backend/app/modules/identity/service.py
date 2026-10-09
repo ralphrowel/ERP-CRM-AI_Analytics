@@ -1,8 +1,9 @@
 from datetime import timedelta
 
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy import delete, func, select
+from sqlalchemy.orm import Session, joinedload
 
+from app.core.authorization import get_user_effective_permissions
 from app.core.clock import Clock, get_clock
 from app.core.config import settings
 from app.core.errors import (
@@ -18,8 +19,25 @@ from app.core.security import (
     hash_token,
     verify_password,
 )
-from app.modules.identity.models import User, UserSession
-from app.modules.identity.schemas import UserCreate, UserUpdate
+from app.modules.identity.models import (
+    Permission,
+    Role,
+    RolePermission,
+    User,
+    UserRole,
+    UserSession,
+)
+from app.modules.identity.schemas import (
+    AuthMeResponse,
+    RoleCreate,
+    RolePermissionResponse,
+    RoleResponse,
+    RoleUpdate,
+    UserCreate,
+    UserResponse,
+    UserRoleAssignmentItem,
+    UserUpdate,
+)
 
 
 class IdentityService:
@@ -41,6 +59,14 @@ class IdentityService:
             self.db.add(user)
             self.db.commit()
             self.db.refresh(user)
+
+            # Assign admin role if exists
+            admin_role = self.db.execute(select(Role).where(Role.code == "admin")).scalar_one_or_none()
+            if admin_role:
+                user_role = UserRole(user_id=user.id, role_id=admin_role.id)
+                self.db.add(user_role)
+                self.db.commit()
+
             return user
         return None
 
@@ -124,7 +150,13 @@ class IdentityService:
 
         # Check sliding idle timeout (e.g. 8 hours)
         idle_limit = timedelta(hours=settings.SESSION_IDLE_HOURS)
-        if (now - session.last_seen_at) > idle_limit:
+        last_seen = session.last_seen_at
+        if last_seen.tzinfo is None and now.tzinfo is not None:
+            last_seen = last_seen.replace(tzinfo=now.tzinfo)
+        elif last_seen.tzinfo is not None and now.tzinfo is None:
+            now = now.replace(tzinfo=last_seen.tzinfo)
+
+        if (now - last_seen) > idle_limit:
             session.revoked_at = now
             self.db.commit()
             raise UnauthorizedException(detail="Session expired due to inactivity.")
@@ -148,7 +180,7 @@ class IdentityService:
         self.db.commit()
 
     def revoke_all_user_sessions(self, user_id: int) -> None:
-        """Revokes all active sessions for a user (called upon role change or deactivation)."""
+        """Revokes all active sessions for a user (called upon role change or deactivation per Roadmap §1388)."""
         now = self.clock.now()
         sessions = (
             self.db.execute(
@@ -165,6 +197,17 @@ class IdentityService:
             s.revoked_at = now
         self.db.commit()
 
+    def get_auth_me(self, user: User) -> AuthMeResponse:
+        """Returns caller profile with effective roles, permissions mapped to widest scope, and department ID."""
+        roles, perms, dept_id = get_user_effective_permissions(self.db, user)
+        return AuthMeResponse(
+            user=UserResponse.model_validate(user),
+            roles=roles,
+            permissions=perms,
+            department_id=dept_id,
+        )
+
+    # ── User CRUD ──────────────────────────────────────────────────────────
     def create_user(self, data: UserCreate, creator_id: int | None = None) -> User:
         normalized_email = data.email.strip().lower()
         existing = self.db.execute(
@@ -190,6 +233,14 @@ class IdentityService:
         self.db.add(user)
         self.db.commit()
         self.db.refresh(user)
+
+        # Assign initial roles if specified
+        if data.role_ids:
+            for r_id in data.role_ids:
+                ur = UserRole(user_id=user.id, role_id=r_id, assigned_by=creator_id)
+                self.db.add(ur)
+            self.db.commit()
+
         return user
 
     def update_user(self, user_id: int, data: UserUpdate, updater_id: int | None = None) -> User:
@@ -235,6 +286,13 @@ class IdentityService:
             user.is_superuser = data.is_superuser
             role_changed = True
 
+        if data.role_ids is not None:
+            # Replace user roles
+            self.db.execute(delete(UserRole).where(UserRole.user_id == user_id))
+            for r_id in data.role_ids:
+                self.db.add(UserRole(user_id=user_id, role_id=r_id, assigned_by=updater_id))
+            role_changed = True
+
         user.version += 1
         user.updated_by = updater_id
         self.db.commit()
@@ -255,3 +313,249 @@ class IdentityService:
             .all()
         )
         return list(users), total
+
+    # ── RBAC Roles & Permissions Management ────────────────────────────────
+    def list_permissions(self, module: str | None = None) -> list[Permission]:
+        stmt = select(Permission).order_by(Permission.module.asc(), Permission.code.asc())
+        if module:
+            stmt = stmt.where(Permission.module == module)
+        return list(self.db.execute(stmt).scalars().all())
+
+    def list_roles(self, page: int = 1, page_size: int = 50) -> tuple[list[RoleResponse], int]:
+        offset = (page - 1) * page_size
+        total = self.db.execute(select(func.count(Role.id))).scalar_one()
+        roles = (
+            self.db.execute(
+                select(Role)
+                .options(
+                    joinedload(Role.role_permissions).joinedload(RolePermission.permission)
+                )
+                .order_by(Role.id.asc())
+                .offset(offset)
+                .limit(page_size)
+            )
+            .unique()
+            .scalars()
+            .all()
+        )
+
+        items: list[RoleResponse] = []
+        for r in roles:
+            perm_responses = [
+                RolePermissionResponse(
+                    permission_id=rp.permission_id,
+                    code=rp.permission.code,
+                    module=rp.permission.module,
+                    description=rp.permission.description,
+                    scope=rp.scope,  # type: ignore[arg-type]
+                )
+                for rp in r.role_permissions
+            ]
+            items.append(
+                RoleResponse(
+                    id=r.id,
+                    code=r.code,
+                    name=r.name,
+                    description=r.description,
+                    is_system=r.is_system,
+                    version=r.version,
+                    created_at=r.created_at,
+                    updated_at=r.updated_at,
+                    permissions=perm_responses,
+                )
+            )
+
+        return items, total
+
+    def get_role(self, role_id: int) -> RoleResponse:
+        role = (
+            self.db.execute(
+                select(Role)
+                .options(
+                    joinedload(Role.role_permissions).joinedload(RolePermission.permission)
+                )
+                .where(Role.id == role_id)
+            )
+            .unique()
+            .scalar_one_or_none()
+        )
+        if not role:
+            raise NotFoundException(detail="Role not found.")
+
+        perm_responses = [
+            RolePermissionResponse(
+                permission_id=rp.permission_id,
+                code=rp.permission.code,
+                module=rp.permission.module,
+                description=rp.permission.description,
+                scope=rp.scope,  # type: ignore[arg-type]
+            )
+            for rp in role.role_permissions
+        ]
+
+        return RoleResponse(
+            id=role.id,
+            code=role.code,
+            name=role.name,
+            description=role.description,
+            is_system=role.is_system,
+            version=role.version,
+            created_at=role.created_at,
+            updated_at=role.updated_at,
+            permissions=perm_responses,
+        )
+
+    def create_role(self, data: RoleCreate, creator_id: int | None = None) -> RoleResponse:
+        normalized_code = data.code.strip().lower()
+        existing = self.db.execute(select(Role).where(Role.code == normalized_code)).scalar_one_or_none()
+        if existing:
+            raise AppException(
+                status_code=400,
+                code="ROLE_ALREADY_EXISTS",
+                title="Bad Request",
+                detail=f"A role with code '{normalized_code}' already exists.",
+            )
+
+        role = Role(
+            code=normalized_code,
+            name=data.name.strip(),
+            description=data.description.strip() if data.description else None,
+            is_system=False,
+            created_by=creator_id,
+            updated_by=creator_id,
+        )
+        self.db.add(role)
+        self.db.flush()
+
+        for p_input in data.permissions:
+            rp = RolePermission(
+                role_id=role.id,
+                permission_id=p_input.permission_id,
+                scope=p_input.scope,
+            )
+            self.db.add(rp)
+
+        self.db.commit()
+        return self.get_role(role.id)
+
+    def update_role(self, role_id: int, data: RoleUpdate, updater_id: int | None = None) -> RoleResponse:
+        role = self.db.get(Role, role_id)
+        if not role:
+            raise NotFoundException(detail="Role not found.")
+
+        if role.version != data.version:
+            raise ConflictException(
+                detail="Role was modified by another session. Please reload and try again."
+            )
+
+        if data.name is not None:
+            role.name = data.name.strip()
+        if data.description is not None:
+            role.description = data.description.strip() if data.description else None
+
+        permissions_changed = False
+        if data.permissions is not None:
+            # Replace role permissions
+            self.db.execute(delete(RolePermission).where(RolePermission.role_id == role_id))
+            for p_input in data.permissions:
+                rp = RolePermission(
+                    role_id=role_id,
+                    permission_id=p_input.permission_id,
+                    scope=p_input.scope,
+                )
+                self.db.add(rp)
+            permissions_changed = True
+
+        role.version += 1
+        role.updated_by = updater_id
+        self.db.commit()
+
+        # If role permissions were updated, revoke sessions of all users assigned to this role
+        if permissions_changed:
+            affected_user_ids = (
+                self.db.execute(select(UserRole.user_id).where(UserRole.role_id == role_id))
+                .scalars()
+                .all()
+            )
+            for uid in affected_user_ids:
+                self.revoke_all_user_sessions(uid)
+
+        return self.get_role(role_id)
+
+    def delete_role(self, role_id: int) -> None:
+        role = self.db.get(Role, role_id)
+        if not role:
+            raise NotFoundException(detail="Role not found.")
+
+        if role.is_system:
+            raise AppException(
+                status_code=400,
+                code="CANNOT_DELETE_SYSTEM_ROLE",
+                title="Bad Request",
+                detail=f"System role '{role.code}' cannot be deleted.",
+            )
+
+        # Revoke sessions of users holding this role
+        affected_user_ids = (
+            self.db.execute(select(UserRole.user_id).where(UserRole.role_id == role_id))
+            .scalars()
+            .all()
+        )
+        for uid in affected_user_ids:
+            self.revoke_all_user_sessions(uid)
+
+        self.db.delete(role)
+        self.db.commit()
+
+    def get_user_roles(self, user_id: int) -> list[UserRoleAssignmentItem]:
+        user = self.db.get(User, user_id)
+        if not user:
+            raise NotFoundException(detail="User not found.")
+
+        stmt = (
+            select(UserRole)
+            .options(joinedload(UserRole.role))
+            .where(UserRole.user_id == user_id)
+            .order_by(UserRole.assigned_at.asc())
+        )
+        user_roles = self.db.execute(stmt).scalars().all()
+
+        return [
+            UserRoleAssignmentItem(
+                role_id=ur.role_id,
+                role_code=ur.role.code,
+                role_name=ur.role.name,
+                assigned_at=ur.assigned_at,
+            )
+            for ur in user_roles
+        ]
+
+    def assign_user_roles(
+        self, user_id: int, role_ids: list[int], assigner_id: int | None = None
+    ) -> list[UserRoleAssignmentItem]:
+        user = self.db.get(User, user_id)
+        if not user:
+            raise NotFoundException(detail="User not found.")
+
+        # Validate that all role_ids exist
+        valid_roles = self.db.execute(select(Role.id).where(Role.id.in_(role_ids))).scalars().all()
+        if len(valid_roles) != len(set(role_ids)):
+            raise AppException(
+                status_code=400,
+                code="INVALID_ROLE_ID",
+                title="Bad Request",
+                detail="One or more specified role IDs do not exist.",
+            )
+
+        # Clear existing and add new
+        self.db.execute(delete(UserRole).where(UserRole.user_id == user_id))
+        for r_id in set(role_ids):
+            ur = UserRole(user_id=user_id, role_id=r_id, assigned_by=assigner_id)
+            self.db.add(ur)
+
+        self.db.commit()
+
+        # Changing a user's roles revokes their sessions immediately (Roadmap §1388)
+        self.revoke_all_user_sessions(user_id)
+
+        return self.get_user_roles(user_id)

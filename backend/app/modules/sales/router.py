@@ -5,9 +5,8 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Header, Query, Response, status
 from sqlalchemy.orm import Session
 
+from app.core.authorization import ScopeContext, require
 from app.core.database import get_db
-from app.modules.identity.dependencies import get_current_user
-from app.modules.identity.models import User
 from app.modules.sales.schemas import (
     CreditNoteCreatePayload,
     CreditNoteOut,
@@ -48,7 +47,7 @@ def get_sales_service(db: Annotated[Session, Depends(get_db)]) -> SalesService:
 @router.get("/tax-rates", response_model=list[TaxRateOut])
 def list_tax_rates(
     service: Annotated[SalesService, Depends(get_sales_service)],
-    _: Annotated[User, Depends(get_current_user)],
+    _: Annotated[ScopeContext, Depends(require("tax_rate:read"))],
 ) -> list[TaxRateOut]:
     rates = service.list_tax_rates()
     return [TaxRateOut.model_validate(r) for r in rates]
@@ -60,14 +59,18 @@ def list_tax_rates(
 @router.get("/quotes", response_model=PaginatedQuotes)
 def list_quotes(
     service: Annotated[SalesService, Depends(get_sales_service)],
-    _: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("quote:read"))],
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     customer_id: int | None = Query(None),
     status: str | None = Query(None),
 ) -> PaginatedQuotes:
     items, total = service.list_quotes(
-        page=page, page_size=page_size, customer_id=customer_id, status=status
+        page=page,
+        page_size=page_size,
+        customer_id=customer_id,
+        status=status,
+        scope_context=ctx,
     )
     return PaginatedQuotes(
         items=[QuoteOut.model_validate(q) for q in items],
@@ -81,9 +84,9 @@ def list_quotes(
 def create_quote(
     payload: QuoteCreatePayload,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("quote:create"))],
 ) -> QuoteOut:
-    quote = service.create_quote(payload, current_user_id=current_user.id)
+    quote = service.create_quote(payload, current_user_id=ctx.user.id)
     return QuoteOut.model_validate(quote)
 
 
@@ -91,9 +94,9 @@ def create_quote(
 def get_quote(
     quote_id: int,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    _: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("quote:read"))],
 ) -> QuoteOut:
-    quote = service.get_quote(quote_id)
+    quote = service.get_quote(quote_id, scope_context=ctx)
     return QuoteOut.model_validate(quote)
 
 
@@ -102,9 +105,11 @@ def update_quote(
     quote_id: int,
     payload: QuoteUpdatePayload,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("quote:update"))],
 ) -> QuoteOut:
-    quote = service.update_quote(quote_id, payload, current_user_id=current_user.id)
+    quote = service.update_quote(
+        quote_id, payload, current_user_id=ctx.user.id, scope_context=ctx
+    )
     return QuoteOut.model_validate(quote)
 
 
@@ -112,9 +117,9 @@ def update_quote(
 def send_quote(
     quote_id: int,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("quote:send"))],
 ) -> QuoteOut:
-    quote = service.send_quote(quote_id, current_user_id=current_user.id)
+    quote = service.send_quote(quote_id, current_user_id=ctx.user.id, scope_context=ctx)
     return QuoteOut.model_validate(quote)
 
 
@@ -122,9 +127,9 @@ def send_quote(
 def accept_quote(
     quote_id: int,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("quote:accept"))],
 ) -> QuoteOut:
-    quote = service.accept_quote(quote_id, current_user_id=current_user.id)
+    quote = service.accept_quote(quote_id, current_user_id=ctx.user.id, scope_context=ctx)
     return QuoteOut.model_validate(quote)
 
 
@@ -133,9 +138,11 @@ def reject_quote(
     quote_id: int,
     payload: TransitionRequest,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("quote:reject"))],
 ) -> QuoteOut:
-    quote = service.reject_quote(quote_id, reason=payload.reason, current_user_id=current_user.id)
+    quote = service.reject_quote(
+        quote_id, reason=payload.reason, current_user_id=ctx.user.id, scope_context=ctx
+    )
     return QuoteOut.model_validate(quote)
 
 
@@ -144,9 +151,11 @@ def cancel_quote(
     quote_id: int,
     payload: TransitionRequest,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("quote:update"))],
 ) -> QuoteOut:
-    quote = service.cancel_quote(quote_id, reason=payload.reason, current_user_id=current_user.id)
+    quote = service.cancel_quote(
+        quote_id, reason=payload.reason, current_user_id=ctx.user.id, scope_context=ctx
+    )
     return QuoteOut.model_validate(quote)
 
 
@@ -154,9 +163,11 @@ def cancel_quote(
 def create_order_from_quote(
     quote_id: int,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("sales_order:create"))],
 ) -> SalesOrderOut:
-    order = service.create_order_from_quote(quote_id, current_user_id=current_user.id)
+    order = service.create_order_from_quote(
+        quote_id, current_user_id=ctx.user.id, scope_context=ctx
+    )
     return SalesOrderOut.model_validate(order)
 
 
@@ -166,14 +177,18 @@ def create_order_from_quote(
 @router.get("/sales-orders", response_model=PaginatedSalesOrders)
 def list_sales_orders(
     service: Annotated[SalesService, Depends(get_sales_service)],
-    _: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("sales_order:read"))],
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     customer_id: int | None = Query(None),
     status: str | None = Query(None),
 ) -> PaginatedSalesOrders:
     items, total = service.list_sales_orders(
-        page=page, page_size=page_size, customer_id=customer_id, status=status
+        page=page,
+        page_size=page_size,
+        customer_id=customer_id,
+        status=status,
+        scope_context=ctx,
     )
     return PaginatedSalesOrders(
         items=[SalesOrderOut.model_validate(so) for so in items],
@@ -187,9 +202,9 @@ def list_sales_orders(
 def create_sales_order(
     payload: SalesOrderCreatePayload,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("sales_order:create"))],
 ) -> SalesOrderOut:
-    order = service.create_sales_order(payload, current_user_id=current_user.id)
+    order = service.create_sales_order(payload, current_user_id=ctx.user.id)
     return SalesOrderOut.model_validate(order)
 
 
@@ -197,9 +212,9 @@ def create_sales_order(
 def get_sales_order(
     order_id: int,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    _: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("sales_order:read"))],
 ) -> SalesOrderOut:
-    order = service.get_sales_order(order_id)
+    order = service.get_sales_order(order_id, scope_context=ctx)
     return SalesOrderOut.model_validate(order)
 
 
@@ -208,9 +223,11 @@ def update_sales_order(
     order_id: int,
     payload: SalesOrderUpdatePayload,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("sales_order:update"))],
 ) -> SalesOrderOut:
-    order = service.update_sales_order(order_id, payload, current_user_id=current_user.id)
+    order = service.update_sales_order(
+        order_id, payload, current_user_id=ctx.user.id, scope_context=ctx
+    )
     return SalesOrderOut.model_validate(order)
 
 
@@ -218,9 +235,11 @@ def update_sales_order(
 def confirm_sales_order(
     order_id: int,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("sales_order:confirm"))],
 ) -> SalesOrderOut:
-    order = service.confirm_sales_order(order_id, current_user_id=current_user.id)
+    order = service.confirm_sales_order(
+        order_id, current_user_id=ctx.user.id, scope_context=ctx
+    )
     return SalesOrderOut.model_validate(order)
 
 
@@ -229,10 +248,10 @@ def hold_sales_order(
     order_id: int,
     payload: TransitionRequest,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("sales_order:update"))],
 ) -> SalesOrderOut:
     order = service.hold_sales_order(
-        order_id, reason=payload.reason, current_user_id=current_user.id
+        order_id, reason=payload.reason, current_user_id=ctx.user.id, scope_context=ctx
     )
     return SalesOrderOut.model_validate(order)
 
@@ -241,9 +260,11 @@ def hold_sales_order(
 def release_sales_order(
     order_id: int,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("sales_order:update"))],
 ) -> SalesOrderOut:
-    order = service.release_sales_order(order_id, current_user_id=current_user.id)
+    order = service.release_sales_order(
+        order_id, current_user_id=ctx.user.id, scope_context=ctx
+    )
     return SalesOrderOut.model_validate(order)
 
 
@@ -252,10 +273,10 @@ def cancel_sales_order(
     order_id: int,
     payload: TransitionRequest,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("sales_order:cancel"))],
 ) -> SalesOrderOut:
     order = service.cancel_sales_order(
-        order_id, reason=payload.reason, current_user_id=current_user.id
+        order_id, reason=payload.reason, current_user_id=ctx.user.id, scope_context=ctx
     )
     return SalesOrderOut.model_validate(order)
 
@@ -268,11 +289,11 @@ def cancel_sales_order(
 def create_invoice_from_order(
     order_id: int,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("invoice:create"))],
     payload: InvoiceCreateFromOrderPayload | None = None,
 ) -> InvoiceOut:
     invoice = service.create_invoice_from_order(
-        order_id=order_id, payload=payload, current_user_id=current_user.id
+        order_id=order_id, payload=payload, current_user_id=ctx.user.id, scope_context=ctx
     )
     return InvoiceOut.model_validate(invoice)
 
@@ -283,7 +304,7 @@ def create_invoice_from_order(
 @router.get("/invoices", response_model=PaginatedInvoices)
 def list_invoices(
     service: Annotated[SalesService, Depends(get_sales_service)],
-    _: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("invoice:read"))],
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     customer_id: int | None = Query(None),
@@ -296,6 +317,7 @@ def list_invoices(
         customer_id=customer_id,
         status=status,
         sales_order_id=sales_order_id,
+        scope_context=ctx,
     )
     return PaginatedInvoices(
         items=[InvoiceOut.model_validate(i) for i in items],
@@ -309,9 +331,9 @@ def list_invoices(
 def get_invoice(
     invoice_id: int,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    _: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("invoice:read"))],
 ) -> InvoiceOut:
-    inv = service.get_invoice(invoice_id)
+    inv = service.get_invoice(invoice_id, scope_context=ctx)
     return InvoiceOut.model_validate(inv)
 
 
@@ -319,7 +341,7 @@ def get_invoice(
 def issue_invoice(
     invoice_id: int,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("invoice:issue"))],
     payload: InvoiceIssuePayload | None = None,
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> Any:
@@ -328,7 +350,7 @@ def issue_invoice(
         raw_body = payload.model_dump_json() if payload else "{}"
         request_hash = hashlib.sha256(f"issue:{invoice_id}:{raw_body}".encode()).hexdigest()
         is_cached, cached_status, cached_body = service.check_idempotency(
-            user_id=current_user.id, key=idempotency_key, request_hash=request_hash
+            user_id=ctx.user.id, key=idempotency_key, request_hash=request_hash
         )
         if is_cached:
             return Response(
@@ -343,13 +365,14 @@ def issue_invoice(
         invoice_id=invoice_id,
         issue_date=issue_date,
         due_date=due_date,
-        current_user_id=current_user.id,
+        current_user_id=ctx.user.id,
+        scope_context=ctx,
     )
     result = InvoiceOut.model_validate(inv)
 
     if idempotency_key:
         service.record_idempotency_result(
-            user_id=current_user.id,
+            user_id=ctx.user.id,
             key=idempotency_key,
             method="POST",
             path=f"/invoices/{invoice_id}/issue",
@@ -366,10 +389,13 @@ def void_invoice(
     invoice_id: int,
     payload: TransitionRequest,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("invoice:void"))],
 ) -> InvoiceOut:
     inv = service.void_invoice(
-        invoice_id=invoice_id, reason=payload.reason, current_user_id=current_user.id
+        invoice_id=invoice_id,
+        reason=payload.reason,
+        current_user_id=ctx.user.id,
+        scope_context=ctx,
     )
     return InvoiceOut.model_validate(inv)
 
@@ -380,14 +406,18 @@ def void_invoice(
 @router.get("/payments", response_model=PaginatedPayments)
 def list_payments(
     service: Annotated[SalesService, Depends(get_sales_service)],
-    _: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("payment:read"))],
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     customer_id: int | None = Query(None),
     status: str | None = Query(None),
 ) -> PaginatedPayments:
     items, total = service.list_payments(
-        page=page, page_size=page_size, customer_id=customer_id, status=status
+        page=page,
+        page_size=page_size,
+        customer_id=customer_id,
+        status=status,
+        scope_context=ctx,
     )
     pay_outs = []
     for p in items:
@@ -407,7 +437,7 @@ def list_payments(
 def create_payment(
     payload: PaymentCreatePayload,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("payment:create"))],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> Any:
     request_hash = ""
@@ -415,7 +445,7 @@ def create_payment(
         raw_body = payload.model_dump_json()
         request_hash = hashlib.sha256(raw_body.encode()).hexdigest()
         is_cached, cached_status, cached_body = service.check_idempotency(
-            user_id=current_user.id, key=idempotency_key, request_hash=request_hash
+            user_id=ctx.user.id, key=idempotency_key, request_hash=request_hash
         )
         if is_cached:
             return Response(
@@ -424,13 +454,13 @@ def create_payment(
                 media_type="application/json",
             )
 
-    payment = service.create_payment(payload, current_user_id=current_user.id)
+    payment = service.create_payment(payload, current_user_id=ctx.user.id)
     result = PaymentOut.model_validate(payment)
     result.unallocated_amount = str(payment.amount - payment.amount_allocated)
 
     if idempotency_key:
         service.record_idempotency_result(
-            user_id=current_user.id,
+            user_id=ctx.user.id,
             key=idempotency_key,
             method="POST",
             path="/payments",
@@ -446,9 +476,9 @@ def create_payment(
 def get_payment(
     payment_id: int,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    _: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("payment:read"))],
 ) -> PaymentOut:
-    p = service.get_payment(payment_id)
+    p = service.get_payment(payment_id, scope_context=ctx)
     p_out = PaymentOut.model_validate(p)
     p_out.unallocated_amount = str(p.amount - p.amount_allocated)
     return p_out
@@ -463,13 +493,14 @@ def allocate_payment(
     payment_id: int,
     payload: PaymentAllocationCreatePayload,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("payment:create"))],
 ) -> PaymentAllocationOut:
     alloc = service.allocate_payment(
         payment_id=payment_id,
         invoice_id=payload.invoice_id,
         amount=payload.amount,
-        current_user_id=current_user.id,
+        current_user_id=ctx.user.id,
+        scope_context=ctx,
     )
     return PaymentAllocationOut.model_validate(alloc)
 
@@ -479,10 +510,13 @@ def void_payment(
     payment_id: int,
     payload: TransitionRequest,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("payment:void"))],
 ) -> PaymentOut:
     pay = service.void_payment(
-        payment_id=payment_id, reason=payload.reason, current_user_id=current_user.id
+        payment_id=payment_id,
+        reason=payload.reason,
+        current_user_id=ctx.user.id,
+        scope_context=ctx,
     )
     p_out = PaymentOut.model_validate(pay)
     p_out.unallocated_amount = str(pay.amount - pay.amount_allocated)
@@ -495,14 +529,18 @@ def void_payment(
 @router.get("/credit-notes", response_model=PaginatedCreditNotes)
 def list_credit_notes(
     service: Annotated[SalesService, Depends(get_sales_service)],
-    _: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("credit_note:read"))],
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     customer_id: int | None = Query(None),
     invoice_id: int | None = Query(None),
 ) -> PaginatedCreditNotes:
     items, total = service.list_credit_notes(
-        page=page, page_size=page_size, customer_id=customer_id, invoice_id=invoice_id
+        page=page,
+        page_size=page_size,
+        customer_id=customer_id,
+        invoice_id=invoice_id,
+        scope_context=ctx,
     )
     return PaginatedCreditNotes(
         items=[CreditNoteOut.model_validate(c) for c in items],
@@ -516,9 +554,9 @@ def list_credit_notes(
 def create_credit_note(
     payload: CreditNoteCreatePayload,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("credit_note:create"))],
 ) -> CreditNoteOut:
-    cn = service.create_credit_note(payload, current_user_id=current_user.id)
+    cn = service.create_credit_note(payload, current_user_id=ctx.user.id)
     return CreditNoteOut.model_validate(cn)
 
 
@@ -526,9 +564,9 @@ def create_credit_note(
 def get_credit_note(
     credit_note_id: int,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    _: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("credit_note:read"))],
 ) -> CreditNoteOut:
-    cn = service.get_credit_note(credit_note_id)
+    cn = service.get_credit_note(credit_note_id, scope_context=ctx)
     return CreditNoteOut.model_validate(cn)
 
 
@@ -539,6 +577,6 @@ def get_credit_note(
 def get_customer_statement(
     customer_id: int,
     service: Annotated[SalesService, Depends(get_sales_service)],
-    _: Annotated[User, Depends(get_current_user)],
+    ctx: Annotated[ScopeContext, Depends(require("customer_statement:read"))],
 ) -> CustomerStatementOut:
-    return service.get_customer_statement(customer_id)
+    return service.get_customer_statement(customer_id, scope_context=ctx)

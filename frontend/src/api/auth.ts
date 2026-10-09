@@ -12,15 +12,24 @@ export interface User {
   updated_at: string
 }
 
+export type ScopeType = 'own' | 'department' | 'all'
+
 export interface LoginResponse {
   user: User
   csrf_token: string
   message: string
 }
 
+export interface AuthMeResponse {
+  user: User
+  roles: string[]
+  permissions: Record<string, ScopeType>
+  department_id: number | null
+}
+
 export const authApi = {
   login: (email: string, password: string) =>
     api.post<LoginResponse>('/api/v1/auth/login', { email, password }),
   logout: () => api.post<{ message: string }>('/api/v1/auth/logout'),
-  getMe: () => api.get<User>('/api/v1/auth/me'),
+  getMe: () => api.get<AuthMeResponse>('/api/v1/auth/me'),
 }
