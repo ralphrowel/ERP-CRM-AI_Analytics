@@ -153,7 +153,7 @@ class SalesOrder(Base, AuditMixin, VersionMixin):
     __tablename__ = "sales_orders"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('draft', 'confirmed', 'on_hold', 'partially_shipped', 'shipped', 'completed', 'cancelled')",
+            "status IN ('draft', 'pending_approval', 'confirmed', 'on_hold', 'partially_shipped', 'shipped', 'completed', 'cancelled')",
             name="ck_sales_orders_status",
         ),
         CheckConstraint(

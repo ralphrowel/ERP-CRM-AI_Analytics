@@ -107,7 +107,7 @@ export interface PurchaseOrder {
   warehouse_id: number
   warehouse_code?: string | null
   warehouse_name?: string | null
-  status: 'draft' | 'sent' | 'partially_received' | 'received' | 'closed' | 'cancelled'
+  status: 'draft' | 'pending_approval' | 'sent' | 'partially_received' | 'received' | 'closed' | 'cancelled'
   order_date: string
   expected_date?: string | null
   notes?: string | null

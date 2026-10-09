@@ -12,6 +12,7 @@ export interface TaxRate {
 export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired' | 'cancelled'
 export type SalesOrderStatus =
   | 'draft'
+  | 'pending_approval'
   | 'confirmed'
   | 'on_hold'
   | 'partially_shipped'

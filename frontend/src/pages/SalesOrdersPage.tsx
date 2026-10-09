@@ -279,6 +279,8 @@ export const SalesOrdersPage: React.FC = () => {
     switch (status) {
       case 'draft':
         return <span className="badge badge-subtle">Draft</span>
+      case 'pending_approval':
+        return <span className="badge badge-amber">Pending Approval</span>
       case 'confirmed':
         return <span className="badge badge-indigo">Confirmed</span>
       case 'partially_shipped':
