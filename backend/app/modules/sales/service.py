@@ -814,7 +814,53 @@ class SalesService:
                     f"Cannot confirm order containing inactive products: {names}",
                 )
 
-        # Roadmap Rule 7: Credit Limit Check
+        # Roadmap V0.7: Check SO_DISCOUNT approval rule
+        from app.core.status_history import record_status_change
+        from app.modules.workflow.models import ApprovalRule
+        from app.modules.workflow.service import WorkflowService
+
+        disc_rule = self.db.execute(
+            select(ApprovalRule).where(
+                ApprovalRule.code == "SO_DISCOUNT",
+                ApprovalRule.is_active == True,  # noqa: E712
+            )
+        ).scalar_one_or_none()
+        total_before_disc = so.subtotal + so.discount_total
+        disc_pct = (
+            (so.discount_total / total_before_disc)
+            if total_before_disc > Decimal("0.00")
+            else Decimal("0.00")
+        )
+        if disc_rule and disc_rule.threshold_pct is not None and disc_pct > disc_rule.threshold_pct:
+            has_approve_perm = False
+            if scope_context:
+                if (
+                    scope_context.user.is_superuser
+                    or "sales_order:approve" in scope_context.permissions
+                ):
+                    has_approve_perm = True
+            if not has_approve_perm:
+                wf_service = WorkflowService(self.db)
+                wf_service.check_sales_order_approval(
+                    so, requester_id=current_user_id or so.created_by or 1
+                )
+                so.status = "pending_approval"
+                record_status_change(
+                    db=self.db,
+                    entity_type="sales_order",
+                    entity_id=so.id,
+                    to_status="pending_approval",
+                    from_status="draft",
+                    reason=f"Discount rate {disc_pct * 100:.2f}% exceeds threshold {disc_rule.threshold_pct * 100:.2f}%",
+                    changed_by=current_user_id,
+                )
+                self.db.flush()
+                raise BusinessRuleError(
+                    "APPROVAL_REQUIRED",
+                    f"Order discount rate of {disc_pct * 100:.2f}% exceeds threshold of {disc_rule.threshold_pct * 100:.2f}%. Managerial approval required.",
+                )
+
+        # Roadmap Rule 7: Credit Limit Check & V0.7 CREDIT_OVERRIDE approval
         if customer.credit_limit is not None and customer.credit_limit > Decimal("0.00"):
             # Uninvoiced confirmed orders amount
             uninvoiced_stmt = select(func.coalesce(func.sum(SalesOrder.grand_total), 0)).where(
@@ -827,11 +873,35 @@ class SalesService:
 
             total_exposure = open_ar_balance + uninvoiced_orders_total + so.grand_total
             if total_exposure > customer.credit_limit:
-                raise BusinessRuleError(
-                    "CREDIT_LIMIT_EXCEEDED",
-                    f"Order grand total ₱{so.grand_total} causes total exposure ₱{total_exposure} "
-                    f"to exceed customer credit limit ₱{customer.credit_limit}.",
-                )
+                has_override_perm = False
+                if scope_context:
+                    if (
+                        scope_context.user.is_superuser
+                        or "credit:override" in scope_context.permissions
+                    ):
+                        has_override_perm = True
+                if not has_override_perm:
+                    # Create approval request for credit override
+                    wf_service = WorkflowService(self.db)
+                    wf_service.check_sales_order_approval(
+                        so, requester_id=current_user_id or so.created_by or 1, credit_exceeded=True
+                    )
+                    so.status = "pending_approval"
+                    record_status_change(
+                        db=self.db,
+                        entity_type="sales_order",
+                        entity_id=so.id,
+                        to_status="pending_approval",
+                        from_status="draft",
+                        reason=f"Credit limit exceeded: exposure ₱{total_exposure} > limit ₱{customer.credit_limit}",
+                        changed_by=current_user_id,
+                    )
+                    self.db.flush()
+                    raise BusinessRuleError(
+                        "CREDIT_LIMIT_EXCEEDED",
+                        f"Order grand total ₱{so.grand_total} causes total exposure ₱{total_exposure} "
+                        f"to exceed customer credit limit ₱{customer.credit_limit}. Approval request submitted.",
+                    )
 
         # Snapshots: Billing & Shipping addresses
         b_stmt = (

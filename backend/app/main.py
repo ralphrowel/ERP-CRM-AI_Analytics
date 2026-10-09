@@ -17,6 +17,7 @@ from app.modules.organization.router import router as org_router
 from app.modules.organization.service import OrganizationService
 from app.modules.purchasing.router import router as purchasing_router
 from app.modules.sales.router import router as sales_router
+from app.modules.workflow.router import router as workflow_router
 
 # Initialize structured logging
 setup_logging(settings.LOG_LEVEL)
@@ -204,3 +205,4 @@ app.include_router(catalog_router, prefix=API_PREFIX)
 app.include_router(sales_router, prefix=API_PREFIX)
 app.include_router(inventory_router, prefix=API_PREFIX)
 app.include_router(purchasing_router, prefix=API_PREFIX)
+app.include_router(workflow_router, prefix=API_PREFIX)

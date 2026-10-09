@@ -66,3 +66,7 @@ Thumbs.db
 postgres_data/
 *.log
 scratch/
+
+# Local Development & Testing Scripts
+run.py
+

@@ -97,7 +97,7 @@ class PurchaseOrder(Base, AuditMixin, VersionMixin):
     __tablename__ = "purchase_orders"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('draft', 'sent', 'partially_received', 'received', 'closed', 'cancelled')",
+            "status IN ('draft', 'pending_approval', 'sent', 'partially_received', 'received', 'closed', 'cancelled')",
             name="ck_purchase_orders_status",
         ),
         CheckConstraint("subtotal >= 0", name="ck_purchase_orders_subtotal_non_negative"),

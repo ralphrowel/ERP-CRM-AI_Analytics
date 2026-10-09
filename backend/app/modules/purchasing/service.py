@@ -465,6 +465,36 @@ class PurchasingService:
         po.warehouse_address_snapshot = po.warehouse.address
         po.payment_terms_days_snapshot = po.supplier.payment_terms_days
 
+        # Roadmap V0.7: Check PO_AMOUNT approval rule
+        from app.modules.workflow.models import ApprovalRule
+        from app.modules.workflow.service import WorkflowService
+
+        rule = self.db.execute(
+            select(ApprovalRule).where(
+                ApprovalRule.code == "PO_AMOUNT",
+                ApprovalRule.is_active == True,  # noqa: E712
+            )
+        ).scalar_one_or_none()
+        if rule and rule.threshold_amount is not None and po.grand_total > rule.threshold_amount:
+            wf_service = WorkflowService(self.db)
+            wf_service.check_purchase_order_approval(po, requester_id=user_id or po.created_by or 1)
+            po.status = "pending_approval"
+            record_status_change(
+                db=self.db,
+                entity_type="purchase_order",
+                entity_id=po.id,
+                to_status="pending_approval",
+                from_status="draft",
+                reason=f"Grand total ₱{po.grand_total:,.2f} exceeds spend threshold ₱{rule.threshold_amount:,.2f}",
+                changed_by=user_id,
+            )
+            self.db.commit()
+            raise AppException(
+                status_code=400,
+                code="APPROVAL_REQUIRED",
+                detail=f"Purchase order total ₱{po.grand_total:,.2f} exceeds spend threshold ₱{rule.threshold_amount:,.2f}. Managerial approval required.",
+            )
+
         from_status = po.status
         po.status = "sent"
         po.version += 1
