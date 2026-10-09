@@ -21,7 +21,7 @@ from app.core.database import AuditMixin, Base, VersionMixin
 if TYPE_CHECKING:
     from app.modules.catalog.models import Product
     from app.modules.identity.models import User
-    from app.modules.sales.models import SalesOrderItem
+    from app.modules.sales.models import SalesOrder, SalesOrderItem
 
 
 class Warehouse(Base, AuditMixin, VersionMixin):
@@ -200,3 +200,266 @@ class StockReservation(Base):
     sales_order_item: Mapped["SalesOrderItem"] = relationship("SalesOrderItem")
     product: Mapped["Product"] = relationship("Product")
     warehouse: Mapped["Warehouse"] = relationship("Warehouse")
+
+
+class Shipment(Base, AuditMixin, VersionMixin):
+    """
+    Physical shipment document fulfilling a confirmed sales order.
+    Posting this document creates 'issue' ledger rows and relieves on-hand and reserved balances.
+    """
+
+    __tablename__ = "shipments"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('draft', 'posted', 'cancelled')",
+            name="ck_shipments_status",
+        ),
+        CheckConstraint(
+            "status <> 'posted' OR shipment_no IS NOT NULL",
+            name="ck_shipments_posted_has_no",
+        ),
+        CheckConstraint(
+            "status <> 'posted' OR shipped_at IS NOT NULL",
+            name="ck_shipments_posted_has_shipped_at",
+        ),
+        Index("ix_shipments_sales_order_id", "sales_order_id"),
+        Index("ix_shipments_warehouse_id", "warehouse_id"),
+        Index("ix_shipments_status", "status"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    shipment_no: Mapped[str | None] = mapped_column(String(50), unique=True, nullable=True)
+    sales_order_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("sales_orders.id", ondelete="RESTRICT"), nullable=False
+    )
+    warehouse_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), server_default="draft", default="draft", nullable=False
+    )
+    shipped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    carrier: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    tracking_no: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Relationships
+    order: Mapped["SalesOrder"] = relationship("SalesOrder", back_populates="shipments")
+    warehouse: Mapped["Warehouse"] = relationship("Warehouse")
+    items: Mapped[list["ShipmentItem"]] = relationship(
+        "ShipmentItem", back_populates="shipment", cascade="all, delete-orphan"
+    )
+
+
+class ShipmentItem(Base):
+    __tablename__ = "shipment_items"
+    __table_args__ = (
+        CheckConstraint("quantity > 0", name="ck_shipment_items_quantity_positive"),
+        CheckConstraint(
+            "unit_cost IS NULL OR unit_cost >= 0",
+            name="ck_shipment_items_unit_cost_non_negative",
+        ),
+        CheckConstraint(
+            "cogs_amount IS NULL OR cogs_amount >= 0",
+            name="ck_shipment_items_cogs_non_negative",
+        ),
+        Index("ix_shipment_items_product_id", "product_id"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    shipment_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("shipments.id", ondelete="CASCADE"), nullable=False
+    )
+    sales_order_item_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("sales_order_items.id", ondelete="RESTRICT"), nullable=False
+    )
+    product_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("products.id", ondelete="RESTRICT"), nullable=False
+    )
+    quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    unit_cost: Mapped[Decimal | None] = mapped_column(Numeric(19, 4), nullable=True)
+    cogs_amount: Mapped[Decimal | None] = mapped_column(Numeric(19, 2), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    # Relationships
+    shipment: Mapped["Shipment"] = relationship("Shipment", back_populates="items")
+    sales_order_item: Mapped["SalesOrderItem"] = relationship("SalesOrderItem")
+    product: Mapped["Product"] = relationship("Product")
+
+
+class StockAdjustment(Base, AuditMixin, VersionMixin):
+    """
+    Inventory adjustment document for inventory counting corrections, damages, found stock, etc.
+    """
+
+    __tablename__ = "stock_adjustments"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('draft', 'posted', 'cancelled')",
+            name="ck_stock_adjustments_status",
+        ),
+        CheckConstraint(
+            "reason IN ('count_correction', 'damage', 'loss', 'found', 'expired', 'other')",
+            name="ck_stock_adjustments_reason",
+        ),
+        CheckConstraint(
+            "status <> 'posted' OR adjustment_no IS NOT NULL",
+            name="ck_stock_adjustments_posted_has_no",
+        ),
+        CheckConstraint(
+            "status <> 'posted' OR posted_at IS NOT NULL",
+            name="ck_stock_adjustments_posted_has_posted_at",
+        ),
+        Index("ix_stock_adjustments_warehouse_id", "warehouse_id"),
+        Index("ix_stock_adjustments_status", "status"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    adjustment_no: Mapped[str | None] = mapped_column(String(50), unique=True, nullable=True)
+    warehouse_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), server_default="draft", default="draft", nullable=False
+    )
+    reason: Mapped[str] = mapped_column(String(50), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    warehouse: Mapped["Warehouse"] = relationship("Warehouse")
+    items: Mapped[list["StockAdjustmentItem"]] = relationship(
+        "StockAdjustmentItem", back_populates="stock_adjustment", cascade="all, delete-orphan"
+    )
+
+
+class StockAdjustmentItem(Base):
+    __tablename__ = "stock_adjustment_items"
+    __table_args__ = (
+        CheckConstraint("quantity_change <> 0", name="ck_adj_items_quantity_nonzero"),
+        CheckConstraint(
+            "unit_cost IS NULL OR unit_cost >= 0", name="ck_adj_items_cost_non_negative"
+        ),
+        CheckConstraint(
+            "quantity_change <= 0 OR unit_cost IS NOT NULL",
+            name="ck_adj_items_positive_requires_unit_cost",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    stock_adjustment_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("stock_adjustments.id", ondelete="CASCADE"), nullable=False
+    )
+    product_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("products.id", ondelete="RESTRICT"), nullable=False
+    )
+    quantity_change: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    unit_cost: Mapped[Decimal | None] = mapped_column(Numeric(19, 4), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    # Relationships
+    stock_adjustment: Mapped["StockAdjustment"] = relationship(
+        "StockAdjustment", back_populates="items"
+    )
+    product: Mapped["Product"] = relationship("Product")
+
+
+class StockTransfer(Base, AuditMixin, VersionMixin):
+    """
+    Stock transfer document between warehouses (from <> to) moving items at source WAC.
+    """
+
+    __tablename__ = "stock_transfers"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('draft', 'posted', 'cancelled')",
+            name="ck_stock_transfers_status",
+        ),
+        CheckConstraint(
+            "from_warehouse_id <> to_warehouse_id",
+            name="ck_stock_transfers_different_warehouses",
+        ),
+        CheckConstraint(
+            "status <> 'posted' OR transfer_no IS NOT NULL",
+            name="ck_stock_transfers_posted_has_no",
+        ),
+        CheckConstraint(
+            "status <> 'posted' OR posted_at IS NOT NULL",
+            name="ck_stock_transfers_posted_has_posted_at",
+        ),
+        Index("ix_stock_transfers_from_warehouse", "from_warehouse_id"),
+        Index("ix_stock_transfers_to_warehouse", "to_warehouse_id"),
+        Index("ix_stock_transfers_status", "status"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    transfer_no: Mapped[str | None] = mapped_column(String(50), unique=True, nullable=True)
+    from_warehouse_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=False
+    )
+    to_warehouse_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), server_default="draft", default="draft", nullable=False
+    )
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    from_warehouse: Mapped["Warehouse"] = relationship(
+        "Warehouse", foreign_keys=[from_warehouse_id]
+    )
+    to_warehouse: Mapped["Warehouse"] = relationship("Warehouse", foreign_keys=[to_warehouse_id])
+    items: Mapped[list["StockTransferItem"]] = relationship(
+        "StockTransferItem", back_populates="stock_transfer", cascade="all, delete-orphan"
+    )
+
+
+class StockTransferItem(Base):
+    __tablename__ = "stock_transfer_items"
+    __table_args__ = (
+        CheckConstraint("quantity > 0", name="ck_transfer_items_quantity_positive"),
+        CheckConstraint(
+            "unit_cost IS NULL OR unit_cost >= 0", name="ck_transfer_items_cost_non_negative"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    stock_transfer_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("stock_transfers.id", ondelete="CASCADE"), nullable=False
+    )
+    product_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("products.id", ondelete="RESTRICT"), nullable=False
+    )
+    quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    unit_cost: Mapped[Decimal | None] = mapped_column(Numeric(19, 4), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    # Relationships
+    stock_transfer: Mapped["StockTransfer"] = relationship("StockTransfer", back_populates="items")
+    product: Mapped["Product"] = relationship("Product")

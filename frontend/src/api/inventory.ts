@@ -128,3 +128,189 @@ export const inventoryApi = {
     api.post<InventoryBalance[]>('/inventory/opening-balances', payload),
   getReconciliation: () => api.get<InventoryReconciliationOut>('/inventory/reconciliation'),
 }
+
+// ── Shipment Types & API ───────────────────────────────────────────
+export interface ShipmentItem {
+  id: number
+  shipment_id: number
+  sales_order_item_id: number
+  product_id: number
+  product_sku: string
+  product_name: string
+  product_uom: string
+  quantity: string
+  unit_cost?: string | null
+  cogs_amount?: string | null
+  created_at: string
+}
+
+export interface Shipment {
+  id: number
+  shipment_no?: string | null
+  sales_order_id: number
+  sales_order_no: string
+  warehouse_id: number
+  warehouse_code: string
+  warehouse_name: string
+  status: 'draft' | 'posted' | 'cancelled'
+  shipped_at?: string | null
+  carrier?: string | null
+  tracking_no?: string | null
+  notes?: string | null
+  total_cogs?: string | null
+  version: number
+  created_at: string
+  created_by?: number | null
+  items: ShipmentItem[]
+}
+
+export interface ShipmentItemCreatePayload {
+  sales_order_item_id: number
+  quantity: number | string
+}
+
+export interface ShipmentCreatePayload {
+  sales_order_id: number
+  warehouse_id?: number | null
+  carrier?: string
+  tracking_no?: string
+  notes?: string
+  items?: ShipmentItemCreatePayload[]
+}
+
+export interface ShipmentPostPayload {
+  carrier?: string
+  tracking_no?: string
+  notes?: string
+}
+
+export const shipmentsApi = {
+  list: (params: { warehouse_id?: number; sales_order_id?: number; status?: string } = {}) => {
+    const query = new URLSearchParams()
+    if (params.warehouse_id) query.set('warehouse_id', params.warehouse_id.toString())
+    if (params.sales_order_id) query.set('sales_order_id', params.sales_order_id.toString())
+    if (params.status) query.set('status', params.status)
+    const qStr = query.toString()
+    return api.get<Shipment[]>(`/shipments${qStr ? `?${qStr}` : ''}`)
+  },
+  get: (id: number) => api.get<Shipment>(`/shipments/${id}`),
+  create: (payload: ShipmentCreatePayload) => api.post<Shipment>('/shipments', payload),
+  post: (id: number, payload?: ShipmentPostPayload) =>
+    api.post<Shipment>(`/shipments/${id}/post`, payload || {}),
+  cancel: (id: number) => api.post<Shipment>(`/shipments/${id}/cancel`, {}),
+}
+
+// ── Stock Adjustments Types & API ──────────────────────────────────
+export interface StockAdjustmentItem {
+  id: number
+  stock_adjustment_id: number
+  product_id: number
+  product_sku: string
+  product_name: string
+  product_uom: string
+  quantity_change: string
+  unit_cost?: string | null
+  created_at: string
+}
+
+export interface StockAdjustment {
+  id: number
+  adjustment_no?: string | null
+  warehouse_id: number
+  warehouse_code: string
+  warehouse_name: string
+  status: 'draft' | 'posted' | 'cancelled'
+  reason: 'count_correction' | 'damage' | 'loss' | 'found' | 'expired' | 'other'
+  notes?: string | null
+  posted_at?: string | null
+  version: number
+  created_at: string
+  created_by?: number | null
+  items: StockAdjustmentItem[]
+}
+
+export interface StockAdjustmentItemCreatePayload {
+  product_id: number
+  quantity_change: number | string
+  unit_cost?: number | string | null
+}
+
+export interface StockAdjustmentCreatePayload {
+  warehouse_id: number
+  reason: string
+  notes?: string
+  items: StockAdjustmentItemCreatePayload[]
+}
+
+export const stockAdjustmentsApi = {
+  list: (params: { warehouse_id?: number; status?: string } = {}) => {
+    const query = new URLSearchParams()
+    if (params.warehouse_id) query.set('warehouse_id', params.warehouse_id.toString())
+    if (params.status) query.set('status', params.status)
+    const qStr = query.toString()
+    return api.get<StockAdjustment[]>(`/stock-adjustments${qStr ? `?${qStr}` : ''}`)
+  },
+  get: (id: number) => api.get<StockAdjustment>(`/stock-adjustments/${id}`),
+  create: (payload: StockAdjustmentCreatePayload) =>
+    api.post<StockAdjustment>('/stock-adjustments', payload),
+  post: (id: number) => api.post<StockAdjustment>(`/stock-adjustments/${id}/post`, {}),
+  cancel: (id: number) => api.post<StockAdjustment>(`/stock-adjustments/${id}/cancel`, {}),
+}
+
+// ── Stock Transfers Types & API ────────────────────────────────────
+export interface StockTransferItem {
+  id: number
+  stock_transfer_id: number
+  product_id: number
+  product_sku: string
+  product_name: string
+  product_uom: string
+  quantity: string
+  unit_cost?: string | null
+  created_at: string
+}
+
+export interface StockTransfer {
+  id: number
+  transfer_no?: string | null
+  from_warehouse_id: number
+  from_warehouse_code: string
+  from_warehouse_name: string
+  to_warehouse_id: number
+  to_warehouse_code: string
+  to_warehouse_name: string
+  status: 'draft' | 'posted' | 'cancelled'
+  notes?: string | null
+  posted_at?: string | null
+  version: number
+  created_at: string
+  created_by?: number | null
+  items: StockTransferItem[]
+}
+
+export interface StockTransferItemCreatePayload {
+  product_id: number
+  quantity: number | string
+}
+
+export interface StockTransferCreatePayload {
+  from_warehouse_id: number
+  to_warehouse_id: number
+  notes?: string
+  items: StockTransferItemCreatePayload[]
+}
+
+export const stockTransfersApi = {
+  list: (params: { warehouse_id?: number; status?: string } = {}) => {
+    const query = new URLSearchParams()
+    if (params.warehouse_id) query.set('warehouse_id', params.warehouse_id.toString())
+    if (params.status) query.set('status', params.status)
+    const qStr = query.toString()
+    return api.get<StockTransfer[]>(`/stock-transfers${qStr ? `?${qStr}` : ''}`)
+  },
+  get: (id: number) => api.get<StockTransfer>(`/stock-transfers/${id}`),
+  create: (payload: StockTransferCreatePayload) =>
+    api.post<StockTransfer>('/stock-transfers', payload),
+  post: (id: number) => api.post<StockTransfer>(`/stock-transfers/${id}/post`, {}),
+  cancel: (id: number) => api.post<StockTransfer>(`/stock-transfers/${id}/cancel`, {}),
+}

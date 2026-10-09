@@ -23,7 +23,7 @@ from app.core.database import AuditMixin, Base, VersionMixin
 if TYPE_CHECKING:
     from app.modules.catalog.models import Product
     from app.modules.crm.models import Contact, Customer, Opportunity
-    from app.modules.inventory.models import Warehouse
+    from app.modules.inventory.models import Shipment, ShipmentItem, Warehouse
 
 
 class TaxRate(Base, AuditMixin):
@@ -219,6 +219,7 @@ class SalesOrder(Base, AuditMixin, VersionMixin):
         cascade="all, delete-orphan",
         order_by="SalesOrderItem.line_no",
     )
+    shipments: Mapped[list["Shipment"]] = relationship("Shipment", back_populates="order")
 
 
 class SalesOrderItem(Base):
@@ -277,6 +278,9 @@ class SalesOrderItem(Base):
     order: Mapped["SalesOrder"] = relationship("SalesOrder", back_populates="items")
     product: Mapped["Product | None"] = relationship("Product")
     tax_rate_ref: Mapped["TaxRate"] = relationship("TaxRate")
+    shipment_items: Mapped[list["ShipmentItem"]] = relationship(
+        "ShipmentItem", back_populates="sales_order_item"
+    )
 
 
 class Invoice(Base, AuditMixin, VersionMixin):
