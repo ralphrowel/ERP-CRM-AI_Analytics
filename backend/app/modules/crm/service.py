@@ -108,9 +108,7 @@ class CRMService:
         )
         return list(customers), total
 
-    def get_customer(
-        self, customer_id: int, scope_context: ScopeContext | None = None
-    ) -> Customer:
+    def get_customer(self, customer_id: int, scope_context: ScopeContext | None = None) -> Customer:
         stmt = (
             select(Customer)
             .where(Customer.id == customer_id)

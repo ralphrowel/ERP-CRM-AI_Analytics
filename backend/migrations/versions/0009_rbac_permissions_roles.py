@@ -70,7 +70,9 @@ def upgrade() -> None:
         sa.Column("role_id", sa.BigInteger(), nullable=False),
         sa.Column("permission_id", sa.BigInteger(), nullable=False),
         sa.Column("scope", sa.String(length=20), server_default="all", nullable=False),
-        sa.CheckConstraint("scope IN ('own', 'department', 'all')", name="ck_role_permissions_scope"),
+        sa.CheckConstraint(
+            "scope IN ('own', 'department', 'all')", name="ck_role_permissions_scope"
+        ),
         sa.ForeignKeyConstraint(["role_id"], ["roles.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["permission_id"], ["permissions.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("role_id", "permission_id"),
@@ -107,7 +109,11 @@ def upgrade() -> None:
         {"code": "lead:read", "description": "View leads", "module": "crm"},
         {"code": "lead:create", "description": "Capture new leads", "module": "crm"},
         {"code": "lead:update", "description": "Update lead information", "module": "crm"},
-        {"code": "lead:convert", "description": "Convert leads to customers/deals", "module": "crm"},
+        {
+            "code": "lead:convert",
+            "description": "Convert leads to customers/deals",
+            "module": "crm",
+        },
         {"code": "lead:disqualify", "description": "Disqualify leads", "module": "crm"},
         {"code": "opportunity:read", "description": "View deal pipeline", "module": "crm"},
         {"code": "opportunity:create", "description": "Create new opportunities", "module": "crm"},
@@ -125,91 +131,319 @@ def upgrade() -> None:
         {"code": "quote:reject", "description": "Reject or expire quotes", "module": "sales"},
         {"code": "sales_order:read", "description": "View sales orders", "module": "sales"},
         {"code": "sales_order:create", "description": "Create new sales orders", "module": "sales"},
-        {"code": "sales_order:update", "description": "Update draft sales orders", "module": "sales"},
-        {"code": "sales_order:confirm", "description": "Confirm orders and reserve stock", "module": "sales"},
+        {
+            "code": "sales_order:update",
+            "description": "Update draft sales orders",
+            "module": "sales",
+        },
+        {
+            "code": "sales_order:confirm",
+            "description": "Confirm orders and reserve stock",
+            "module": "sales",
+        },
         {"code": "sales_order:cancel", "description": "Cancel sales orders", "module": "sales"},
-        {"code": "invoice:read", "description": "View invoices and accounts receivable", "module": "sales"},
+        {
+            "code": "invoice:read",
+            "description": "View invoices and accounts receivable",
+            "module": "sales",
+        },
         {"code": "invoice:create", "description": "Draft customer invoices", "module": "sales"},
         {"code": "invoice:update", "description": "Update draft invoices", "module": "sales"},
-        {"code": "invoice:issue", "description": "Issue invoices to legal obligee", "module": "sales"},
+        {
+            "code": "invoice:issue",
+            "description": "Issue invoices to legal obligee",
+            "module": "sales",
+        },
         {"code": "invoice:void", "description": "Void issued invoices", "module": "sales"},
         {"code": "payment:read", "description": "View customer payments", "module": "sales"},
-        {"code": "payment:create", "description": "Record payments and allocations", "module": "sales"},
+        {
+            "code": "payment:create",
+            "description": "Record payments and allocations",
+            "module": "sales",
+        },
         {"code": "payment:void", "description": "Void customer payments", "module": "sales"},
         {"code": "credit_note:read", "description": "View credit notes", "module": "sales"},
-        {"code": "credit_note:create", "description": "Issue customer credit notes", "module": "sales"},
-        {"code": "credit_note:allocate", "description": "Allocate credit to invoices", "module": "sales"},
+        {
+            "code": "credit_note:create",
+            "description": "Issue customer credit notes",
+            "module": "sales",
+        },
+        {
+            "code": "credit_note:allocate",
+            "description": "Allocate credit to invoices",
+            "module": "sales",
+        },
         {"code": "credit_note:void", "description": "Void credit notes", "module": "sales"},
-        {"code": "customer_statement:read", "description": "View customer account statements", "module": "sales"},
+        {
+            "code": "customer_statement:read",
+            "description": "View customer account statements",
+            "module": "sales",
+        },
         # Inventory
-        {"code": "inventory:read", "description": "View inventory balances and ledger", "module": "inventory"},
+        {
+            "code": "inventory:read",
+            "description": "View inventory balances and ledger",
+            "module": "inventory",
+        },
         {"code": "warehouse:read", "description": "View warehouse sites", "module": "inventory"},
-        {"code": "warehouse:create", "description": "Add new warehouse locations", "module": "inventory"},
-        {"code": "warehouse:update", "description": "Update warehouse details", "module": "inventory"},
-        {"code": "stock_adjustment:read", "description": "View inventory adjustments", "module": "inventory"},
-        {"code": "stock_adjustment:create", "description": "Post stock adjustments", "module": "inventory"},
-        {"code": "stock_transfer:read", "description": "View inter-warehouse transfers", "module": "inventory"},
-        {"code": "stock_transfer:create", "description": "Initiate stock transfers", "module": "inventory"},
-        {"code": "stock_transfer:post", "description": "Complete stock transfers", "module": "inventory"},
-        {"code": "shipment:read", "description": "View fulfillment shipments", "module": "inventory"},
-        {"code": "shipment:create", "description": "Pick and pack shipments", "module": "inventory"},
-        {"code": "shipment:post", "description": "Post shipment dispatch and COGS", "module": "inventory"},
+        {
+            "code": "warehouse:create",
+            "description": "Add new warehouse locations",
+            "module": "inventory",
+        },
+        {
+            "code": "warehouse:update",
+            "description": "Update warehouse details",
+            "module": "inventory",
+        },
+        {
+            "code": "stock_adjustment:read",
+            "description": "View inventory adjustments",
+            "module": "inventory",
+        },
+        {
+            "code": "stock_adjustment:create",
+            "description": "Post stock adjustments",
+            "module": "inventory",
+        },
+        {
+            "code": "stock_transfer:read",
+            "description": "View inter-warehouse transfers",
+            "module": "inventory",
+        },
+        {
+            "code": "stock_transfer:create",
+            "description": "Initiate stock transfers",
+            "module": "inventory",
+        },
+        {
+            "code": "stock_transfer:post",
+            "description": "Complete stock transfers",
+            "module": "inventory",
+        },
+        {
+            "code": "shipment:read",
+            "description": "View fulfillment shipments",
+            "module": "inventory",
+        },
+        {
+            "code": "shipment:create",
+            "description": "Pick and pack shipments",
+            "module": "inventory",
+        },
+        {
+            "code": "shipment:post",
+            "description": "Post shipment dispatch and COGS",
+            "module": "inventory",
+        },
         {"code": "shipment:cancel", "description": "Cancel draft shipments", "module": "inventory"},
         # Purchasing
-        {"code": "supplier:read", "description": "View suppliers and catalogs", "module": "purchasing"},
+        {
+            "code": "supplier:read",
+            "description": "View suppliers and catalogs",
+            "module": "purchasing",
+        },
         {"code": "supplier:create", "description": "Create new suppliers", "module": "purchasing"},
-        {"code": "supplier:update", "description": "Update supplier details", "module": "purchasing"},
-        {"code": "purchase_order:read", "description": "View purchase orders", "module": "purchasing"},
-        {"code": "purchase_order:create", "description": "Draft purchase orders", "module": "purchasing"},
-        {"code": "purchase_order:update", "description": "Update draft purchase orders", "module": "purchasing"},
-        {"code": "purchase_order:send", "description": "Send PO to supplier", "module": "purchasing"},
-        {"code": "purchase_order:cancel", "description": "Cancel purchase orders", "module": "purchasing"},
-        {"code": "purchase_order:close", "description": "Short-close purchase orders", "module": "purchasing"},
-        {"code": "goods_receipt:read", "description": "View goods receipts", "module": "purchasing"},
-        {"code": "goods_receipt:create", "description": "Record physical intake batches", "module": "purchasing"},
-        {"code": "goods_receipt:post", "description": "Post goods receipts to inventory & WAC", "module": "purchasing"},
-        {"code": "goods_receipt:cancel", "description": "Cancel draft goods receipts", "module": "purchasing"},
-        {"code": "supplier_invoice:read", "description": "View vendor bills and 3-way match", "module": "purchasing"},
-        {"code": "supplier_invoice:create", "description": "Enter vendor bills for matching", "module": "purchasing"},
-        {"code": "supplier_invoice:approve", "description": "Approve matched/exception bills", "module": "purchasing"},
-        {"code": "supplier_invoice:void", "description": "Void vendor bills", "module": "purchasing"},
-        {"code": "supplier_payment:read", "description": "View AP disbursements", "module": "purchasing"},
-        {"code": "supplier_payment:create", "description": "Disburse payments against bills", "module": "purchasing"},
-        {"code": "supplier_payment:void", "description": "Void AP disbursements", "module": "purchasing"},
-        {"code": "supplier_statement:read", "description": "View supplier financial statements", "module": "purchasing"},
+        {
+            "code": "supplier:update",
+            "description": "Update supplier details",
+            "module": "purchasing",
+        },
+        {
+            "code": "purchase_order:read",
+            "description": "View purchase orders",
+            "module": "purchasing",
+        },
+        {
+            "code": "purchase_order:create",
+            "description": "Draft purchase orders",
+            "module": "purchasing",
+        },
+        {
+            "code": "purchase_order:update",
+            "description": "Update draft purchase orders",
+            "module": "purchasing",
+        },
+        {
+            "code": "purchase_order:send",
+            "description": "Send PO to supplier",
+            "module": "purchasing",
+        },
+        {
+            "code": "purchase_order:cancel",
+            "description": "Cancel purchase orders",
+            "module": "purchasing",
+        },
+        {
+            "code": "purchase_order:close",
+            "description": "Short-close purchase orders",
+            "module": "purchasing",
+        },
+        {
+            "code": "goods_receipt:read",
+            "description": "View goods receipts",
+            "module": "purchasing",
+        },
+        {
+            "code": "goods_receipt:create",
+            "description": "Record physical intake batches",
+            "module": "purchasing",
+        },
+        {
+            "code": "goods_receipt:post",
+            "description": "Post goods receipts to inventory & WAC",
+            "module": "purchasing",
+        },
+        {
+            "code": "goods_receipt:cancel",
+            "description": "Cancel draft goods receipts",
+            "module": "purchasing",
+        },
+        {
+            "code": "supplier_invoice:read",
+            "description": "View vendor bills and 3-way match",
+            "module": "purchasing",
+        },
+        {
+            "code": "supplier_invoice:create",
+            "description": "Enter vendor bills for matching",
+            "module": "purchasing",
+        },
+        {
+            "code": "supplier_invoice:approve",
+            "description": "Approve matched/exception bills",
+            "module": "purchasing",
+        },
+        {
+            "code": "supplier_invoice:void",
+            "description": "Void vendor bills",
+            "module": "purchasing",
+        },
+        {
+            "code": "supplier_payment:read",
+            "description": "View AP disbursements",
+            "module": "purchasing",
+        },
+        {
+            "code": "supplier_payment:create",
+            "description": "Disburse payments against bills",
+            "module": "purchasing",
+        },
+        {
+            "code": "supplier_payment:void",
+            "description": "Void AP disbursements",
+            "module": "purchasing",
+        },
+        {
+            "code": "supplier_statement:read",
+            "description": "View supplier financial statements",
+            "module": "purchasing",
+        },
         # Catalog
         {"code": "product:read", "description": "View products catalog", "module": "catalog"},
         {"code": "product:create", "description": "Create new products", "module": "catalog"},
-        {"code": "product:update", "description": "Update product specifications and prices", "module": "catalog"},
+        {
+            "code": "product:update",
+            "description": "Update product specifications and prices",
+            "module": "catalog",
+        },
         {"code": "category:read", "description": "View product categories", "module": "catalog"},
-        {"code": "category:create", "description": "Create product categories", "module": "catalog"},
-        {"code": "category:update", "description": "Update product categories", "module": "catalog"},
+        {
+            "code": "category:create",
+            "description": "Create product categories",
+            "module": "catalog",
+        },
+        {
+            "code": "category:update",
+            "description": "Update product categories",
+            "module": "catalog",
+        },
         {"code": "tax_rate:read", "description": "View tax rates", "module": "catalog"},
         {"code": "tax_rate:create", "description": "Configure tax rates", "module": "catalog"},
         {"code": "tax_rate:update", "description": "Update tax rates", "module": "catalog"},
         # Organization
-        {"code": "employee:read", "description": "View employees directory", "module": "organization"},
-        {"code": "employee:create", "description": "Onboard new employees", "module": "organization"},
-        {"code": "employee:update", "description": "Update employee records", "module": "organization"},
+        {
+            "code": "employee:read",
+            "description": "View employees directory",
+            "module": "organization",
+        },
+        {
+            "code": "employee:create",
+            "description": "Onboard new employees",
+            "module": "organization",
+        },
+        {
+            "code": "employee:update",
+            "description": "Update employee records",
+            "module": "organization",
+        },
         {"code": "department:read", "description": "View departments", "module": "organization"},
-        {"code": "department:create", "description": "Add new departments", "module": "organization"},
-        {"code": "department:update", "description": "Update department info", "module": "organization"},
-        {"code": "company_settings:read", "description": "View company settings", "module": "organization"},
-        {"code": "company_settings:update", "description": "Modify corporate settings", "module": "organization"},
+        {
+            "code": "department:create",
+            "description": "Add new departments",
+            "module": "organization",
+        },
+        {
+            "code": "department:update",
+            "description": "Update department info",
+            "module": "organization",
+        },
+        {
+            "code": "company_settings:read",
+            "description": "View company settings",
+            "module": "organization",
+        },
+        {
+            "code": "company_settings:update",
+            "description": "Modify corporate settings",
+            "module": "organization",
+        },
         # Identity / RBAC
         {"code": "user:read", "description": "View user accounts", "module": "identity"},
         {"code": "user:create", "description": "Provision new users", "module": "identity"},
-        {"code": "user:update", "description": "Update user profiles and status", "module": "identity"},
-        {"code": "role:read", "description": "View roles and permission matrices", "module": "identity"},
+        {
+            "code": "user:update",
+            "description": "Update user profiles and status",
+            "module": "identity",
+        },
+        {
+            "code": "role:read",
+            "description": "View roles and permission matrices",
+            "module": "identity",
+        },
         {"code": "role:create", "description": "Create custom roles", "module": "identity"},
-        {"code": "role:update", "description": "Update role permissions and scopes", "module": "identity"},
+        {
+            "code": "role:update",
+            "description": "Update role permissions and scopes",
+            "module": "identity",
+        },
         {"code": "role:delete", "description": "Delete custom roles", "module": "identity"},
-        {"code": "role:assign", "description": "Assign or unassign roles to users", "module": "identity"},
+        {
+            "code": "role:assign",
+            "description": "Assign or unassign roles to users",
+            "module": "identity",
+        },
         # Reporting
-        {"code": "report:sales", "description": "Access sales analytics and performance reports", "module": "reporting"},
-        {"code": "report:financial", "description": "Access AR/AP financial reports", "module": "reporting"},
-        {"code": "report:inventory", "description": "Access inventory valuation and stock reports", "module": "reporting"},
-        {"code": "report:purchasing", "description": "Access procurement and spend reports", "module": "reporting"},
+        {
+            "code": "report:sales",
+            "description": "Access sales analytics and performance reports",
+            "module": "reporting",
+        },
+        {
+            "code": "report:financial",
+            "description": "Access AR/AP financial reports",
+            "module": "reporting",
+        },
+        {
+            "code": "report:inventory",
+            "description": "Access inventory valuation and stock reports",
+            "module": "reporting",
+        },
+        {
+            "code": "report:purchasing",
+            "description": "Access procurement and spend reports",
+            "module": "reporting",
+        },
     ]
 
     op.bulk_insert(permissions_table, permissions_data)
@@ -277,7 +511,11 @@ def upgrade() -> None:
     def grant(role_code: str, perm_code: str, scope: str = "all"):
         if role_code in role_map and perm_code in perm_map:
             role_perms_data.append(
-                {"role_id": role_map[role_code], "permission_id": perm_map[perm_code], "scope": scope}
+                {
+                    "role_id": role_map[role_code],
+                    "permission_id": perm_map[perm_code],
+                    "scope": scope,
+                }
             )
 
     def grant_prefix(role_code: str, prefix: str, scope: str = "all"):
@@ -291,8 +529,14 @@ def upgrade() -> None:
 
     # 2. Sales Manager (department scope for CRM and sales documents)
     crm_sales_prefixes = [
-        "customer:", "contact:", "lead:", "opportunity:", "activity:",
-        "quote:", "sales_order:", "customer_statement:"
+        "customer:",
+        "contact:",
+        "lead:",
+        "opportunity:",
+        "activity:",
+        "quote:",
+        "sales_order:",
+        "customer_statement:",
     ]
     for prefix in crm_sales_prefixes:
         grant_prefix("sales_manager", prefix, "department")

@@ -107,9 +107,7 @@ def update_quote(
     service: Annotated[SalesService, Depends(get_sales_service)],
     ctx: Annotated[ScopeContext, Depends(require("quote:update"))],
 ) -> QuoteOut:
-    quote = service.update_quote(
-        quote_id, payload, current_user_id=ctx.user.id, scope_context=ctx
-    )
+    quote = service.update_quote(quote_id, payload, current_user_id=ctx.user.id, scope_context=ctx)
     return QuoteOut.model_validate(quote)
 
 
@@ -237,9 +235,7 @@ def confirm_sales_order(
     service: Annotated[SalesService, Depends(get_sales_service)],
     ctx: Annotated[ScopeContext, Depends(require("sales_order:confirm"))],
 ) -> SalesOrderOut:
-    order = service.confirm_sales_order(
-        order_id, current_user_id=ctx.user.id, scope_context=ctx
-    )
+    order = service.confirm_sales_order(order_id, current_user_id=ctx.user.id, scope_context=ctx)
     return SalesOrderOut.model_validate(order)
 
 
@@ -262,9 +258,7 @@ def release_sales_order(
     service: Annotated[SalesService, Depends(get_sales_service)],
     ctx: Annotated[ScopeContext, Depends(require("sales_order:update"))],
 ) -> SalesOrderOut:
-    order = service.release_sales_order(
-        order_id, current_user_id=ctx.user.id, scope_context=ctx
-    )
+    order = service.release_sales_order(order_id, current_user_id=ctx.user.id, scope_context=ctx)
     return SalesOrderOut.model_validate(order)
 
 

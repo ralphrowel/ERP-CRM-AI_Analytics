@@ -320,7 +320,9 @@ def update_opportunity(
     ctx: Annotated[ScopeContext, Depends(require("opportunity:update"))],
     service: Annotated[CRMService, Depends(get_crm_service)],
 ) -> Opportunity:
-    return service.update_opportunity(opportunity_id, payload, updater_id=ctx.user.id, scope_context=ctx)
+    return service.update_opportunity(
+        opportunity_id, payload, updater_id=ctx.user.id, scope_context=ctx
+    )
 
 
 @router.post("/opportunities/{opportunity_id}/transition", response_model=OpportunityResponse)
@@ -330,7 +332,9 @@ def transition_opportunity(
     ctx: Annotated[ScopeContext, Depends(require("opportunity:update"))],
     service: Annotated[CRMService, Depends(get_crm_service)],
 ) -> Opportunity:
-    return service.transition_opportunity(opportunity_id, payload, user_id=ctx.user.id, scope_context=ctx)
+    return service.transition_opportunity(
+        opportunity_id, payload, user_id=ctx.user.id, scope_context=ctx
+    )
 
 
 # =============================================================================

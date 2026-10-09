@@ -61,7 +61,9 @@ class IdentityService:
             self.db.refresh(user)
 
             # Assign admin role if exists
-            admin_role = self.db.execute(select(Role).where(Role.code == "admin")).scalar_one_or_none()
+            admin_role = self.db.execute(
+                select(Role).where(Role.code == "admin")
+            ).scalar_one_or_none()
             if admin_role:
                 user_role = UserRole(user_id=user.id, role_id=admin_role.id)
                 self.db.add(user_role)
@@ -327,9 +329,7 @@ class IdentityService:
         roles = (
             self.db.execute(
                 select(Role)
-                .options(
-                    joinedload(Role.role_permissions).joinedload(RolePermission.permission)
-                )
+                .options(joinedload(Role.role_permissions).joinedload(RolePermission.permission))
                 .order_by(Role.id.asc())
                 .offset(offset)
                 .limit(page_size)
@@ -371,9 +371,7 @@ class IdentityService:
         role = (
             self.db.execute(
                 select(Role)
-                .options(
-                    joinedload(Role.role_permissions).joinedload(RolePermission.permission)
-                )
+                .options(joinedload(Role.role_permissions).joinedload(RolePermission.permission))
                 .where(Role.id == role_id)
             )
             .unique()
@@ -407,7 +405,9 @@ class IdentityService:
 
     def create_role(self, data: RoleCreate, creator_id: int | None = None) -> RoleResponse:
         normalized_code = data.code.strip().lower()
-        existing = self.db.execute(select(Role).where(Role.code == normalized_code)).scalar_one_or_none()
+        existing = self.db.execute(
+            select(Role).where(Role.code == normalized_code)
+        ).scalar_one_or_none()
         if existing:
             raise AppException(
                 status_code=400,
@@ -438,7 +438,9 @@ class IdentityService:
         self.db.commit()
         return self.get_role(role.id)
 
-    def update_role(self, role_id: int, data: RoleUpdate, updater_id: int | None = None) -> RoleResponse:
+    def update_role(
+        self, role_id: int, data: RoleUpdate, updater_id: int | None = None
+    ) -> RoleResponse:
         role = self.db.get(Role, role_id)
         if not role:
             raise NotFoundException(detail="Role not found.")

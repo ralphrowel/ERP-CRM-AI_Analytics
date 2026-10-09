@@ -1181,9 +1181,7 @@ class SalesService:
         self.db.refresh(invoice)
         return invoice
 
-    def get_invoice(
-        self, invoice_id: int, scope_context: ScopeContext | None = None
-    ) -> Invoice:
+    def get_invoice(self, invoice_id: int, scope_context: ScopeContext | None = None) -> Invoice:
         stmt = (
             select(Invoice)
             .where(Invoice.id == invoice_id)
@@ -1470,9 +1468,7 @@ class SalesService:
         self.db.refresh(payment)
         return payment
 
-    def get_payment(
-        self, payment_id: int, scope_context: ScopeContext | None = None
-    ) -> Payment:
+    def get_payment(self, payment_id: int, scope_context: ScopeContext | None = None) -> Payment:
         stmt = (
             select(Payment)
             .where(Payment.id == payment_id)

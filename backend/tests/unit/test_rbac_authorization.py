@@ -44,19 +44,33 @@ def rbac_db() -> Session:
 
     # Seed sequences
     seqs = [
-        DocumentSequence(doc_type="customer", prefix="CUS", include_year=False, padding=6, next_value=1),
+        DocumentSequence(
+            doc_type="customer", prefix="CUS", include_year=False, padding=6, next_value=1
+        ),
         DocumentSequence(doc_type="lead", prefix="LD", include_year=False, padding=6, next_value=1),
-        DocumentSequence(doc_type="opportunity", prefix="OPP", include_year=False, padding=6, next_value=1),
+        DocumentSequence(
+            doc_type="opportunity", prefix="OPP", include_year=False, padding=6, next_value=1
+        ),
         DocumentSequence(doc_type="quote", prefix="QT", include_year=True, padding=6, next_value=1),
-        DocumentSequence(doc_type="sales_order", prefix="SO", include_year=True, padding=6, next_value=1),
-        DocumentSequence(doc_type="invoice", prefix="INV", include_year=True, padding=6, next_value=1),
-        DocumentSequence(doc_type="payment", prefix="PAY", include_year=True, padding=6, next_value=1),
-        DocumentSequence(doc_type="credit_note", prefix="CN", include_year=True, padding=6, next_value=1),
+        DocumentSequence(
+            doc_type="sales_order", prefix="SO", include_year=True, padding=6, next_value=1
+        ),
+        DocumentSequence(
+            doc_type="invoice", prefix="INV", include_year=True, padding=6, next_value=1
+        ),
+        DocumentSequence(
+            doc_type="payment", prefix="PAY", include_year=True, padding=6, next_value=1
+        ),
+        DocumentSequence(
+            doc_type="credit_note", prefix="CN", include_year=True, padding=6, next_value=1
+        ),
     ]
     session.add_all(seqs)
 
     # Seed Tax Rate
-    tr = TaxRate(code="VAT12", name="VAT 12%", rate=Decimal("0.1200"), is_default=True, is_active=True)
+    tr = TaxRate(
+        code="VAT12", name="VAT 12%", rate=Decimal("0.1200"), is_default=True, is_active=True
+    )
     session.add(tr)
 
     # Seed Permissions Catalog
@@ -100,9 +114,15 @@ def rbac_db() -> Session:
         RolePermission(role_id=r_rep.id, permission_id=perm_dict["quote:read"], scope="own"),
         RolePermission(role_id=r_rep.id, permission_id=perm_dict["quote:create"], scope="own"),
         # Sales manager: department scope
-        RolePermission(role_id=r_mgr.id, permission_id=perm_dict["customer:read"], scope="department"),
-        RolePermission(role_id=r_mgr.id, permission_id=perm_dict["customer:create"], scope="department"),
-        RolePermission(role_id=r_mgr.id, permission_id=perm_dict["customer:update"], scope="department"),
+        RolePermission(
+            role_id=r_mgr.id, permission_id=perm_dict["customer:read"], scope="department"
+        ),
+        RolePermission(
+            role_id=r_mgr.id, permission_id=perm_dict["customer:create"], scope="department"
+        ),
+        RolePermission(
+            role_id=r_mgr.id, permission_id=perm_dict["customer:update"], scope="department"
+        ),
         RolePermission(role_id=r_mgr.id, permission_id=perm_dict["lead:read"], scope="department"),
         RolePermission(role_id=r_mgr.id, permission_id=perm_dict["quote:read"], scope="department"),
         # Finance: all scope
@@ -236,16 +256,58 @@ def test_department_scoping_isolation(rbac_db: Session):
     rbac_db.add_all([dept_north, dept_south])
     rbac_db.flush()
 
-    mgr_north = User(email="mgr_north@example.com", password_hash=hash_password("Pass123!"), full_name="Mgr North", is_active=True)
-    rep_north = User(email="rep_north@example.com", password_hash=hash_password("Pass123!"), full_name="Rep North", is_active=True)
-    rep_south = User(email="rep_south@example.com", password_hash=hash_password("Pass123!"), full_name="Rep South", is_active=True)
+    mgr_north = User(
+        email="mgr_north@example.com",
+        password_hash=hash_password("Pass123!"),
+        full_name="Mgr North",
+        is_active=True,
+    )
+    rep_north = User(
+        email="rep_north@example.com",
+        password_hash=hash_password("Pass123!"),
+        full_name="Rep North",
+        is_active=True,
+    )
+    rep_south = User(
+        email="rep_south@example.com",
+        password_hash=hash_password("Pass123!"),
+        full_name="Rep South",
+        is_active=True,
+    )
     rbac_db.add_all([mgr_north, rep_north, rep_south])
     rbac_db.flush()
 
     # Link employees to departments
-    rbac_db.add(Employee(user_id=mgr_north.id, department_id=dept_north.id, employee_no="E01", first_name="M", last_name="N", hire_date=date.today()))
-    rbac_db.add(Employee(user_id=rep_north.id, department_id=dept_north.id, employee_no="E02", first_name="R", last_name="N", hire_date=date.today()))
-    rbac_db.add(Employee(user_id=rep_south.id, department_id=dept_south.id, employee_no="E03", first_name="R", last_name="S", hire_date=date.today()))
+    rbac_db.add(
+        Employee(
+            user_id=mgr_north.id,
+            department_id=dept_north.id,
+            employee_no="E01",
+            first_name="M",
+            last_name="N",
+            hire_date=date.today(),
+        )
+    )
+    rbac_db.add(
+        Employee(
+            user_id=rep_north.id,
+            department_id=dept_north.id,
+            employee_no="E02",
+            first_name="R",
+            last_name="N",
+            hire_date=date.today(),
+        )
+    )
+    rbac_db.add(
+        Employee(
+            user_id=rep_south.id,
+            department_id=dept_south.id,
+            employee_no="E03",
+            first_name="R",
+            last_name="S",
+            hire_date=date.today(),
+        )
+    )
     rbac_db.commit()
 
     crm = CRMService(rbac_db)
@@ -345,7 +407,12 @@ def test_session_revocation_on_role_assignment(rbac_db: Session):
     identity_svc = IdentityService(rbac_db)
     _, raw_token, _ = identity_svc.authenticate_user(user.email, "Pass123!")
 
-    user_sess = rbac_db.query(UserSession).filter_by(user_id=user.id).order_by(UserSession.id.desc()).first()
+    user_sess = (
+        rbac_db.query(UserSession)
+        .filter_by(user_id=user.id)
+        .order_by(UserSession.id.desc())
+        .first()
+    )
     assert user_sess is not None
     assert user_sess.revoked_at is None
 

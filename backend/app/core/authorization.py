@@ -43,7 +43,9 @@ def get_user_department_id(db: Session, user_id: int) -> int | None:
     return db.execute(stmt).scalar_one_or_none()
 
 
-def get_user_effective_permissions(db: Session, user: User) -> tuple[list[str], dict[str, ScopeType], int | None]:
+def get_user_effective_permissions(
+    db: Session, user: User
+) -> tuple[list[str], dict[str, ScopeType], int | None]:
     """
     Computes effective roles, permission-to-widest-scope map, and department ID for a user.
     Widest scope resolution rule: 'all' > 'department' > 'own'.
@@ -147,7 +149,10 @@ def apply_scope(query: Select, model: Any, context: ScopeContext, db: Session) -
             from app.modules.crm.models import Customer
 
             cust_subq = select(Customer.id).where(
-                or_(Customer.owner_user_id == context.user.id, Customer.created_by == context.user.id)
+                or_(
+                    Customer.owner_user_id == context.user.id,
+                    Customer.created_by == context.user.id,
+                )
             )
             return query.where(
                 or_(model.customer_id.in_(cust_subq), model.created_by == context.user.id)
@@ -176,7 +181,10 @@ def apply_scope(query: Select, model: Any, context: ScopeContext, db: Session) -
             from app.modules.crm.models import Customer
 
             cust_subq = select(Customer.id).where(
-                or_(Customer.owner_user_id.in_(dept_user_ids), Customer.created_by.in_(dept_user_ids))
+                or_(
+                    Customer.owner_user_id.in_(dept_user_ids),
+                    Customer.created_by.in_(dept_user_ids),
+                )
             )
             return query.where(
                 or_(model.customer_id.in_(cust_subq), model.created_by.in_(dept_user_ids))
