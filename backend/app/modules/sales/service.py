@@ -914,17 +914,25 @@ class SalesService:
         self, order_id: int, reason: str | None = None, current_user_id: int | None = None
     ) -> SalesOrder:
         so = self.get_sales_order(order_id)
-        if so.status not in ("draft", "confirmed", "on_hold"):
+        # Check if already shipped or invoiced (Roadmap §V0.4: cancel order blocked if shipped)
+        if any(item.quantity_shipped > Decimal("0.000") for item in so.items) or so.status in (
+            "partially_shipped",
+            "shipped",
+        ):
             raise BusinessRuleError(
-                "INVALID_TRANSITION",
-                f"Cannot cancel order in status '{so.status}'. Only draft, confirmed, or on_hold orders can be cancelled.",
+                "ORDER_ALREADY_SHIPPED",
+                "Cannot cancel an order that has already been partially or fully shipped.",
             )
-
-        # If confirmed or on_hold, check nothing has been invoiced
         if any(item.quantity_invoiced > Decimal("0.000") for item in so.items):
             raise BusinessRuleError(
                 "ORDER_ALREADY_INVOICED",
                 "Cannot cancel an order that has already been partially or fully invoiced.",
+            )
+
+        if so.status not in ("draft", "confirmed", "on_hold"):
+            raise BusinessRuleError(
+                "INVALID_TRANSITION",
+                f"Cannot cancel order in status '{so.status}'. Only draft, confirmed, or on_hold orders can be cancelled.",
             )
 
         from_status = so.status
@@ -972,10 +980,10 @@ class SalesService:
         if not so:
             raise NotFoundError(f"Sales order with ID {order_id} not found.")
 
-        if so.status != "confirmed":
+        if so.status not in ("confirmed", "partially_shipped", "shipped"):
             raise BusinessRuleError(
                 "INVALID_TRANSITION",
-                f"Cannot create invoice from order in status '{so.status}'. Order must be 'confirmed'.",
+                f"Cannot create invoice from order in status '{so.status}'. Order must be 'confirmed', 'partially_shipped', or 'shipped'.",
             )
 
         invoice_items: list[InvoiceItem] = []
@@ -1206,22 +1214,42 @@ class SalesService:
                     so_item = so_items_map[inv_item.sales_order_item_id]
                     so_item.quantity_invoiced += inv_item.quantity
 
-            # Check if all order lines are fully invoiced -> complete order
-            if all(si.quantity_invoiced >= si.quantity for si in so.items):
-                so_from = so.status
-                so.status = "completed"
-                so.version += 1
-                so.updated_by = current_user_id
-                record_status_change(
-                    self.db,
-                    entity_type="sales_order",
-                    entity_id=so.id,
-                    from_status=so_from,
-                    to_status="completed",
-                    reason=f"Order fully invoiced upon issue of Invoice {invoice_no}",
-                    changed_by=current_user_id,
-                    clock=self.clock,
-                )
+            # Check if all order lines are fully invoiced
+            all_invoiced = all(si.quantity_invoiced >= si.quantity for si in so.items)
+            all_shipped = all(si.quantity_shipped >= si.quantity for si in so.items)
+            if all_invoiced:
+                if so.status == "shipped" or all_shipped:
+                    so_from = so.status
+                    so.status = "completed"
+                    so.version += 1
+                    so.updated_by = current_user_id
+                    record_status_change(
+                        self.db,
+                        entity_type="sales_order",
+                        entity_id=so.id,
+                        from_status=so_from,
+                        to_status="completed",
+                        reason=f"Order fully invoiced and shipped upon issue of Invoice {invoice_no}",
+                        changed_by=current_user_id,
+                        clock=self.clock,
+                    )
+                elif so.status == "confirmed" and all(
+                    si.quantity_shipped == Decimal("0.000") for si in so.items
+                ):
+                    so_from = so.status
+                    so.status = "completed"
+                    so.version += 1
+                    so.updated_by = current_user_id
+                    record_status_change(
+                        self.db,
+                        entity_type="sales_order",
+                        entity_id=so.id,
+                        from_status=so_from,
+                        to_status="completed",
+                        reason=f"Order fully invoiced upon issue of Invoice {invoice_no}",
+                        changed_by=current_user_id,
+                        clock=self.clock,
+                    )
 
         from_status = inv.status
         inv.status = "issued"

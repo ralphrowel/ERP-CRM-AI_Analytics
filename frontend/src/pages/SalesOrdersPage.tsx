@@ -9,11 +9,12 @@ import {
   Play,
   Plus,
   RefreshCw,
+  Truck,
   XCircle,
 } from 'lucide-react'
 import { ApiError } from '../api/client'
 import { type Customer, customersApi } from '../api/customers'
-import { type Warehouse, warehousesApi } from '../api/inventory'
+import { type Warehouse, shipmentsApi, warehousesApi } from '../api/inventory'
 import { type Product, productsApi } from '../api/products'
 import {
   type SalesOrder,
@@ -52,8 +53,16 @@ export const SalesOrdersPage: React.FC = () => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
   const [isCancelOpen, setIsCancelOpen] = useState(false)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  const [isFulfillOpen, setIsFulfillOpen] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null)
   const [cancelReason, setCancelReason] = useState('')
+
+  // Fulfillment form state
+  const [fulfillCarrier, setFulfillCarrier] = useState('')
+  const [fulfillTracking, setFulfillTracking] = useState('')
+  const [fulfillNotes, setFulfillNotes] = useState('')
+  const [fulfillQuantities, setFulfillQuantities] = useState<Record<number, string>>({})
+  const [isFulfilling, setIsFulfilling] = useState(false)
 
   // Create form state
   const [formData, setFormData] = useState<SalesOrderCreatePayload>({
@@ -197,6 +206,72 @@ export const SalesOrdersPage: React.FC = () => {
     }
   }
 
+  const openFulfillModal = (so: SalesOrder) => {
+    setSelectedOrder(so)
+    setFulfillCarrier('')
+    setFulfillTracking('')
+    setFulfillNotes('')
+    const initialQty: Record<number, string> = {}
+    so.items.forEach((item) => {
+      const remaining = Math.max(0, parseFloat(item.quantity) - parseFloat(item.quantity_shipped || '0'))
+      initialQty[item.id!] = remaining.toString()
+    })
+    setFulfillQuantities(initialQty)
+    setIsFulfillOpen(true)
+  }
+
+  const handleFulfillSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedOrder) return
+    setIsFulfilling(true)
+    setGeneralError(null)
+
+    const itemsToShip = selectedOrder.items
+      .map((item) => {
+        const qty = parseFloat(fulfillQuantities[item.id!] || '0')
+        return {
+          sales_order_item_id: item.id!,
+          product_id: item.product_id!,
+          quantity: qty.toString(),
+        }
+      })
+      .filter((item) => parseFloat(item.quantity) > 0)
+
+    if (itemsToShip.length === 0) {
+      setGeneralError(new Error('Please specify a quantity greater than 0 for at least one item.'))
+      setIsFulfilling(false)
+      return
+    }
+
+    try {
+      const shipment = await shipmentsApi.create({
+        sales_order_id: selectedOrder.id,
+        carrier: fulfillCarrier || undefined,
+        tracking_no: fulfillTracking || undefined,
+        notes: fulfillNotes || undefined,
+        items: itemsToShip.map((item) => ({
+          sales_order_item_id: item.sales_order_item_id,
+          quantity: item.quantity,
+        })),
+      })
+
+      await shipmentsApi.post(shipment.id)
+      setIsFulfillOpen(false)
+      setSelectedOrder(null)
+      setSuccessMessage(`Shipment ${shipment.shipment_no} created and posted! Inventory issued & COGS recorded.`)
+      setTimeout(() => setSuccessMessage(null), 5000)
+      loadData()
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        setGeneralError(err)
+      } else {
+        setGeneralError(new Error('Failed to fulfill order'))
+      }
+    } finally {
+      setIsFulfilling(false)
+    }
+  }
+
   const formatCurrency = (val: string) =>
     new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(parseFloat(val || '0'))
 
@@ -206,6 +281,10 @@ export const SalesOrdersPage: React.FC = () => {
         return <span className="badge badge-subtle">Draft</span>
       case 'confirmed':
         return <span className="badge badge-indigo">Confirmed</span>
+      case 'partially_shipped':
+        return <span className="badge badge-amber">Partially Shipped</span>
+      case 'shipped':
+        return <span className="badge badge-emerald">Shipped</span>
       case 'on_hold':
         return <span className="badge badge-amber">On Hold</span>
       case 'completed':
@@ -418,8 +497,16 @@ export const SalesOrdersPage: React.FC = () => {
                           </>
                         )}
 
-                        {so.status === 'confirmed' && (
+                        {(so.status === 'confirmed' || so.status === 'partially_shipped') && (
                           <>
+                            <button
+                              className="btn btn-primary"
+                              style={{ padding: '0.35rem 0.55rem', fontSize: '0.75rem', backgroundColor: '#0284c7', borderColor: '#0284c7' }}
+                              onClick={() => openFulfillModal(so)}
+                              title="Create and Post Shipment"
+                            >
+                              <Truck size={12} /> Ship
+                            </button>
                             <button
                               className="btn btn-primary"
                               style={{ padding: '0.35rem 0.55rem', fontSize: '0.75rem' }}
@@ -428,27 +515,42 @@ export const SalesOrdersPage: React.FC = () => {
                             >
                               <FileText size={12} /> Invoice
                             </button>
-                            <button
-                              className="btn btn-secondary"
-                              style={{ padding: '0.35rem 0.55rem', fontSize: '0.75rem', color: 'var(--amber-400)' }}
-                              onClick={() => handleHold(so)}
-                              title="Put on hold"
-                            >
-                              <Pause size={12} /> Hold
-                            </button>
-                            <button
-                              className="btn btn-secondary"
-                              style={{ padding: '0.35rem 0.5rem', fontSize: '0.75rem', color: 'var(--rose-400)' }}
-                              onClick={() => {
-                                setSelectedOrder(so)
-                                setCancelReason('')
-                                setIsCancelOpen(true)
-                              }}
-                              title="Cancel Order"
-                            >
-                              <XCircle size={13} />
-                            </button>
+                            {so.status === 'confirmed' && (
+                              <>
+                                <button
+                                  className="btn btn-secondary"
+                                  style={{ padding: '0.35rem 0.55rem', fontSize: '0.75rem', color: 'var(--amber-400)' }}
+                                  onClick={() => handleHold(so)}
+                                  title="Put on hold"
+                                >
+                                  <Pause size={12} /> Hold
+                                </button>
+                                <button
+                                  className="btn btn-secondary"
+                                  style={{ padding: '0.35rem 0.5rem', fontSize: '0.75rem', color: 'var(--rose-400)' }}
+                                  onClick={() => {
+                                    setSelectedOrder(so)
+                                    setCancelReason('')
+                                    setIsCancelOpen(true)
+                                  }}
+                                  title="Cancel Order"
+                                >
+                                  <XCircle size={13} />
+                                </button>
+                              </>
+                            )}
                           </>
+                        )}
+
+                        {so.status === 'shipped' && (
+                          <button
+                            className="btn btn-primary"
+                            style={{ padding: '0.35rem 0.55rem', fontSize: '0.75rem' }}
+                            onClick={() => handleCreateInvoice(so)}
+                            title="Create Invoice from this Order"
+                          >
+                            <FileText size={12} /> Invoice
+                          </button>
                         )}
 
                         {so.status === 'on_hold' && (
@@ -682,6 +784,175 @@ export const SalesOrdersPage: React.FC = () => {
             </button>
           </div>
         </div>
+      </Modal>
+
+      {/* Modal: Fulfill / Create Shipment */}
+      <Modal
+        isOpen={isFulfillOpen}
+        onClose={() => {
+          setIsFulfillOpen(false)
+          setSelectedOrder(null)
+        }}
+        title={`Ship & Fulfill: ${selectedOrder?.order_no}`}
+      >
+        {selectedOrder && (
+          <form onSubmit={handleFulfillSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div
+              style={{
+                padding: '0.75rem',
+                backgroundColor: 'rgba(56, 189, 248, 0.08)',
+                borderRadius: '6px',
+                border: '1px solid rgba(56, 189, 248, 0.2)',
+                fontSize: '0.85rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Warehouse:</span>
+                <span style={{ fontWeight: 600, color: '#f8fafc' }}>
+                  {selectedOrder.warehouse ? `${selectedOrder.warehouse.code} - ${selectedOrder.warehouse.name}` : 'Default Warehouse'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Payment Terms:</span>
+                <span
+                  style={{
+                    fontWeight: 600,
+                    color: selectedOrder.payment_terms_days_snapshot === 0 ? 'var(--amber-400)' : 'var(--emerald-400)',
+                  }}
+                >
+                  {selectedOrder.payment_terms_days_snapshot === 0
+                    ? 'Prepaid (Requires full payment of issued invoices before shipping)'
+                    : `${selectedOrder.payment_terms_days_snapshot} Days Credit`}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div>
+                <label className="form-label">Carrier / Courier</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="e.g. LBC, NinjaVan, DHL, Internal Fleet"
+                  value={fulfillCarrier}
+                  onChange={(e) => setFulfillCarrier(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="form-label">Tracking Number</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="e.g. TRK-98234710"
+                  value={fulfillTracking}
+                  onChange={(e) => setFulfillTracking(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="form-label">Fulfillment / Dispatch Notes</label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="Optional notes or dispatch details..."
+                value={fulfillNotes}
+                onChange={(e) => setFulfillNotes(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="form-label" style={{ marginBottom: '0.5rem', display: 'block' }}>
+                Items to Ship
+              </label>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border-subtle)', textAlign: 'left', color: 'var(--text-dim)' }}>
+                    <th style={{ padding: '0.5rem' }}>Item</th>
+                    <th style={{ padding: '0.5rem', textAlign: 'right' }}>Ordered</th>
+                    <th style={{ padding: '0.5rem', textAlign: 'right' }}>Shipped</th>
+                    <th style={{ padding: '0.5rem', textAlign: 'right' }}>Remaining</th>
+                    <th style={{ padding: '0.5rem', textAlign: 'right', width: '120px' }}>Ship Qty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedOrder.items.map((item) => {
+                    const ordered = parseFloat(item.quantity)
+                    const shipped = parseFloat(item.quantity_shipped || '0')
+                    const remaining = Math.max(0, ordered - shipped)
+                    return (
+                      <tr key={item.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                        <td style={{ padding: '0.5rem' }}>
+                          <div style={{ fontWeight: 600, color: '#f8fafc' }}>{item.description}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>UOM: {item.uom}</div>
+                        </td>
+                        <td style={{ padding: '0.5rem', textAlign: 'right', color: 'var(--text-dim)' }}>{ordered}</td>
+                        <td style={{ padding: '0.5rem', textAlign: 'right', color: 'var(--text-dim)' }}>{shipped}</td>
+                        <td
+                          style={{
+                            padding: '0.5rem',
+                            textAlign: 'right',
+                            fontWeight: 600,
+                            color: remaining > 0 ? '#38bdf8' : 'var(--text-dim)',
+                          }}
+                        >
+                          {remaining}
+                        </td>
+                        <td style={{ padding: '0.5rem', textAlign: 'right' }}>
+                          <input
+                            type="number"
+                            min="0"
+                            max={remaining}
+                            step="any"
+                            className="input-field"
+                            style={{ textAlign: 'right', padding: '0.25rem 0.5rem' }}
+                            value={fulfillQuantities[item.id!] ?? ''}
+                            onChange={(e) =>
+                              setFulfillQuantities({
+                                ...fulfillQuantities,
+                                [item.id!]: e.target.value,
+                              })
+                            }
+                            disabled={remaining <= 0}
+                          />
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  setIsFulfillOpen(false)
+                  setSelectedOrder(null)
+                }}
+                disabled={isFulfilling}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={isFulfilling}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  backgroundColor: '#0284c7',
+                  borderColor: '#0284c7',
+                }}
+              >
+                <Truck size={14} />
+                {isFulfilling ? 'Posting Shipment...' : 'Post & Dispatch Shipment'}
+              </button>
+            </div>
+          </form>
+        )}
       </Modal>
 
       {/* Modal: Status History */}

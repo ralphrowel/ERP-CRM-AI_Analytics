@@ -129,3 +129,155 @@ class InventoryReconciliationOut(BaseModel):
     total_items_checked: int
     discrepant_count: int
     items: list[InventoryReconciliationItem]
+
+
+# ── Shipment Schemas ───────────────────────────────────────────────
+class ShipmentItemCreatePayload(BaseModel):
+    sales_order_item_id: int
+    quantity: Decimal = Field(..., gt=0)
+
+
+class ShipmentCreatePayload(BaseModel):
+    sales_order_id: int
+    warehouse_id: int | None = None
+    carrier: str | None = Field(None, max_length=100)
+    tracking_no: str | None = Field(None, max_length=100)
+    notes: str | None = None
+    items: list[ShipmentItemCreatePayload] | None = None
+
+
+class ShipmentPostPayload(BaseModel):
+    carrier: str | None = Field(None, max_length=100)
+    tracking_no: str | None = Field(None, max_length=100)
+    notes: str | None = None
+
+
+class ShipmentItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    shipment_id: int
+    sales_order_item_id: int
+    product_id: int
+    product_sku: str
+    product_name: str
+    product_uom: str
+    quantity: Decimal
+    unit_cost: Decimal | None
+    cogs_amount: Decimal | None
+    created_at: datetime
+
+
+class ShipmentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    shipment_no: str | None
+    sales_order_id: int
+    sales_order_no: str
+    warehouse_id: int
+    warehouse_code: str
+    warehouse_name: str
+    status: str
+    shipped_at: datetime | None
+    carrier: str | None
+    tracking_no: str | None
+    notes: str | None
+    total_cogs: Decimal | None
+    version: int
+    created_at: datetime
+    created_by: int | None
+    items: list[ShipmentItemOut]
+
+
+# ── Stock Adjustment Schemas ───────────────────────────────────────
+class StockAdjustmentItemCreatePayload(BaseModel):
+    product_id: int
+    quantity_change: Decimal
+    unit_cost: Decimal | None = None
+
+
+class StockAdjustmentCreatePayload(BaseModel):
+    warehouse_id: int
+    reason: str = Field(..., pattern="^(count_correction|damage|loss|found|expired|other)$")
+    notes: str | None = None
+    items: list[StockAdjustmentItemCreatePayload] = Field(..., min_length=1)
+
+
+class StockAdjustmentItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    stock_adjustment_id: int
+    product_id: int
+    product_sku: str
+    product_name: str
+    product_uom: str
+    quantity_change: Decimal
+    unit_cost: Decimal | None
+    created_at: datetime
+
+
+class StockAdjustmentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    adjustment_no: str | None
+    warehouse_id: int
+    warehouse_code: str
+    warehouse_name: str
+    status: str
+    reason: str
+    notes: str | None
+    posted_at: datetime | None
+    version: int
+    created_at: datetime
+    created_by: int | None
+    items: list[StockAdjustmentItemOut]
+
+
+# ── Stock Transfer Schemas ─────────────────────────────────────────
+class StockTransferItemCreatePayload(BaseModel):
+    product_id: int
+    quantity: Decimal = Field(..., gt=0)
+
+
+class StockTransferCreatePayload(BaseModel):
+    from_warehouse_id: int
+    to_warehouse_id: int
+    notes: str | None = None
+    items: list[StockTransferItemCreatePayload] = Field(..., min_length=1)
+
+
+class StockTransferItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    stock_transfer_id: int
+    product_id: int
+    product_sku: str
+    product_name: str
+    product_uom: str
+    quantity: Decimal
+    unit_cost: Decimal | None
+    created_at: datetime
+
+
+class StockTransferOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    transfer_no: str | None
+    from_warehouse_id: int
+    from_warehouse_code: str
+    from_warehouse_name: str
+    to_warehouse_id: int
+    to_warehouse_code: str
+    to_warehouse_name: str
+    status: str
+    notes: str | None
+    posted_at: datetime | None
+    version: int
+    created_at: datetime
+    created_by: int | None
+    items: list[StockTransferItemOut]

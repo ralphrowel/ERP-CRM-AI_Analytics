@@ -53,6 +53,15 @@ def _seed_document_sequences(session: Session) -> None:
         DocumentSequence(
             doc_type="credit_note", prefix="CN", include_year=True, padding=6, next_value=1
         ),
+        DocumentSequence(
+            doc_type="shipment", prefix="SHP", include_year=True, padding=6, next_value=1
+        ),
+        DocumentSequence(
+            doc_type="stock_adjustment", prefix="ADJ", include_year=True, padding=6, next_value=1
+        ),
+        DocumentSequence(
+            doc_type="stock_transfer", prefix="TRF", include_year=True, padding=6, next_value=1
+        ),
     ]
     for s in defaults:
         if s.doc_type not in existing:
