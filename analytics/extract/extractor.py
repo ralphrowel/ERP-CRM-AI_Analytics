@@ -20,7 +20,9 @@ from analytics.extract.models import EtlRun, EtlWatermark
 def get_session(engine: Engine) -> Session:
     """Creates a session configured for PostgreSQL schemas or SQLite translation."""
     if engine.dialect.name == "sqlite":
-        exec_engine = engine.execution_options(schema_translate_map={"etl": None, "raw": None})
+        exec_engine = engine.execution_options(
+            schema_translate_map={"etl": None, "raw": None}
+        )
     else:
         exec_engine = engine
     session_cls = sessionmaker(

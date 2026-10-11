@@ -6,4 +6,4 @@ Extracts operational ERP tables and legacy CSV data into the append-only raw lay
 from analytics.extract.extractor import Extractor
 from analytics.extract.models import EtlRun, EtlWatermark
 
-__all__ = ["Extractor", "EtlRun", "EtlWatermark"]
+__all__ = ["EtlRun", "EtlWatermark", "Extractor"]

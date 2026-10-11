@@ -79,9 +79,11 @@ def main() -> int:
         print("=" * 70)
         return 0
 
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         duration = time.time() - t0
-        print(f"\n[ERROR] Extraction failed after {duration:.2f}s: {exc}", file=sys.stderr)
+        print(
+            f"\n[ERROR] Extraction failed after {duration:.2f}s: {exc}", file=sys.stderr
+        )
         return 1
 
 
