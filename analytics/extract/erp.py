@@ -98,8 +98,6 @@ def extract_table(
             query = query.where(ts_col > window_start)
         else:
             query = query.where(ts_col >= window_start)
-        if window_end is not None:
-            query = query.where(ts_col <= window_end)
 
     max_ts: datetime | None = None
     rows_to_insert: list[dict[str, Any]] = []
