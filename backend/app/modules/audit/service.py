@@ -42,9 +42,18 @@ class AuditService:
         """Explicitly records an audit entry into the active database session."""
         clock = get_clock()
         ctx = get_audit_context()
+        effective_actor_id = actor_user_id if actor_user_id is not None else ctx.actor_user_id
+        if effective_actor_id is not None:
+            try:
+                with self.db.no_autoflush:
+                    if not self.db.get(User, effective_actor_id):
+                        effective_actor_id = None
+            except Exception:
+                pass
+
         entry = AuditLog(
             occurred_at=occurred_at or clock.now(),
-            actor_user_id=actor_user_id if actor_user_id is not None else ctx.actor_user_id,
+            actor_user_id=effective_actor_id,
             action=action,
             entity_type=entity_type,
             entity_id=entity_id,

@@ -116,6 +116,15 @@ def audit_before_flush(session: Session, flush_context: Any, instances: Any) -> 
 
             # Determine actor: prioritize context, fallback to updated_by
             actor_id = ctx.actor_user_id or getattr(obj, "updated_by", None)
+            if actor_id is not None:
+                try:
+                    from app.modules.identity.models import User
+
+                    with session.no_autoflush:
+                        if not session.get(User, actor_id):
+                            actor_id = None
+                except Exception:
+                    pass
 
             entry = AuditLog(
                 occurred_at=now,

@@ -129,7 +129,7 @@ def test_entity_update_captures_diff_in_audit_log(db_session: Session, audit_set
     log = logs[0]
     assert log.actor_user_id == admin.id
     assert log.request_id == "REQ-101"
-    assert log.ip_address == "192.168.1.50"
+    assert str(log.ip_address) == "192.168.1.50"
     assert "credit_limit" in log.changes
     assert log.changes["credit_limit"] == ["50000.00", "80000.00"]
     assert "payment_terms_days" in log.changes

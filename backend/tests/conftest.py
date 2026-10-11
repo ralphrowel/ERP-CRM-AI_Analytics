@@ -95,6 +95,9 @@ def _seed_document_sequences(session: Session) -> None:
 
 @pytest.fixture
 def db_session() -> Generator[Session, None, None]:
+    from app.modules.audit.context import clear_audit_context
+
+    clear_audit_context()
     if _use_sqlite:
         from sqlalchemy.pool import StaticPool
 
@@ -111,6 +114,7 @@ def db_session() -> Generator[Session, None, None]:
         try:
             yield session
         finally:
+            clear_audit_context()
             session.close()
             engine.dispose()
     else:
@@ -123,6 +127,7 @@ def db_session() -> Generator[Session, None, None]:
         try:
             yield session
         finally:
+            clear_audit_context()
             session.close()
             _clean_tables(engine)
 

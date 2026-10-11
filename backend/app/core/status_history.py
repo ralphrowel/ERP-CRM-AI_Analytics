@@ -42,6 +42,16 @@ def record_status_change(
     Records a state transition inside the caller's active database transaction.
     """
     current_clock = clock or get_clock()
+    if changed_by is not None:
+        try:
+            from app.modules.identity.models import User
+
+            with db.no_autoflush:
+                if not db.get(User, changed_by):
+                    changed_by = None
+        except Exception:
+            pass
+
     history = StatusHistory(
         entity_type=entity_type,
         entity_id=entity_id,
