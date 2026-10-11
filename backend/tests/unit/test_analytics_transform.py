@@ -157,8 +157,10 @@ def test_deduplication_via_window_function(analytics_test_engine: Engine):
     """Test 2: Append-only raw revisions are deduplicated into the latest record in staging."""
     is_postgres = analytics_test_engine.dialect.name == "postgresql"
     target_raw = "raw.customers" if is_postgres else "customers"
+    cascade = " CASCADE" if is_postgres else ""
 
     with analytics_test_engine.begin() as conn:
+        conn.execute(text(f"DROP TABLE IF EXISTS {target_raw}{cascade};"))
         conn.execute(
             text(
                 f"""
@@ -229,8 +231,10 @@ def test_derived_metrics_on_sales_order_lines(analytics_test_engine: Engine):
     """Test 3: Staging derived fields line_subtotal and line_margin are correctly calculated."""
     is_postgres = analytics_test_engine.dialect.name == "postgresql"
     target_raw = "raw.sales_order_items" if is_postgres else "sales_order_items"
+    cascade = " CASCADE" if is_postgres else ""
 
     with analytics_test_engine.begin() as conn:
+        conn.execute(text(f"DROP TABLE IF EXISTS {target_raw}{cascade};"))
         conn.execute(
             text(
                 f"""
@@ -298,6 +302,15 @@ def test_legacy_data_parse_attempts_and_error_preservation(
 ):
     """Test 4: Legacy CSV parse attempts extract clean dates/currencies while preserving raw dirty strings."""
     erp_engine = db_session.get_bind()
+    is_postgres = analytics_test_engine.dialect.name == "postgresql"
+    target_raw_cust = "raw.legacy_customers" if is_postgres else "legacy_customers"
+    target_raw_sales = "raw.legacy_sales" if is_postgres else "legacy_sales"
+    cascade = " CASCADE" if is_postgres else ""
+
+    with analytics_test_engine.begin() as conn:
+        conn.execute(text(f"DROP TABLE IF EXISTS {target_raw_cust}{cascade};"))
+        conn.execute(text(f"DROP TABLE IF EXISTS {target_raw_sales}{cascade};"))
+
     extractor = Extractor(
         erp_engine=erp_engine,
         analytics_engine=analytics_test_engine,
@@ -309,8 +322,6 @@ def test_legacy_data_parse_attempts_and_error_preservation(
     runner = TransformRunner(engine=analytics_test_engine)
     trans_summary = runner.run(models=["stg_legacy_customers", "stg_legacy_sales"])
     assert trans_summary["status"] == "success"
-
-    is_postgres = analytics_test_engine.dialect.name == "postgresql"
 
     # 1. Verify stg_legacy_customers
     target_cust = "staging.stg_legacy_customers" if is_postgres else "stg_legacy_customers"
@@ -426,7 +437,9 @@ def test_data_freshness_tracking(db_session: Session, analytics_test_engine: Eng
         analytics_engine=analytics_test_engine,
         overlap_minutes=0,
     )
-    extract_summary = extractor.run(tables=["customers"], job_name="test_freshness")
+    extract_summary = extractor.run(
+        tables=["customers"], full_refresh=True, job_name="test_freshness"
+    )
     assert extract_summary["status"] == "success"
 
     runner = TransformRunner(engine=analytics_test_engine)
