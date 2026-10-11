@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from app.core.clock import ControllableClock
 from app.core.numbering import DocumentSequence
 from app.core.security import hash_password
-from app.modules.audit.context import set_audit_context
+from app.modules.audit.context import sanitize_ip_address, set_audit_context
 from app.modules.audit.models import AuditLog
 from app.modules.audit.service import AuditService
 from app.modules.crm.models import Activity, Customer
@@ -372,3 +372,25 @@ def test_audit_log_filtering_by_actor_and_action(db_session: Session, audit_setu
     items_rep, total_rep = audit_svc.list_audit_logs(actor_user_id=rep.id)
     assert total_rep >= 1
     assert all(it.actor_user_id == rep.id for it in items_rep)
+
+
+def test_sanitize_ip_address_postgres_inet_compatibility():
+    # TestClient default host string
+    assert sanitize_ip_address("testclient") == "127.0.0.1"
+    assert sanitize_ip_address("localhost") == "127.0.0.1"
+
+    # Valid IPv4 and IPv6
+    assert sanitize_ip_address("192.168.1.1") == "192.168.1.1"
+    assert sanitize_ip_address("10.0.0.1") == "10.0.0.1"
+    assert sanitize_ip_address("::1") == "::1"
+    assert sanitize_ip_address("2001:db8::1") == "2001:db8::1"
+
+    # Stripping port numbers
+    assert sanitize_ip_address("127.0.0.1:8000") == "127.0.0.1"
+    assert sanitize_ip_address("[::1]:8080") == "::1"
+
+    # Invalid / empty strings return None
+    assert sanitize_ip_address(None) is None
+    assert sanitize_ip_address("") is None
+    assert sanitize_ip_address("   ") is None
+    assert sanitize_ip_address("invalid-hostname-not-ip") is None

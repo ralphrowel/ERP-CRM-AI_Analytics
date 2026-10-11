@@ -382,7 +382,7 @@ def test_import_http_api_endpoints(db_session: Session, import_setup: dict):
 
     app.dependency_overrides[get_db] = override_get_db
     try:
-        client = TestClient(app)
+        client = TestClient(app, client=("127.0.0.1", 50000))
         headers = {"Authorization": f"Bearer {token}"}
 
         # 1. Upload Raw CSV

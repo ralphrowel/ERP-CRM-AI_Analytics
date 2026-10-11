@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.clock import get_clock
 from app.core.status_history import StatusHistory
-from app.modules.audit.context import get_audit_context
+from app.modules.audit.context import get_audit_context, sanitize_ip_address
 from app.modules.audit.models import AuditLog
 from app.modules.audit.schemas import (
     ActivityFeedItemResponse,
@@ -59,8 +59,9 @@ class AuditService:
             entity_id=entity_id,
             changes=changes,
             request_id=request_id or ctx.request_id,
-            ip_address=ip_address or ctx.ip_address,
+            ip_address=sanitize_ip_address(ip_address or ctx.ip_address),
         )
+
         self.db.add(entry)
         return entry
 
