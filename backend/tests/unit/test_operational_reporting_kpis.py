@@ -36,7 +36,6 @@ from app.modules.inventory.models import (
 from app.modules.purchasing.models import (
     GoodsReceipt,
     PurchaseOrder,
-    PurchaseOrderItem,
     Supplier,
     SupplierInvoice,
 )
@@ -105,14 +104,24 @@ def reporting_data(db_session: Session):
 
     # Role Permissions
     for p in perm_objs.values():
-        if not db_session.query(RolePermission).filter_by(role_id=admin_role.id, permission_id=p.id).first():
+        if (
+            not db_session.query(RolePermission)
+            .filter_by(role_id=admin_role.id, permission_id=p.id)
+            .first()
+        ):
             db_session.add(RolePermission(role_id=admin_role.id, permission_id=p.id, scope="all"))
 
     # Sales rep gets report:read (own) and report:sales (own)
     for p_code in ["report:read", "report:sales"]:
         p = perm_objs[p_code]
-        if not db_session.query(RolePermission).filter_by(role_id=sales_rep_role.id, permission_id=p.id).first():
-            db_session.add(RolePermission(role_id=sales_rep_role.id, permission_id=p.id, scope="own"))
+        if (
+            not db_session.query(RolePermission)
+            .filter_by(role_id=sales_rep_role.id, permission_id=p.id)
+            .first()
+        ):
+            db_session.add(
+                RolePermission(role_id=sales_rep_role.id, permission_id=p.id, scope="own")
+            )
 
     # Users
     admin_user = User(
@@ -146,7 +155,9 @@ def reporting_data(db_session: Session):
     # 3. Tax Rate
     tax = db_session.query(TaxRate).filter_by(code="VAT12").first()
     if not tax:
-        tax = TaxRate(code="VAT12", name="VAT 12%", rate=Decimal("0.1200"), is_default=True, is_active=True)
+        tax = TaxRate(
+            code="VAT12", name="VAT 12%", rate=Decimal("0.1200"), is_default=True, is_active=True
+        )
         db_session.add(tax)
         db_session.flush()
 
@@ -167,7 +178,9 @@ def reporting_data(db_session: Session):
     db_session.flush()
 
     # 5. Warehouses & Products
-    wh1 = Warehouse(code="WH-MAIN", name="Central Manila Warehouse", is_active=True, is_default=True)
+    wh1 = Warehouse(
+        code="WH-MAIN", name="Central Manila Warehouse", is_active=True, is_default=True
+    )
     wh2 = Warehouse(code="WH-CEBU", name="Cebu Regional Hub", is_active=True, is_default=False)
     db_session.add_all([wh1, wh2])
     db_session.flush()
@@ -437,7 +450,8 @@ def reporting_data(db_session: Session):
         purchase_order_id=po1.id,
         warehouse_id=wh1.id,
         status="posted",
-        received_at=datetime.now(UTC) - timedelta(days=4),  # received before expected_date -> on-time
+        received_at=datetime.now(UTC)
+        - timedelta(days=4),  # received before expected_date -> on-time
     )
     db_session.add(gr1)
     db_session.flush()

@@ -22,8 +22,7 @@ def upgrade() -> None:
 
     # 1. Ensure report:read exists in permissions table
     existing_perms = {
-        row[0]
-        for row in bind.execute(sa.text("SELECT code FROM permissions")).fetchall()
+        row[0] for row in bind.execute(sa.text("SELECT code FROM permissions")).fetchall()
     }
 
     new_permissions = [
@@ -115,6 +114,4 @@ def downgrade() -> None:
             "SELECT id FROM permissions WHERE code = 'report:read')"
         )
     )
-    bind.execute(
-        sa.text("DELETE FROM permissions WHERE code = 'report:read'")
-    )
+    bind.execute(sa.text("DELETE FROM permissions WHERE code = 'report:read'"))

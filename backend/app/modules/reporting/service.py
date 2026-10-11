@@ -1,12 +1,12 @@
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.core.authorization import ScopeContext, apply_scope
-from app.modules.catalog.models import Product, ProductCategory
+from app.modules.catalog.models import Product
 from app.modules.crm.models import Customer, Lead, Opportunity
 from app.modules.inventory.models import (
     InventoryBalance,
@@ -16,9 +16,7 @@ from app.modules.inventory.models import (
 )
 from app.modules.purchasing.models import (
     GoodsReceipt,
-    GoodsReceiptItem,
     PurchaseOrder,
-    PurchaseOrderItem,
     Supplier,
     SupplierInvoice,
 )
@@ -95,8 +93,8 @@ class ReportingService:
         net_revenue = inv_subtotal - cn_subtotal
 
         # KPI-002 & KPI-003: COGS and Gross Margin
-        dt_start = datetime.combine(start, time.min, tzinfo=timezone.utc)
-        dt_end = datetime.combine(end, time.max, tzinfo=timezone.utc)
+        dt_start = datetime.combine(start, time.min, tzinfo=UTC)
+        dt_end = datetime.combine(end, time.max, tzinfo=UTC)
         cogs_q = (
             select(func.coalesce(func.sum(ShipmentItem.cogs_amount), Decimal("0.00")))
             .join(Shipment, Shipment.id == ShipmentItem.shipment_id)
@@ -216,11 +214,7 @@ class ReportingService:
             t90_inv_q = t90_inv_q.where(Invoice.customer_id.in_(scoped_customer_ids))
         t90_revenue = Decimal(str(self.db.execute(t90_inv_q).scalar_one()))
         daily_rev = t90_revenue / Decimal("90") if t90_revenue > 0 else Decimal("0.00")
-        dso_days = (
-            (ar_outstanding / daily_rev).quantize(Decimal("0.1"))
-            if daily_rev > 0
-            else None
-        )
+        dso_days = (ar_outstanding / daily_rev).quantize(Decimal("0.1")) if daily_rev > 0 else None
 
         scorecards = [
             KPICard(
@@ -376,8 +370,8 @@ class ReportingService:
         cn_rows = self.db.execute(cn_q).fetchall()
 
         # COGS query
-        dt_start = datetime.combine(start, time.min, tzinfo=timezone.utc)
-        dt_end = datetime.combine(end, time.max, tzinfo=timezone.utc)
+        dt_start = datetime.combine(start, time.min, tzinfo=UTC)
+        dt_end = datetime.combine(end, time.max, tzinfo=UTC)
         cogs_q = (
             select(
                 Shipment.shipped_at,
@@ -602,9 +596,7 @@ class ReportingService:
 
         customer_rows = [
             ARAgingCustomerRow(**data)
-            for data in sorted(
-                cust_matrix.values(), key=lambda x: x["total_balance"], reverse=True
-            )
+            for data in sorted(cust_matrix.values(), key=lambda x: x["total_balance"], reverse=True)
         ]
 
         # DSO Calculation (KPI-018)
@@ -618,11 +610,7 @@ class ReportingService:
             t90_inv_q = t90_inv_q.where(Invoice.customer_id.in_(scoped_customer_ids))
         t90_revenue = Decimal(str(self.db.execute(t90_inv_q).scalar_one()))
         daily_rev = t90_revenue / Decimal("90") if t90_revenue > 0 else Decimal("0.00")
-        dso_days = (
-            (total_ar / daily_rev).quantize(Decimal("0.1"))
-            if daily_rev > 0
-            else None
-        )
+        dso_days = (total_ar / daily_rev).quantize(Decimal("0.1")) if daily_rev > 0 else None
 
         return ARAgingResponse(
             as_of_date=today,
@@ -644,8 +632,8 @@ class ReportingService:
         today = date.today()
         start = period_start or today.replace(day=1)
         end = period_end or today
-        dt_start = datetime.combine(start, time.min, tzinfo=timezone.utc)
-        dt_end = datetime.combine(end, time.max, tzinfo=timezone.utc)
+        dt_start = datetime.combine(start, time.min, tzinfo=UTC)
+        dt_end = datetime.combine(end, time.max, tzinfo=UTC)
 
         # Open opportunities breakdown
         opp_q = select(
