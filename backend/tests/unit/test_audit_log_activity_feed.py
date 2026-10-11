@@ -203,7 +203,7 @@ def test_failed_login_records_audit_event(db_session: Session, audit_setup):
     assert len(logs) == 1
     log = logs[0]
     assert log.actor_user_id == audit_setup["rep"].id
-    assert log.ip_address == "203.0.113.15"
+    assert str(log.ip_address) == "203.0.113.15"
     assert log.changes["reason"] == "invalid_credentials"
     assert log.changes["email"] == "rep_audit@corp.local"
 
@@ -221,7 +221,7 @@ def test_successful_login_and_logout_records_audit_events(db_session: Session, a
 
     login_logs = db_session.query(AuditLog).filter_by(action="login", actor_user_id=user.id).all()
     assert len(login_logs) == 1
-    assert login_logs[0].ip_address == "203.0.113.20"
+    assert str(login_logs[0].ip_address) == "203.0.113.20"
 
     # 2. Logout
     _, session = id_svc.validate_session(token)
