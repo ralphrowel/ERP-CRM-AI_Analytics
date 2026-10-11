@@ -1,0 +1,60 @@
+-- Model: stg_sales_orders
+-- Target: staging.stg_sales_orders
+-- Depends on: [raw.sales_orders]
+
+WITH ranked AS (
+    SELECT 
+        id,
+        order_no,
+        quote_id,
+        customer_id,
+        warehouse_id,
+        status,
+        order_date,
+        currency_code,
+        currency_code AS currency,
+        subtotal,
+        discount_total,
+        tax_total,
+        grand_total,
+        grand_total AS total_amount,
+        payment_terms_days_snapshot,
+        payment_terms_days_snapshot AS payment_terms_days,
+        billing_address_snapshot,
+        shipping_address_snapshot,
+        notes,
+        created_at,
+        updated_at,
+        _extracted_at,
+        _run_id,
+        _source,
+        ROW_NUMBER() OVER (PARTITION BY id ORDER BY _extracted_at DESC, _raw_id DESC) AS _rn
+    FROM {{ raw }}.sales_orders
+)
+SELECT 
+    id,
+    order_no,
+    quote_id,
+    customer_id,
+    warehouse_id,
+    status,
+    order_date,
+    currency,
+    currency_code,
+    subtotal,
+    discount_total,
+    tax_total,
+    grand_total,
+    total_amount,
+    payment_terms_days,
+    payment_terms_days_snapshot,
+    billing_address_snapshot,
+    shipping_address_snapshot,
+    notes,
+    created_at,
+    updated_at,
+    _extracted_at,
+    _run_id,
+    _source
+FROM ranked
+WHERE _rn = 1;

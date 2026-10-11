@@ -21,9 +21,7 @@ class AnalyticsSettings(BaseSettings):
         "postgresql+psycopg://etl_reader:etl_reader_password@localhost:5432/erp_crm"
     )
     # Target Analytics Database
-    ANALYTICS_DATABASE_URL: str = (
-        "postgresql+psycopg://analytics_owner:analytics_owner_password@localhost:5432/erp_analytics"
-    )
+    ANALYTICS_DATABASE_URL: str = "postgresql+psycopg://analytics_owner:analytics_owner_password@localhost:5432/erp_analytics"
 
     # Overlap window in minutes to catch long-running/concurrent transactions (default: 10 min)
     ETL_OVERLAP_MINUTES: int = 10
@@ -47,10 +45,13 @@ class AnalyticsSettings(BaseSettings):
         "products",
         "quotes",
         "quote_lines",
+        "quote_items",
         "sales_orders",
         "sales_order_lines",
+        "sales_order_items",
         "invoices",
         "invoice_lines",
+        "invoice_items",
         "payments",
         "shipments",
         "shipment_lines",
@@ -58,8 +59,10 @@ class AnalyticsSettings(BaseSettings):
         "supplier_products",
         "purchase_orders",
         "purchase_order_lines",
+        "purchase_order_items",
         "goods_receipts",
         "goods_receipt_lines",
+        "goods_receipt_items",
         "supplier_invoices",
         "supplier_invoice_lines",
         "supplier_payments",

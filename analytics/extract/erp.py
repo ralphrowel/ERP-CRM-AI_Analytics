@@ -112,9 +112,8 @@ def extract_table(
             # Track max observed timestamp
             if ts_col is not None and row_dict.get(ts_col.name) is not None:
                 row_ts = row_dict[ts_col.name]
-                if isinstance(row_ts, datetime):
-                    if max_ts is None or row_ts > max_ts:
-                        max_ts = row_ts
+                if isinstance(row_ts, datetime) and (max_ts is None or row_ts > max_ts):
+                    max_ts = row_ts
 
             record = {
                 "_extracted_at": extracted_at,
