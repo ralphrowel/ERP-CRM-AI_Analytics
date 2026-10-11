@@ -55,9 +55,10 @@ jobs:
             GRANT CONNECT ON DATABASE erp_crm TO etl_reader;
             GRANT USAGE ON SCHEMA public TO etl_reader;
             ALTER DEFAULT PRIVILEGES FOR ROLE erp_owner IN SCHEMA public GRANT SELECT ON TABLES TO etl_reader;
-            CREATE DATABASE erp_analytics OWNER analytics_owner;
-            GRANT ALL ON DATABASE erp_analytics TO analytics_owner;
           "
+          docker exec ${{ job.services.postgres.id }} psql -U postgres -d erp_crm -c "CREATE DATABASE erp_analytics OWNER analytics_owner;"
+          docker exec ${{ job.services.postgres.id }} psql -U postgres -d erp_crm -c "GRANT ALL ON DATABASE erp_analytics TO analytics_owner;"
+
 
       - name: Install Dependencies
         run: |
