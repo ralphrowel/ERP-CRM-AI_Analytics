@@ -37,6 +37,11 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
         request_id = incoming_id if incoming_id else str(uuid.uuid4())
         request.state.request_id = request_id
 
+        from app.modules.audit.context import set_audit_context
+
+        client_ip = request.client.host if request.client else None
+        set_audit_context(request_id=request_id, ip_address=client_ip)
+
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
         return response

@@ -99,12 +99,13 @@ def wf_setup(db_session: Session):
     # Warehouse
     wh = db_session.query(Warehouse).filter_by(code="WH-MAIN").first()
     if not wh:
+        default_wh = db_session.query(Warehouse).filter_by(is_default=True).first()
         wh = Warehouse(
             code="WH-MAIN",
             name="Main Warehouse",
             address="123 Warehouse Way, Industrial District",
             is_active=True,
-            is_default=True,
+            is_default=(default_wh is None),
         )
         db_session.add(wh)
     db_session.flush()

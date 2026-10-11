@@ -72,14 +72,18 @@ def test_db():
     session.add(user)
 
     # Seed warehouse
-    wh = Warehouse(
-        code="WH-MNL",
-        name="Manila Central Warehouse",
-        address="100 Pier South, Manila",
-        is_active=True,
-        is_default=True,
-    )
-    session.add(wh)
+    wh = session.query(Warehouse).filter_by(code="WH-MNL").first()
+    if not wh:
+        default_wh = session.query(Warehouse).filter_by(is_default=True).first()
+        wh = Warehouse(
+            code="WH-MNL",
+            name="Manila Central Warehouse",
+            address="100 Pier South, Manila",
+            is_active=True,
+            is_default=(default_wh is None),
+        )
+        session.add(wh)
+    session.flush()
 
     # Seed category and products
     cat = ProductCategory(name="Raw Materials", is_active=True)
