@@ -34,3 +34,36 @@ ALTER DEFAULT PRIVILEGES FOR ROLE erp_owner IN SCHEMA public
 
 ALTER DEFAULT PRIVILEGES FOR ROLE erp_owner IN SCHEMA public
     GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO erp_app;
+
+-- 5. Create etl_reader (Roadmap §4.7 / §V1.1: SELECT only on ERP)
+DO
+$do$
+BEGIN
+   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'etl_reader') THEN
+      CREATE ROLE etl_reader WITH LOGIN PASSWORD 'etl_reader_password';
+   END IF;
+END
+$do$;
+
+GRANT CONNECT ON DATABASE erp_crm TO etl_reader;
+GRANT USAGE ON SCHEMA public TO etl_reader;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO etl_reader;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE erp_owner IN SCHEMA public
+    GRANT SELECT ON TABLES TO etl_reader;
+
+-- 6. Create analytics_owner (Roadmap §4.7 / §V1.1: owns separate analytics database)
+DO
+$do$
+BEGIN
+   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'analytics_owner') THEN
+      CREATE ROLE analytics_owner WITH LOGIN PASSWORD 'analytics_owner_password';
+   END IF;
+END
+$do$;
+
+SELECT 'CREATE DATABASE erp_analytics OWNER analytics_owner'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'erp_analytics')\gexec
+
+GRANT ALL ON DATABASE erp_analytics TO analytics_owner;
+

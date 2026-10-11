@@ -32,6 +32,8 @@ EXCLUDED_MODELS = {
     "StatusHistory",
     "DocumentSequence",
     "IdempotencyKey",
+    "EtlRun",
+    "EtlWatermark",
 }
 
 
@@ -55,6 +57,9 @@ def audit_before_flush(session: Session, flush_context: Any, instances: Any) -> 
     SQLAlchemy before_flush hook.
     Inspects dirty entities, computes before/after diffs, and appends AuditLog records.
     """
+    if session.info.get("skip_audit"):
+        return
+
     audit_entries: list[AuditLog] = []
     clock = get_clock()
     ctx = get_audit_context()
@@ -63,7 +68,17 @@ def audit_before_flush(session: Session, flush_context: Any, instances: Any) -> 
     # 1. Capture Dirty / Updated Entities
     for obj in session.dirty:
         model_name = obj.__class__.__name__
-        if model_name in EXCLUDED_MODELS:
+        if model_name in EXCLUDED_MODELS or model_name.startswith("Etl"):
+            continue
+
+        table = getattr(obj, "__table__", None)
+        if table is not None and getattr(table, "schema", None) in (
+            "etl",
+            "raw",
+            "staging",
+            "dq",
+            "mart",
+        ):
             continue
 
         insp = inspect(obj)
