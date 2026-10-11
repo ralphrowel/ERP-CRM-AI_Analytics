@@ -1,5 +1,6 @@
 import React from 'react'
 import {
+  BarChart3,
   Boxes,
   Building2,
   CheckCircle2,
@@ -24,6 +25,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 
 export type NavTab =
+  | 'reports'
   | 'leads'
   | 'pipeline'
   | 'quotes'
@@ -52,6 +54,10 @@ interface AppLayoutProps {
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, children }) => {
   const { user, logout, hasPermission, isSuperuser } = useAuth()
+
+  const analyticsItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
+    { id: 'reports', label: 'Analytics & KPIs', icon: <BarChart3 size={18} /> },
+  ]
 
   const crmItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
     { id: 'leads', label: 'Leads & Inbound', icon: <UserPlus size={18} /> },
@@ -167,6 +173,49 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
               color: 'var(--text-dim)',
               letterSpacing: '0.08em',
               padding: '0 0.75rem 0.5rem',
+            }}
+          >
+            Analytics & KPIs
+          </div>
+
+          {analyticsItems.map((item) => {
+            const isActive = activeTab === item.id
+            return (
+              <button
+                key={item.id}
+                id={`nav-${item.id}`}
+                onClick={() => onTabChange(item.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: isActive ? 600 : 500,
+                  textAlign: 'left',
+                  transition: 'all 0.15s ease',
+                  backgroundColor: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                  color: isActive ? '#a5b4fc' : 'var(--text-muted)',
+                  borderLeft: isActive ? '3px solid #6366f1' : '3px solid transparent',
+                }}
+              >
+                {item.icon}
+                <span>{item.label}</span>
+              </button>
+            )
+          })}
+
+          <div
+            style={{
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              color: 'var(--text-dim)',
+              letterSpacing: '0.08em',
+              padding: '1rem 0.75rem 0.5rem',
             }}
           >
             CRM Operations

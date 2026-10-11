@@ -16,6 +16,7 @@ import { PipelinePage } from './pages/PipelinePage'
 import { ProductsPage } from './pages/ProductsPage'
 import { PurchaseOrdersPage } from './pages/PurchaseOrdersPage'
 import { QuotesPage } from './pages/QuotesPage'
+import { ReportsPage } from './pages/ReportsPage'
 import { RolesPage } from './pages/RolesPage'
 import { SalesOrdersPage } from './pages/SalesOrdersPage'
 import { SupplierInvoicesPage } from './pages/SupplierInvoicesPage'
@@ -68,6 +69,7 @@ const MainRouter: React.FC = () => {
 
   return (
     <AppLayout activeTab={activeTab} onTabChange={setActiveTab}>
+      {activeTab === 'reports' && <ReportsPage />}
       {activeTab === 'leads' && <LeadsPage />}
       {activeTab === 'pipeline' && <PipelinePage />}
       {activeTab === 'quotes' && <QuotesPage />}
