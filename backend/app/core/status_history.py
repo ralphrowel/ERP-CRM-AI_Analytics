@@ -52,6 +52,19 @@ def record_status_change(
         changed_at=current_clock.now(),
     )
     db.add(history)
+
+    # Roadmap V0.8: Mirror state machine transition to tamper-resistant audit_log
+    from app.modules.audit.service import AuditService
+
+    AuditService(db).record_event(
+        action="transition",
+        actor_user_id=changed_by,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        changes={"status": [from_status, to_status]},
+        occurred_at=history.changed_at,
+    )
+
     return history
 
 

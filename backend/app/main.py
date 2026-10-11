@@ -2,12 +2,15 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Response, status
 from sqlalchemy import select, text
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.core.errors import register_error_handlers
 from app.core.logging import RequestIdMiddleware, setup_logging
 from app.core.numbering import DocumentSequence
+from app.modules.audit.listener import register_audit_listener
+from app.modules.audit.router import router as audit_router
 from app.modules.catalog.router import router as catalog_router
 from app.modules.crm.router import router as crm_router
 from app.modules.identity.router import router as identity_router
@@ -19,8 +22,9 @@ from app.modules.purchasing.router import router as purchasing_router
 from app.modules.sales.router import router as sales_router
 from app.modules.workflow.router import router as workflow_router
 
-# Initialize structured logging
+# Initialize structured logging and audit session listener
 setup_logging(settings.LOG_LEVEL)
+register_audit_listener(Session)
 
 
 @asynccontextmanager
@@ -206,3 +210,4 @@ app.include_router(sales_router, prefix=API_PREFIX)
 app.include_router(inventory_router, prefix=API_PREFIX)
 app.include_router(purchasing_router, prefix=API_PREFIX)
 app.include_router(workflow_router, prefix=API_PREFIX)
+app.include_router(audit_router, prefix=API_PREFIX)

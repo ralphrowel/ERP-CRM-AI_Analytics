@@ -6,6 +6,7 @@ import {
   CreditCard,
   FileCheck,
   FileText,
+  History,
   Kanban,
   LogOut,
   Package,
@@ -36,6 +37,7 @@ export type NavTab =
   | 'supplier_payments'
   | 'inventory'
   | 'approvals'
+  | 'audit_logs'
   | 'customers'
   | 'products'
   | 'employees'
@@ -77,6 +79,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
 
   const workflowItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
     { id: 'approvals', label: 'Approvals & Governance', icon: <CheckCircle2 size={18} /> },
+    ...(isSuperuser || hasPermission('audit:read')
+      ? [{ id: 'audit_logs' as NavTab, label: 'Audit Trail', icon: <History size={18} /> }]
+      : []),
   ]
 
   const masterDataItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [

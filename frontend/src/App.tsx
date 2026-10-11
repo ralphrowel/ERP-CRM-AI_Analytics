@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { AppLayout, type NavTab } from './components/AppLayout'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ApprovalsPage } from './pages/ApprovalsPage'
+import { AuditLogPage } from './pages/AuditLogPage'
 import { CompanySettingsPage } from './pages/CompanySettingsPage'
 import { CustomersPage } from './pages/CustomersPage'
 import { EmployeesPage } from './pages/EmployeesPage'
@@ -80,6 +81,7 @@ const MainRouter: React.FC = () => {
       {activeTab === 'supplier_payments' && <SupplierPaymentsPage />}
       {activeTab === 'inventory' && <InventoryPage />}
       {activeTab === 'approvals' && <ApprovalsPage />}
+      {activeTab === 'audit_logs' && <AuditLogPage />}
       {activeTab === 'customers' && <CustomersPage />}
       {activeTab === 'products' && <ProductsPage />}
       {activeTab === 'employees' && <EmployeesPage />}

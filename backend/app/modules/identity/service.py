@@ -88,6 +88,15 @@ class IdentityService:
         ).scalar_one_or_none()
 
         if user is None:
+            from app.modules.audit.service import AuditService
+
+            AuditService(self.db).record_security_event(
+                action="login_failed",
+                actor_user_id=None,
+                ip_address=ip_address,
+                details={"email": normalized_email, "reason": "user_not_found"},
+            )
+            self.db.commit()
             raise UnauthorizedException(detail="Invalid email or password.")
 
         if not user.is_active:
@@ -106,6 +115,14 @@ class IdentityService:
             user.failed_login_count += 1
             if user.failed_login_count >= settings.MAX_FAILED_LOGINS:
                 user.locked_until = now + timedelta(minutes=settings.LOCKOUT_MINUTES)
+            from app.modules.audit.service import AuditService
+
+            AuditService(self.db).record_security_event(
+                action="login_failed",
+                actor_user_id=user.id,
+                ip_address=ip_address,
+                details={"email": normalized_email, "reason": "invalid_credentials"},
+            )
             self.db.commit()
             raise UnauthorizedException(detail="Invalid email or password.")
 
@@ -129,6 +146,17 @@ class IdentityService:
             user_agent=user_agent,
         )
         self.db.add(session)
+
+        # Audit successful login
+        from app.modules.audit.service import AuditService
+
+        AuditService(self.db).record_security_event(
+            action="login",
+            actor_user_id=user.id,
+            ip_address=ip_address,
+            details={"email": user.email},
+        )
+
         self.db.commit()
         self.db.refresh(user)
 
@@ -179,6 +207,13 @@ class IdentityService:
     def logout_session(self, session: UserSession) -> None:
         """Revokes a single user session."""
         session.revoked_at = self.clock.now()
+        from app.modules.audit.service import AuditService
+
+        AuditService(self.db).record_security_event(
+            action="logout",
+            actor_user_id=session.user_id,
+            ip_address=session.ip_address,
+        )
         self.db.commit()
 
     def revoke_all_user_sessions(self, user_id: int) -> None:
@@ -470,10 +505,22 @@ class IdentityService:
 
         role.version += 1
         role.updated_by = updater_id
-        self.db.commit()
 
-        # If role permissions were updated, revoke sessions of all users assigned to this role
+        # If role permissions were updated, record audit log and revoke sessions
         if permissions_changed:
+            from app.modules.audit.service import AuditService
+
+            AuditService(self.db).record_permission_change(
+                actor_user_id=updater_id,
+                role_id=role_id,
+                changes={
+                    "permissions": [
+                        {"permission_id": p.permission_id, "scope": p.scope}
+                        for p in (data.permissions or [])
+                    ]
+                },
+            )
+
             affected_user_ids = (
                 self.db.execute(select(UserRole.user_id).where(UserRole.role_id == role_id))
                 .scalars()
@@ -482,6 +529,7 @@ class IdentityService:
             for uid in affected_user_ids:
                 self.revoke_all_user_sessions(uid)
 
+        self.db.commit()
         return self.get_role(role_id)
 
     def delete_role(self, role_id: int) -> None:
@@ -554,6 +602,14 @@ class IdentityService:
         for r_id in set(role_ids):
             ur = UserRole(user_id=user_id, role_id=r_id, assigned_by=assigner_id)
             self.db.add(ur)
+
+        from app.modules.audit.service import AuditService
+
+        AuditService(self.db).record_permission_change(
+            actor_user_id=assigner_id,
+            role_id=0,
+            changes={"target_user_id": user_id, "assigned_role_ids": list(set(role_ids))},
+        )
 
         self.db.commit()
 
