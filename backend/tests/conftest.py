@@ -21,15 +21,39 @@ def compile_big_int_sqlite(type_, compiler, **kw):
 # Check if PostgreSQL is available via DATABASE_URL
 DATABASE_URL = os.getenv("TEST_DATABASE_URL") or os.getenv("DATABASE_URL") or settings.DATABASE_URL
 
+CLEANUP_DATABASE_URL = (
+    os.getenv("TEST_CLEANUP_DATABASE_URL")
+    or os.getenv("MIGRATION_DATABASE_URL")
+    or getattr(settings, "MIGRATION_DATABASE_URL", None)
+    or DATABASE_URL
+)
+
 _use_sqlite = False
+_cleanup_engine = None
 try:
     _temp_engine = create_engine(
         DATABASE_URL, pool_pre_ping=True, connect_args={"connect_timeout": 2}
     )
     with _temp_engine.connect() as _conn:
         pass
+    if CLEANUP_DATABASE_URL:
+        _cleanup_engine = create_engine(
+            CLEANUP_DATABASE_URL, pool_pre_ping=True, connect_args={"connect_timeout": 2}
+        )
 except Exception:
     _use_sqlite = True
+
+
+def _clean_tables(app_engine) -> None:
+    eng = _cleanup_engine or app_engine
+    with eng.connect() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            try:
+                with conn.begin_nested():
+                    conn.execute(table.delete())
+            except Exception:
+                pass
+        conn.commit()
 
 
 def _seed_document_sequences(session: Session) -> None:
@@ -100,10 +124,7 @@ def db_session() -> Generator[Session, None, None]:
             yield session
         finally:
             session.close()
-            with engine.connect() as conn:
-                for table in reversed(Base.metadata.sorted_tables):
-                    conn.execute(table.delete())
-                conn.commit()
+            _clean_tables(engine)
 
 
 @pytest.fixture

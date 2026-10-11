@@ -88,11 +88,23 @@ def ful_db():
     session.flush()
 
     # Seed warehouses
-    wh_main = Warehouse(
-        code="WH-MAIN", name="Main Warehouse Manila", is_active=True, is_default=True
-    )
-    wh_cebu = Warehouse(code="WH-CEBU", name="Regional Hub Cebu", is_active=True, is_default=False)
-    session.add_all([wh_main, wh_cebu])
+    wh_main = session.query(Warehouse).filter_by(code="WH-MAIN").first()
+    if not wh_main:
+        default_wh = session.query(Warehouse).filter_by(is_default=True).first()
+        wh_main = Warehouse(
+            code="WH-MAIN",
+            name="Main Warehouse Manila",
+            is_active=True,
+            is_default=(default_wh is None),
+        )
+        session.add(wh_main)
+
+    wh_cebu = session.query(Warehouse).filter_by(code="WH-CEBU").first()
+    if not wh_cebu:
+        wh_cebu = Warehouse(
+            code="WH-CEBU", name="Regional Hub Cebu", is_active=True, is_default=False
+        )
+        session.add(wh_cebu)
     session.flush()
 
     # Seed catalog

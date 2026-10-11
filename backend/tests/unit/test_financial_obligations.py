@@ -88,14 +88,17 @@ def fin_db():
     session.add(prod)
     session.flush()
 
-    wh = Warehouse(
-        code="WH-FIN-01",
-        name="Financial Test Warehouse",
-        address="Makati",
-        is_active=True,
-        is_default=True,
-    )
-    session.add(wh)
+    wh = session.query(Warehouse).filter_by(code="WH-FIN-01").first()
+    if not wh:
+        default_wh = session.query(Warehouse).filter_by(is_default=True).first()
+        wh = Warehouse(
+            code="WH-FIN-01",
+            name="Financial Test Warehouse",
+            address="Makati",
+            is_active=True,
+            is_default=(default_wh is None),
+        )
+        session.add(wh)
     session.flush()
 
     bal = InventoryBalance(
