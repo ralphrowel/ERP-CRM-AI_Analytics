@@ -92,7 +92,9 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["batch_id"], ["import_batches.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["committed_customer_id"], ["customers.id"], ondelete="SET NULL"),
     )
-    op.create_index("ix_import_staging_customers_batch_id", "import_staging_customers", ["batch_id"])
+    op.create_index(
+        "ix_import_staging_customers_batch_id", "import_staging_customers", ["batch_id"]
+    )
 
     # 3. import_staging_products
     op.create_table(

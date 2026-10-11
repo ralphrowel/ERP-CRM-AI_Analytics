@@ -306,9 +306,7 @@ class LegacyDataGenerator:
             )
         return records
 
-    def _generate_sales(
-        self, customers: list[dict[str, Any]], count: int
-    ) -> list[dict[str, Any]]:
+    def _generate_sales(self, customers: list[dict[str, Any]], count: int) -> list[dict[str, Any]]:
         records = []
         base_date = datetime(2023, 1, 15, 10, 0, 0, tzinfo=UTC)
 

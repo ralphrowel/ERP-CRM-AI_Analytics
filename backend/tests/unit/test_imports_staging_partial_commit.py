@@ -55,9 +55,7 @@ def import_setup(db_session: Session):
         select(Permission).where(Permission.code == "import:upload")
     ).scalar_one_or_none()
     if not perm_upload:
-        perm_upload = Permission(
-            code="import:upload", description="Upload CSV", module="imports"
-        )
+        perm_upload = Permission(code="import:upload", description="Upload CSV", module="imports")
         db_session.add(perm_upload)
 
     perm_commit = db_session.execute(
@@ -73,16 +71,12 @@ def import_setup(db_session: Session):
         select(Permission).where(Permission.code == "import:read")
     ).scalar_one_or_none()
     if not perm_read:
-        perm_read = Permission(
-            code="import:read", description="Read imports", module="imports"
-        )
+        perm_read = Permission(code="import:read", description="Read imports", module="imports")
         db_session.add(perm_read)
     db_session.flush()
 
     # Admin Role
-    admin_role = db_session.execute(
-        select(Role).where(Role.code == "admin")
-    ).scalar_one_or_none()
+    admin_role = db_session.execute(select(Role).where(Role.code == "admin")).scalar_one_or_none()
     if not admin_role:
         admin_role = Role(code="admin", name="Administrator")
         db_session.add(admin_role)
@@ -96,9 +90,7 @@ def import_setup(db_session: Session):
             )
         ).scalar_one_or_none()
         if not rp_exists:
-            db_session.add(
-                RolePermission(role_id=admin_role.id, permission_id=p.id, scope="all")
-            )
+            db_session.add(RolePermission(role_id=admin_role.id, permission_id=p.id, scope="all"))
 
     # Test Admin User
     admin_user = db_session.execute(
@@ -120,9 +112,7 @@ def import_setup(db_session: Session):
     return {"admin_user": admin_user, "tax_rate": tax_rate}
 
 
-def test_dirty_customer_csv_1000_rows_partial_commit(
-    db_session: Session, import_setup: dict
-):
+def test_dirty_customer_csv_1000_rows_partial_commit(db_session: Session, import_setup: dict):
     """
     Exit Criteria 1:
     Importing a 1,000-row dirty customer CSV commits the valid rows and
@@ -258,9 +248,11 @@ def test_dirty_customer_csv_1000_rows_partial_commit(
     assert committed_batch.committed_at is not None
 
     # Verify committed customers in operational database
-    committed_customers_count = db_session.execute(
-        select(Customer).where(Customer.name.like("Enterprise Customer %"))
-    ).scalars().all()
+    committed_customers_count = (
+        db_session.execute(select(Customer).where(Customer.name.like("Enterprise Customer %")))
+        .scalars()
+        .all()
+    )
     assert len(committed_customers_count) == expected_valid
 
     # Verify defective rows stayed uncommitted in staging with validation_errors
@@ -277,9 +269,7 @@ def test_dirty_customer_csv_1000_rows_partial_commit(
     assert len(retained_staging_errors) == expected_error
 
 
-def test_product_and_contact_csv_import_staging(
-    db_session: Session, import_setup: dict
-):
+def test_product_and_contact_csv_import_staging(db_session: Session, import_setup: dict):
     """
     Validates product and contact staging pipelines, duplicate detection,
     and partial commits.
@@ -293,7 +283,7 @@ def test_product_and_contact_csv_import_staging(
         'SKU-GOOD-01,Valid Product 1,stock,pc,"₱ 1,500.00"\n'
         "SKU-GOOD-02,Valid Product 2,service,hr,500.00\n"
         "SKU-GOOD-01,Duplicate SKU,stock,pc,250.00\n"  # Duplicate in batch
-        "SKU-BAD-03,Invalid Price,stock,pc,-50.00\n"   # Negative price
+        "SKU-BAD-03,Invalid Price,stock,pc,-50.00\n"  # Negative price
     )
 
     batch_prod = service.upload_csv(
@@ -320,6 +310,7 @@ def test_product_and_contact_csv_import_staging(
     # 2. Contact Staging Import
     # Create customer first
     from app.modules.crm.schemas import CustomerCreate
+
     cust = service.crm_service.create_customer(
         CustomerCreate(name="Contact Target Company", customer_type="company", status="active")
     )
@@ -345,9 +336,9 @@ def test_product_and_contact_csv_import_staging(
     committed_contact = service.commit_batch(batch_contact.id, user_id=user.id)
     assert committed_contact.committed_count == 2
 
-    contacts = db_session.execute(
-        select(Contact).where(Contact.customer_id == cust.id)
-    ).scalars().all()
+    contacts = (
+        db_session.execute(select(Contact).where(Contact.customer_id == cust.id)).scalars().all()
+    )
     assert len(contacts) == 2
 
 

@@ -33,7 +33,9 @@ def get_import_service(db: Annotated[Session, Depends(get_db)]) -> ImportService
 )
 async def upload_csv_file(
     file: Annotated[UploadFile, File(...)],
-    entity_type: Annotated[str, Form(description="Target entity: 'customer', 'product', 'contact'")],
+    entity_type: Annotated[
+        str, Form(description="Target entity: 'customer', 'product', 'contact'")
+    ],
     service: Annotated[ImportService, Depends(get_import_service)],
     context: Annotated[ScopeContext, Depends(require("import:upload"))],
     source_label: Annotated[str | None, Form()] = None,

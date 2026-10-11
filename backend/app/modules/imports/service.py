@@ -41,7 +41,9 @@ def clean_currency_or_decimal(val: str | None) -> Decimal | None:
     if not cleaned:
         return None
     # Strip PHP, ₱, peso symbols, commas, and extra whitespace
-    cleaned = cleaned.replace("₱", "").replace("PHP", "").replace("php", "").replace(",", "").strip()
+    cleaned = (
+        cleaned.replace("₱", "").replace("PHP", "").replace("php", "").replace(",", "").strip()
+    )
     try:
         return Decimal(cleaned)
     except InvalidOperation as err:
@@ -98,7 +100,9 @@ class ImportService:
                 continue
 
         if content is None:
-            raise BadRequestException(detail="Failed to decode CSV file content with standard encodings.")
+            raise BadRequestException(
+                detail="Failed to decode CSV file content with standard encodings."
+            )
 
         # Parse CSV rows
         f = io.StringIO(content)
@@ -296,7 +300,9 @@ class ImportService:
             )
             # Preload existing SKUs to catch duplicate collisions
             existing_skus = set(
-                self.db.execute(select(Product.sku).where(Product.is_active.is_(True))).scalars().all()
+                self.db.execute(select(Product.sku).where(Product.is_active.is_(True)))
+                .scalars()
+                .all()
             )
             seen_in_batch: set[str] = set()
 
@@ -309,7 +315,10 @@ class ImportService:
                     sku_clean = row.sku.strip().upper()
                     if sku_clean in existing_skus or sku_clean in seen_in_batch:
                         errors.append(
-                            {"field": "sku", "message": f"Duplicate SKU in database or batch: '{row.sku}'."}
+                            {
+                                "field": "sku",
+                                "message": f"Duplicate SKU in database or batch: '{row.sku}'.",
+                            }
                         )
                     seen_in_batch.add(sku_clean)
 
@@ -343,7 +352,9 @@ class ImportService:
                     try:
                         lp = clean_currency_or_decimal(row.list_price)
                         if lp is not None and lp < Decimal("0"):
-                            errors.append({"field": "list_price", "message": "List price cannot be negative."})
+                            errors.append(
+                                {"field": "list_price", "message": "List price cannot be negative."}
+                            )
                     except ValueError:
                         errors.append(
                             {
@@ -375,7 +386,10 @@ class ImportService:
 
                 if not row.customer_id or not row.customer_id.strip():
                     errors.append(
-                        {"field": "customer_id", "message": "Customer ID or Customer No is required."}
+                        {
+                            "field": "customer_id",
+                            "message": "Customer ID or Customer No is required.",
+                        }
                     )
                 else:
                     target_cust = self._resolve_customer(row.customer_id.strip())
@@ -505,7 +519,9 @@ class ImportService:
                         description=row.description,
                         category_id=cat_id,
                         product_type=p_type if p_type in ("stock", "service") else "stock",
-                        uom=uom_val if uom_val in ("pc", "box", "pack", "kg", "l", "m", "hr") else "pc",
+                        uom=uom_val
+                        if uom_val in ("pc", "box", "pack", "kg", "l", "m", "hr")
+                        else "pc",
                         list_price=price,
                         reorder_point=reorder,
                         tax_rate_id=tax_id,
@@ -536,7 +552,9 @@ class ImportService:
 
             for row in rows:
                 try:
-                    target_cust = self._resolve_customer(row.customer_id.strip() if row.customer_id else "")
+                    target_cust = self._resolve_customer(
+                        row.customer_id.strip() if row.customer_id else ""
+                    )
                     if not target_cust:
                         raise ValueError(f"Customer '{row.customer_id}' not found.")
 
@@ -549,7 +567,9 @@ class ImportService:
                         phone=row.phone.strip() if row.phone else None,
                         is_primary=False,
                     )
-                    new_contact = self.crm_service.create_contact(contact_payload, creator_id=user_id)
+                    new_contact = self.crm_service.create_contact(
+                        contact_payload, creator_id=user_id
+                    )
                     row.committed_contact_id = new_contact.id
                     self.db.commit()
                     committed_in_this_run += 1
@@ -595,20 +615,24 @@ class ImportService:
 
         total = self.db.execute(select(func.count(ImportBatch.id))).scalar_one()
         batches = (
-            self.db.execute(
-                stmt.order_by(ImportBatch.id.desc()).offset(offset).limit(limit)
-            )
+            self.db.execute(stmt.order_by(ImportBatch.id.desc()).offset(offset).limit(limit))
             .scalars()
             .all()
         )
         return list(batches), total
 
-    def get_staging_rows(self, batch_id: int, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+    def get_staging_rows(
+        self, batch_id: int, limit: int = 100, offset: int = 0
+    ) -> list[dict[str, Any]]:
         batch = self.get_batch(batch_id)
         if batch.entity_type == "customer":
             stmt = select(ImportStagingCustomer).where(ImportStagingCustomer.batch_id == batch_id)
             rows = (
-                self.db.execute(stmt.order_by(ImportStagingCustomer.row_number.asc()).offset(offset).limit(limit))
+                self.db.execute(
+                    stmt.order_by(ImportStagingCustomer.row_number.asc())
+                    .offset(offset)
+                    .limit(limit)
+                )
                 .scalars()
                 .all()
             )
@@ -634,7 +658,9 @@ class ImportService:
         elif batch.entity_type == "product":
             stmt = select(ImportStagingProduct).where(ImportStagingProduct.batch_id == batch_id)
             rows = (
-                self.db.execute(stmt.order_by(ImportStagingProduct.row_number.asc()).offset(offset).limit(limit))
+                self.db.execute(
+                    stmt.order_by(ImportStagingProduct.row_number.asc()).offset(offset).limit(limit)
+                )
                 .scalars()
                 .all()
             )
@@ -660,7 +686,9 @@ class ImportService:
         elif batch.entity_type == "contact":
             stmt = select(ImportStagingContact).where(ImportStagingContact.batch_id == batch_id)
             rows = (
-                self.db.execute(stmt.order_by(ImportStagingContact.row_number.asc()).offset(offset).limit(limit))
+                self.db.execute(
+                    stmt.order_by(ImportStagingContact.row_number.asc()).offset(offset).limit(limit)
+                )
                 .scalars()
                 .all()
             )
@@ -688,7 +716,6 @@ class ImportService:
             c = self.db.get(Customer, int(identifier))
             if c:
                 return c
-        return (
-            self.db.execute(select(Customer).where(Customer.customer_no == identifier))
-            .scalar_one_or_none()
-        )
+        return self.db.execute(
+            select(Customer).where(Customer.customer_no == identifier)
+        ).scalar_one_or_none()
