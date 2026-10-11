@@ -3,7 +3,7 @@ from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.types import BigInteger
@@ -47,6 +47,32 @@ except Exception:
 def _clean_tables(app_engine) -> None:
     eng = _cleanup_engine or app_engine
     with eng.connect() as conn:
+        if eng.dialect.name == "postgresql":
+            try:
+                table_names = [f'"{table.name}"' for table in Base.metadata.sorted_tables]
+                if table_names:
+                    conn.execute(
+                        text(f"TRUNCATE TABLE {', '.join(table_names)} RESTART IDENTITY CASCADE")
+                    )
+                    conn.commit()
+                    return
+            except Exception:
+                pass
+        # Break cyclic foreign keys between leads and opportunities before delete
+        try:
+            with conn.begin_nested():
+                conn.execute(
+                    text(
+                        "UPDATE leads SET converted_opportunity_id = NULL, converted_customer_id = NULL, converted_contact_id = NULL"
+                    )
+                )
+                conn.execute(
+                    text(
+                        "UPDATE opportunities SET source_lead_id = NULL, primary_contact_id = NULL"
+                    )
+                )
+        except Exception:
+            pass
         for table in reversed(Base.metadata.sorted_tables):
             try:
                 with conn.begin_nested():
