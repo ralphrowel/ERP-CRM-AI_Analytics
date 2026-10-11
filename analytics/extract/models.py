@@ -24,7 +24,9 @@ class EtlRun(Base):
     __table_args__: ClassVar[dict[str, Any]] = {"schema": "etl"}
 
     run_id: Mapped[int] = mapped_column(
-        BigInteger, primary_key=True, autoincrement=True
+        BigInteger().with_variant(Integer, "sqlite"),
+        primary_key=True,
+        autoincrement=True,
     )
     job: Mapped[str] = mapped_column(String(100), nullable=False)
     started_at: Mapped[datetime] = mapped_column(
