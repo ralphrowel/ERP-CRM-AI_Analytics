@@ -45,11 +45,18 @@ jobs:
           docker exec ${{ job.services.postgres.id }} psql -U postgres -d erp_crm -c "
             CREATE ROLE erp_owner WITH LOGIN PASSWORD 'erp_owner_password';
             CREATE ROLE erp_app WITH LOGIN PASSWORD 'erp_app_password';
+            CREATE ROLE etl_reader WITH LOGIN PASSWORD 'etl_reader_password';
+            CREATE ROLE analytics_owner WITH LOGIN PASSWORD 'analytics_owner_password';
             GRANT ALL ON DATABASE erp_crm TO erp_owner;
             ALTER SCHEMA public OWNER TO erp_owner;
             GRANT USAGE ON SCHEMA public TO erp_app;
             ALTER DEFAULT PRIVILEGES FOR ROLE erp_owner IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO erp_app;
             ALTER DEFAULT PRIVILEGES FOR ROLE erp_owner IN SCHEMA public GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO erp_app;
+            GRANT CONNECT ON DATABASE erp_crm TO etl_reader;
+            GRANT USAGE ON SCHEMA public TO etl_reader;
+            ALTER DEFAULT PRIVILEGES FOR ROLE erp_owner IN SCHEMA public GRANT SELECT ON TABLES TO etl_reader;
+            CREATE DATABASE erp_analytics OWNER analytics_owner;
+            GRANT ALL ON DATABASE erp_analytics TO analytics_owner;
           "
 
       - name: Install Dependencies
@@ -72,9 +79,12 @@ jobs:
         env:
           DATABASE_URL: postgresql+psycopg://erp_app:erp_app_password@localhost:5432/erp_crm
           MIGRATION_DATABASE_URL: postgresql+psycopg://erp_owner:erp_owner_password@localhost:5432/erp_crm
+          ETL_READER_DATABASE_URL: postgresql+psycopg://etl_reader:etl_reader_password@localhost:5432/erp_crm
+          ANALYTICS_DATABASE_URL: postgresql+psycopg://analytics_owner:analytics_owner_password@localhost:5432/erp_analytics
           SECRET_KEY: test-secret-key-for-ci-pipeline-min-32-chars-long!
         run: |
           pytest -v
+
 
   frontend-ci:
     name: Frontend Lint, Type-Check & Build
