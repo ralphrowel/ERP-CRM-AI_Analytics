@@ -157,144 +157,160 @@ def test_deduplication_via_window_function(analytics_test_engine: Engine):
     """Test 2: Append-only raw revisions are deduplicated into the latest record in staging."""
     is_postgres = analytics_test_engine.dialect.name == "postgresql"
     target_raw = "raw.customers" if is_postgres else "customers"
+    target_stg = "staging.stg_customers" if is_postgres else "stg_customers"
     cascade = " CASCADE" if is_postgres else ""
 
-    with analytics_test_engine.begin() as conn:
-        conn.execute(text(f"DROP TABLE IF EXISTS {target_raw}{cascade};"))
-        conn.execute(
-            text(
-                f"""
-            CREATE TABLE IF NOT EXISTS {target_raw} (
-                _raw_id INTEGER PRIMARY KEY,
-                id INTEGER,
-                customer_no TEXT,
-                name TEXT,
-                customer_type TEXT,
-                status TEXT,
-                tin TEXT,
-                email TEXT,
-                phone TEXT,
-                website TEXT,
-                industry TEXT,
-                payment_terms_days INTEGER,
-                credit_limit NUMERIC,
-                owner_user_id INTEGER,
-                notes TEXT,
-                created_at TIMESTAMP,
-                updated_at TIMESTAMP,
-                _extracted_at TIMESTAMP,
-                _run_id INTEGER,
-                _source TEXT
-            );
-            """
+    try:
+        with analytics_test_engine.begin() as conn:
+            conn.execute(text(f"DROP TABLE IF EXISTS {target_raw}{cascade};"))
+            conn.execute(
+                text(
+                    f"""
+                CREATE TABLE IF NOT EXISTS {target_raw} (
+                    _raw_id INTEGER PRIMARY KEY,
+                    id INTEGER,
+                    customer_no TEXT,
+                    name TEXT,
+                    customer_type TEXT,
+                    status TEXT,
+                    tin TEXT,
+                    email TEXT,
+                    phone TEXT,
+                    website TEXT,
+                    industry TEXT,
+                    payment_terms_days INTEGER,
+                    credit_limit NUMERIC,
+                    owner_user_id INTEGER,
+                    notes TEXT,
+                    version INTEGER,
+                    created_at TIMESTAMP,
+                    created_by TEXT,
+                    updated_at TIMESTAMP,
+                    updated_by TEXT,
+                    _extracted_at TIMESTAMP,
+                    _run_id INTEGER,
+                    _source TEXT
+                );
+                """
+                )
             )
-        )
-        # Older version of Customer 99
-        conn.execute(
-            text(
-                f"""
-            INSERT INTO {target_raw} (_raw_id, id, customer_no, name, customer_type, status, payment_terms_days, credit_limit, _extracted_at, _run_id, _source)
-            VALUES (1, 99, 'CUS-099', 'Old Name Corp', 'company', 'active', 15, 100000.00, '2026-10-10 10:00:00', 1, 'erp');
-            """
+            # Older version of Customer 99
+            conn.execute(
+                text(
+                    f"""
+                INSERT INTO {target_raw} (_raw_id, id, customer_no, name, customer_type, status, payment_terms_days, credit_limit, version, _extracted_at, _run_id, _source)
+                VALUES (1, 99, 'CUS-099', 'Old Name Corp', 'company', 'active', 15, 100000.00, 1, '2026-10-10 10:00:00', 1, 'erp');
+                """
+                )
             )
-        )
-        # Newer updated version of Customer 99
-        conn.execute(
-            text(
-                f"""
-            INSERT INTO {target_raw} (_raw_id, id, customer_no, name, customer_type, status, payment_terms_days, credit_limit, _extracted_at, _run_id, _source)
-            VALUES (2, 99, 'CUS-099', 'New Updated Name Corp', 'company', 'active', 30, 250000.00, '2026-10-11 12:00:00', 2, 'erp');
-            """
+            # Newer updated version of Customer 99
+            conn.execute(
+                text(
+                    f"""
+                INSERT INTO {target_raw} (_raw_id, id, customer_no, name, customer_type, status, payment_terms_days, credit_limit, version, _extracted_at, _run_id, _source)
+                VALUES (2, 99, 'CUS-099', 'New Updated Name Corp', 'company', 'active', 30, 250000.00, 2, '2026-10-11 12:00:00', 2, 'erp');
+                """
+                )
             )
-        )
 
-    runner = TransformRunner(engine=analytics_test_engine)
-    summary = runner.run(models=["stg_customers"])
-    assert summary["status"] == "success"
+        runner = TransformRunner(engine=analytics_test_engine)
+        summary = runner.run(models=["stg_customers"])
+        assert summary["status"] == "success"
 
-    target_stg = "staging.stg_customers" if is_postgres else "stg_customers"
-    with analytics_test_engine.connect() as conn:
-        rows = conn.execute(
-            text(
-                f"SELECT id, name, credit_limit, payment_terms_days FROM {target_stg} WHERE id = 99"
-            )
-        ).fetchall()
-        assert len(rows) == 1
-        cust_id, name, credit_limit, terms = rows[0]
-        assert cust_id == 99
-        assert name == "New Updated Name Corp"
-        assert Decimal(str(credit_limit)) == Decimal("250000.00")
-        assert terms == 30
+        with analytics_test_engine.connect() as conn:
+            rows = conn.execute(
+                text(
+                    f"SELECT id, name, credit_limit, payment_terms_days, version FROM {target_stg} WHERE id = 99"
+                )
+            ).fetchall()
+            assert len(rows) == 1
+            cust_id, name, credit_limit, terms, ver = rows[0]
+            assert cust_id == 99
+            assert name == "New Updated Name Corp"
+            assert Decimal(str(credit_limit)) == Decimal("250000.00")
+            assert terms == 30
+            assert ver == 2
+    finally:
+        with analytics_test_engine.begin() as conn:
+            conn.execute(text(f"DROP TABLE IF EXISTS {target_raw}{cascade};"))
+            conn.execute(text(f"DROP TABLE IF EXISTS {target_stg}{cascade};"))
 
 
 def test_derived_metrics_on_sales_order_lines(analytics_test_engine: Engine):
     """Test 3: Staging derived fields line_subtotal and line_margin are correctly calculated."""
     is_postgres = analytics_test_engine.dialect.name == "postgresql"
     target_raw = "raw.sales_order_items" if is_postgres else "sales_order_items"
+    target_stg = "staging.stg_sales_order_lines" if is_postgres else "stg_sales_order_lines"
     cascade = " CASCADE" if is_postgres else ""
 
-    with analytics_test_engine.begin() as conn:
-        conn.execute(text(f"DROP TABLE IF EXISTS {target_raw}{cascade};"))
-        conn.execute(
-            text(
-                f"""
-            CREATE TABLE IF NOT EXISTS {target_raw} (
-                _raw_id INTEGER PRIMARY KEY,
-                id INTEGER,
-                sales_order_id INTEGER,
-                line_no INTEGER,
-                product_id INTEGER,
-                description TEXT,
-                uom TEXT,
-                quantity NUMERIC,
-                unit_price NUMERIC,
-                discount_amount NUMERIC,
-                tax_rate_id INTEGER,
-                tax_rate NUMERIC,
-                line_net NUMERIC,
-                line_tax NUMERIC,
-                line_total NUMERIC,
-                quantity_invoiced NUMERIC,
-                quantity_shipped NUMERIC,
-                _extracted_at TIMESTAMP,
-                _run_id INTEGER,
-                _source TEXT
-            );
-            """
+    try:
+        with analytics_test_engine.begin() as conn:
+            conn.execute(text(f"DROP TABLE IF EXISTS {target_raw}{cascade};"))
+            conn.execute(
+                text(
+                    f"""
+                CREATE TABLE IF NOT EXISTS {target_raw} (
+                    _raw_id INTEGER PRIMARY KEY,
+                    id INTEGER,
+                    sales_order_id INTEGER,
+                    line_no INTEGER,
+                    product_id INTEGER,
+                    description TEXT,
+                    uom TEXT,
+                    quantity NUMERIC,
+                    unit_price NUMERIC,
+                    discount_amount NUMERIC,
+                    tax_rate_id INTEGER,
+                    tax_rate NUMERIC,
+                    line_net NUMERIC,
+                    line_tax NUMERIC,
+                    line_total NUMERIC,
+                    quantity_invoiced NUMERIC,
+                    quantity_shipped NUMERIC,
+                    _extracted_at TIMESTAMP,
+                    _run_id INTEGER,
+                    _source TEXT
+                );
+                """
+                )
             )
-        )
-        conn.execute(
-            text(
-                f"""
-            INSERT INTO {target_raw} (
-                _raw_id, id, sales_order_id, line_no, product_id, description, uom,
-                quantity, unit_price, discount_amount, tax_rate_id, tax_rate,
-                line_net, line_tax, line_total, quantity_invoiced, quantity_shipped,
-                _extracted_at, _run_id, _source
-            ) VALUES (
-                1, 101, 50, 1, 10, 'Industrial Motor', 'pc',
-                4.0, 2500.0, 500.0, 1, 0.12,
-                9500.0, 1140.0, 10640.0, 0, 0,
-                '2026-10-11 12:00:00', 1, 'erp'
-            );
-            """
+            conn.execute(
+                text(
+                    f"""
+                INSERT INTO {target_raw} (
+                    _raw_id, id, sales_order_id, line_no, product_id, description, uom,
+                    quantity, unit_price, discount_amount, tax_rate_id, tax_rate,
+                    line_net, line_tax, line_total, quantity_invoiced, quantity_shipped,
+                    _extracted_at, _run_id, _source
+                ) VALUES (
+                    1, 101, 50, 1, 10, 'Industrial Motor', 'pc',
+                    4.0, 2500.0, 500.0, 1, 0.12,
+                    9500.0, 1140.0, 10640.0, 0, 0,
+                    '2026-10-11 12:00:00', 1, 'erp'
+                );
+                """
+                )
             )
-        )
 
-    runner = TransformRunner(engine=analytics_test_engine)
-    summary = runner.run(models=["stg_sales_order_lines"])
-    assert summary["status"] == "success"
+        runner = TransformRunner(engine=analytics_test_engine)
+        summary = runner.run(models=["stg_sales_order_lines"])
+        assert summary["status"] == "success"
 
-    target_stg = "staging.stg_sales_order_lines" if is_postgres else "stg_sales_order_lines"
-    with analytics_test_engine.connect() as conn:
-        row = conn.execute(
-            text(f"SELECT line_subtotal, line_margin, line_total FROM {target_stg} WHERE id = 101")
-        ).fetchone()
-        assert row is not None
-        # line_subtotal = (4 * 2500) - 500 = 9500.00
-        assert Decimal(str(row[0])) == Decimal("9500.00")
-        assert Decimal(str(row[1])) == Decimal("9500.00")
-        assert Decimal(str(row[2])) == Decimal("10640.00")
+        with analytics_test_engine.connect() as conn:
+            row = conn.execute(
+                text(
+                    f"SELECT line_subtotal, line_margin, line_total FROM {target_stg} WHERE id = 101"
+                )
+            ).fetchone()
+            assert row is not None
+            # line_subtotal = (4 * 2500) - 500 = 9500.00
+            assert Decimal(str(row[0])) == Decimal("9500.00")
+            assert Decimal(str(row[1])) == Decimal("9500.00")
+            assert Decimal(str(row[2])) == Decimal("10640.00")
+    finally:
+        with analytics_test_engine.begin() as conn:
+            conn.execute(text(f"DROP TABLE IF EXISTS {target_raw}{cascade};"))
+            conn.execute(text(f"DROP TABLE IF EXISTS {target_stg}{cascade};"))
 
 
 def test_legacy_data_parse_attempts_and_error_preservation(
@@ -432,6 +448,13 @@ SELECT 1 AS num_col;
 def test_data_freshness_tracking(db_session: Session, analytics_test_engine: Engine, seed_erp_data):
     """Test 6: etl.model_runs records MAX(_extracted_at) source data freshness."""
     erp_engine = db_session.get_bind()
+    is_postgres = analytics_test_engine.dialect.name == "postgresql"
+    target_raw = "raw.customers" if is_postgres else "customers"
+    cascade = " CASCADE" if is_postgres else ""
+
+    with analytics_test_engine.begin() as conn:
+        conn.execute(text(f"DROP TABLE IF EXISTS {target_raw}{cascade};"))
+
     extractor = Extractor(
         erp_engine=erp_engine,
         analytics_engine=analytics_test_engine,
