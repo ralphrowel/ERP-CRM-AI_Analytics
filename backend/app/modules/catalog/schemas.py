@@ -52,6 +52,8 @@ class ProductCreate(BaseModel):
     product_type: Literal["stock", "service"] = "stock"
     uom: Literal["pc", "box", "pack", "kg", "l", "m", "hr"] = "pc"
     list_price: Decimal = Field(Decimal("0.0000"), ge=0)
+    reorder_point: Decimal | None = None
+    tax_rate_id: int | None = None
 
 
 class ProductUpdate(BaseModel):

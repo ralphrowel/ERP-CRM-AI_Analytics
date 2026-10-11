@@ -83,6 +83,16 @@ class BusinessRuleException(AppException):
         )
 
 
+class BadRequestException(AppException):
+    def __init__(self, detail: str = "Invalid request.", code: str = "BAD_REQUEST") -> None:
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            code=code,
+            title="Bad Request",
+            detail=detail,
+        )
+
+
 # Friendly aliases
 AppError = AppException
 NotFoundError = NotFoundException
@@ -90,6 +100,7 @@ ConflictError = ConflictException
 UnauthorizedError = UnauthorizedException
 ForbiddenError = ForbiddenException
 BusinessRuleError = BusinessRuleException
+BadRequestError = BadRequestException
 
 
 def create_problem_response(

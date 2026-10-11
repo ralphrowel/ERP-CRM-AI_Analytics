@@ -13,6 +13,7 @@ from sqlalchemy import (
     SmallInteger,
     String,
     Text,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -70,7 +71,8 @@ class CustomerAddress(Base, AuditMixin):
             "customer_id",
             "address_type",
             unique=True,
-            postgresql_where=("is_default AND is_active"),
+            postgresql_where=text("is_default AND is_active"),
+            sqlite_where=text("is_default = 1 AND is_active = 1"),
         ),
     )
 
@@ -99,7 +101,8 @@ class Contact(Base, AuditMixin, VersionMixin):
             "uq_customer_primary_contact",
             "customer_id",
             unique=True,
-            postgresql_where=("is_primary AND is_active"),
+            postgresql_where=text("is_primary AND is_active"),
+            sqlite_where=text("is_primary = 1 AND is_active = 1"),
         ),
     )
 
