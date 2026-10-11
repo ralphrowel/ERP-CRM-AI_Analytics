@@ -159,6 +159,17 @@ class CatalogService:
                     detail="Specified product category does not exist or is inactive.",
                 )
 
+        from app.modules.sales.models import TaxRate
+
+        tax_id = data.tax_rate_id
+        if not tax_id:
+            default_tax = self.db.execute(
+                select(TaxRate.id).where(TaxRate.is_default.is_(True))
+            ).scalar_one_or_none()
+            if not default_tax:
+                default_tax = self.db.execute(select(TaxRate.id).limit(1)).scalar_one_or_none() or 1
+            tax_id = default_tax
+
         prod = Product(
             sku=sku_clean,
             name=data.name.strip(),
@@ -167,6 +178,8 @@ class CatalogService:
             product_type=data.product_type,
             uom=data.uom,
             list_price=round_unit_price(data.list_price),
+            reorder_point=data.reorder_point,
+            tax_rate_id=tax_id,
             is_active=True,
             created_by=creator_id,
             updated_by=creator_id,

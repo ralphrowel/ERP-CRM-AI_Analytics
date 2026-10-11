@@ -15,6 +15,7 @@ from app.modules.catalog.router import router as catalog_router
 from app.modules.crm.router import router as crm_router
 from app.modules.identity.router import router as identity_router
 from app.modules.identity.service import IdentityService
+from app.modules.imports.router import router as imports_router
 from app.modules.inventory.router import router as inventory_router
 from app.modules.organization.router import router as org_router
 from app.modules.organization.service import OrganizationService
@@ -213,3 +214,4 @@ app.include_router(purchasing_router, prefix=API_PREFIX)
 app.include_router(workflow_router, prefix=API_PREFIX)
 app.include_router(audit_router, prefix=API_PREFIX)
 app.include_router(reporting_router, prefix=API_PREFIX)
+app.include_router(imports_router, prefix=API_PREFIX)

@@ -18,6 +18,12 @@ from app.modules.crm.models import (  # noqa: F401
     Opportunity,
 )
 from app.modules.identity.models import User, UserSession  # noqa: F401
+from app.modules.imports.models import (  # noqa: F401
+    ImportBatch,
+    ImportStagingContact,
+    ImportStagingCustomer,
+    ImportStagingProduct,
+)
 from app.modules.inventory.models import (  # noqa: F401
     InventoryBalance,
     InventoryTransaction,

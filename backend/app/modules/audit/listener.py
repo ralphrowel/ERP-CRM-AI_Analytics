@@ -12,7 +12,7 @@ from sqlalchemy import event, inspect
 from sqlalchemy.orm import Session
 
 from app.core.clock import get_clock
-from app.modules.audit.context import get_audit_context
+from app.modules.audit.context import get_audit_context, sanitize_ip_address
 from app.modules.audit.models import AuditLog
 
 # Fields that must never be recorded in audit logs
@@ -134,8 +134,9 @@ def audit_before_flush(session: Session, flush_context: Any, instances: Any) -> 
                 entity_id=entity_id,
                 changes=changes,
                 request_id=ctx.request_id,
-                ip_address=ctx.ip_address,
+                ip_address=sanitize_ip_address(ctx.ip_address),
             )
+
             audit_entries.append(entry)
 
     # 2. Add all audit records to current session so they commit atomically

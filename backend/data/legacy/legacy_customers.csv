@@ -1,0 +1,251 @@
+legacy_customer_id,customer_name,contact_email,phone_number,tax_id,city,province,credit_terms,credit_limit
+LEG-CUS-0001,Filinvest Land Dev,N/A,(02) 8762-4039,346-192-664-000,MAKATI ,Metro Manila,60 days,460000.00
+LEG-CUS-0002,San Miguel Packaging,,09173077052,396-529-247-000,Angeles,Pampanga,0 days,"₱ 190,000.00"
+LEG-CUS-0003,Puregold Price Club,,09174032085,608-796-644-000,Pasig,Metro Manila,60 days,110000.00
+LEG-CUS-0004,Filinvest Land Dev,info@filinvest.ph,+63-917-860-3172,846-559-394-000,Davao City,Davao del Sur,0 days,280000.00
+LEG-CUS-0005,Megawide Engineering,info@megawide.ph,09178014936,686-908-996-000,ILOILO CITY,Iloilo,30 days,"150,000.00"
+LEG-CUS-0006,Filinvest Land Dev,info@filinvest.ph,+63-917-687-5018,162-848-818-000,Calamba,Laguna,30 days,430000.00
+LEG-CUS-0007,Puregold Price Club,info@puregold.ph,09178476611,605-160-323-000,Baguio,Benguet,30 days,230000.00
+LEG-CUS-0008,Aboitiz Power Systems,info@aboitiz.ph,09175154287,938-540-984-000,Calamba,Laguna,30 days,300000.00
+LEG-CUS-0009,PLDT Infrastructure,none@domain,09177382745,104-249-529-000,  Mandaluyong  ,Metro Manila,30 days,"PHP 190,000.00"
+LEG-CUS-0010,Jollibee Food Supplies,none@domain,09176345416,501-507-508-000,Angeles,Pampanga,60 days,130000.00
+LEG-CUS-0011,Megawide Engineering,none@domain,+63 917 771 8312,472-728-126-000,Davao City,Davao del Sur,0 days,"₱ 80,000.00"
+LEG-CUS-0012,Robinsons Retail Hub,N/A,09177312081,577-591-595-000,Angeles,Pampanga,30 days,140000.00
+LEG-CUS-0013,JG Summit Holdings,info@jg.ph,09172714423,470-250-806-000,Makati,Metro Manila,0 days,260000.00
+LEG-CUS-0014,BDO Capital Partners,info@bdo.ph,09172526903,614-437-751-000,Pasig,Metro Manila,15 days,490000.00
+LEG-CUS-0015,Jollibee Food Supplies,,09175016258,583-365-298-000,Taguig,Metro Manila,30 days,300000.00
+LEG-CUS-0016,Globe Telecom Systems,info@globe.ph,(02) 8686-3966,724-960-101-000,CALAMBA,Laguna,60 days,280000.00
+LEG-CUS-0017,Century Pacific Foods,info@century.ph,(02) 8242-2346,188-920-839-000,Baguio,Benguet,60 days,470000.00
+LEG-CUS-0018,Globe Telecom Systems,info@globe.ph,09172424708,726-946-710-000,  Cebu City  ,Cebu,60 days,150000.00
+LEG-CUS-0019,Century Pacific Foods,info@century.ph,09173197544,992-299-945-000,Makati,Metro Manila,15 days,60000.00
+LEG-CUS-0020,Ayala Logistics Corp.,info@ayala.ph,09174569852,462-569-778-000,Pasig,Metro Manila,60 days,"230,000.00"
+LEG-CUS-0021,BDO Capital Partners,info@bdo.ph,09179922542,253-276-244-000,MAKATI,Metro Manila,60 days,140000.00
+LEG-CUS-0022,Jollibee Food Supplies,info@jollibee.ph,09173018913,158-354-295-000,Calamba,Laguna,30 days,400000.00
+LEG-CUS-0023,San Miguel Packaging,info@san.ph,09179518027,624-304-809-000,Quezon City,Metro Manila,30 days,330000.00
+LEG-CUS-0024,Globe Telecom Systems,info@globe.ph,09179947044,307-960-558-000,Iloilo City,Iloilo,15 days,350000.00
+LEG-CUS-0025,PLDT Infrastructure,info@pldt.ph,+63-917-758-2781,258-833-758-000,Quezon City,Metro Manila,30 days,330000.00
+LEG-CUS-0026,Aboitiz Power Systems,info@aboitiz.ph,09173302750,265-823-541-000,Pasig,Metro Manila,60 days,340000.00
+LEG-CUS-0027,Filinvest Land Dev,info@filinvest.ph,09174284050,629-738-402-000,Cebu ,Cebu,0 days,270000.00
+LEG-CUS-0028,Megawide Engineering,info@megawide.ph,09172757909,792-938-364-000,  Taguig  ,Metro Manila,60 days,100000.00
+LEG-CUS-0029,Aboitiz Power Systems,info@aboitiz.ph,09179636619,375-117-749-000,Iloilo City,Iloilo,0 days,410000.00
+LEG-CUS-0030,Universal Robina Lines,info@universal.ph,09174731386,374-736-232-000,  Quezon City  ,Metro Manila,0 days,90000.00
+LEG-CUS-0031,BDO Capital Partners,info@bdo.ph,09175000295,310-396-556-000,Calamba,Laguna,15 days,120000.00
+LEG-CUS-0032,Universal Robina Lines,info@universal.ph,09171304726,557-208-774-000,mandaluyong,Metro Manila,60 days,210000.00
+LEG-CUS-0033,Security Bank Commercial,info@security.ph,(02) 8759-4889,155-957-232-000,Iloilo City,Iloilo,0 days,370000.00
+LEG-CUS-0034,JG Summit Holdings,info@jg.ph,09175288153,348-809-400-000,BAGUIO,Benguet,0 days,320000.00
+LEG-CUS-0035,Globe Telecom Systems,info@globe.ph,09173642964,416-323-465-000,Makati,Metro Manila,15 days,220000.00
+LEG-CUS-0036,Ayala Logistics Corp.,N/A,09177402632,247-509-700-000,Mandaluyong,Metro Manila,0 days,100000.00
+LEG-CUS-0037,ICTSI Manila Terminal,info@ictsi.ph,09176027226,902-710-498-000,manila,Metro Manila,30 days,240000.00
+LEG-CUS-0038,Security Bank Commercial,info@security.ph,09175767691,931-617-242-000,makati,Metro Manila,0 days,440000.00
+LEG-CUS-0039,Puregold Price Club Inc.,info@puregold.ph,09174857765,151-742-119-000,CALAMBA,Laguna,15 days,100000.00
+LEG-CUS-0040,Security Bank Commercial,info@security.ph,09171055605,585-358-928-000,Pasig,Metro Manila,0 days,"340,000.00"
+LEG-CUS-0041,Universal Robina Lines,info@universal.ph,09174442978,885-147-731-000,Taguig,Metro Manila,15 days,190000.00
+LEG-CUS-0042,JG Summit Holdings,,09173473382,788-201-808-000,Angeles,Pampanga,15 days,260000.00
+LEG-CUS-0043,Security Bank Commercial,info@security.ph,+63 917 966 6030,178-939-618-000," Ortigas, Pasig",Metro Manila,60 days,"PHP 230,000.00"
+LEG-CUS-0044,Universal Robina Lines,info@universal.ph,09174520484,620-386-215-000,cebu city,Cebu,30 days,"180,000.00"
+LEG-CUS-0045,Monde Nissin Distribution,info@monde.ph,09179156086,526-452-485-000,DAVAO CITY,Davao del Sur,30 days,300000.00
+LEG-CUS-0046,Megawide Engineering,info@megawide.ph,09171029215,396-359-481-000,Mandaluyong,Metro Manila,0 days,250000.00
+LEG-CUS-0047,ICTSI Manila Terminal,none@domain,09172281790,252-355-372-000,Cebu City,Cebu,60 days,280000.00
+LEG-CUS-0048,BDO Capital Partners,info@bdo.ph,09174185138,667-662-308-000,Mandaluyong,Metro Manila,0 days,280000.00
+LEG-CUS-0049,San Miguel Packaging,info@san.ph,09177893523,274-583-524-000,CALAMBA,Laguna,30 days,330000.00
+LEG-CUS-0050,Alliance Global Group,info@alliance.ph,09175290651,176-312-612-000,Pasig,Metro Manila,60 days,"₱ 460,000.00"
+LEG-CUS-0051,Metrobank Logistics,info@metrobank.ph,(02) 8859-9845,477-364-928-000,"BGC, Taguig",Metro Manila,15 days,"₱ 260,000.00"
+LEG-CUS-0052,Ayala Logistics Corp.,N/A,09177925327,468-228-803-000,Calamba,Laguna,15 days,290000.00
+LEG-CUS-0053,JG Summit Holdings,info@jg.ph,09175168360,535-826-882-000,Pasig,Metro Manila,60 days,"₱ 290,000.00"
+LEG-CUS-0054,Puregold Price Club,info@puregold.ph,09171002997,211-329-258-000,Davao City,Davao del Sur,15 days,90000.00
+LEG-CUS-0055,BDO Capital Partners,,09172826877,138-760-832-000,Baguio,Benguet,30 days,490000.00
+LEG-CUS-0056,Aboitiz Power Systems,info@aboitiz.ph,(02) 8522-4401,715-101-110-000,Baguio,Benguet,30 days,380000.00
+LEG-CUS-0057,Globe Telecom Systems,N/A,09176307590,414-156-122-000,Pasig,Metro Manila,15 days,460000.00
+LEG-CUS-0058,Security Bank Commercial,info@security.ph,+63 917 804 6697,471-798-505-000,Baguio,Benguet,15 days,100000.00
+LEG-CUS-0059,Ayala Logistics Corp.,info@ayala.ph,09179470453,878-402-211-000,Pasig,Metro Manila,60 days,90000.00
+LEG-CUS-0060,Jollibee Food Supplies,,0917 474 6757,245-525-153-000,Makati,Metro Manila,0 days,360000.00
+LEG-CUS-0061,DMCI Holdings PH,info@dmci.ph,09178543740,864-578-132-000,Cebu City,Cebu,30 days,"500,000.00"
+LEG-CUS-0062,ICTSI Manila Terminal,info@ictsi.ph,0917 656 4960,489-465-887-000,MANDALUYONG,Metro Manila,30 days,"₱ 330,000.00"
+LEG-CUS-0063,PLDT Infrastructure,info@pldt.ph,+63-917-182-6400,746-520-353-000,Quezon City,Metro Manila,60 days,500000.00
+LEG-CUS-0064,"San Miguel Packaging, Inc.",info@san.ph,09171584759,378-443-731-000,Cebu City,Cebu,0 days,340000.00
+LEG-CUS-0065,Universal Robina Lines,info@universal.ph,09176309714,209-586-832-000,Calamba,Laguna,60 days,"₱ 220,000.00"
+LEG-CUS-0066,ICTSI Manila Terminal,info@ictsi.ph,09178213164,435-981-427-000," Ortigas, Pasig",Metro Manila,60 days,"₱ 360,000.00"
+LEG-CUS-0067,Century Pacific Foods,info@century.ph,+63 917 232 5649,264-536-207-000,Angeles,Pampanga,0 days,370000.00
+LEG-CUS-0068,Universal Robina Lines,info@universal.ph,09172410671,735-790-340-000,Angeles,Pampanga,0 days,180000.00
+LEG-CUS-0069,Alliance Global Group,info@alliance.ph,09175687502,388-692-292-000,Pasig,Metro Manila,30 days,410000.00
+LEG-CUS-0070,JG Summit Holdings,info@jg.ph,09175222049,938-336-960-000,Cebu City,Cebu,60 days,"PHP 200,000.00"
+LEG-CUS-0071,Century Pacific Foods,info@century.ph,09175927090,986-282-559-000,Manila,Metro Manila,30 days,190000.00
+LEG-CUS-0072,Ayala Logistics Corporation,info@ayala.ph,(02) 8686-6986,518-794-480-000,Quezon City ,Metro Manila,15 days,180000.00
+LEG-CUS-0073,Jollibee Food Supplies,info@jollibee.ph,09172307528,258-754-646-000,Pasig,Metro Manila,0 days,180000.00
+LEG-CUS-0074,DMCI Holdings PH,info@dmci.ph,+63-917-554-9425,759-301-500-000,Cebu City,Cebu,60 days,"PHP 310,000.00"
+LEG-CUS-0075,Robinsons Retail Hub,info@robinsons.ph,09178284067,152-664-245-000,Manila,Metro Manila,60 days,"₱ 150,000.00"
+LEG-CUS-0076,JG Summit Holdings,N/A,+63 917 722 1723,911-924-302-000,Angeles,Pampanga,30 days,370000.00
+LEG-CUS-0077,Aboitiz Power,info@aboitiz.ph,09179098974,264-755-904-000,Manila,Metro Manila,15 days,250000.00
+LEG-CUS-0078,Jollibee Food Supplies,info@jollibee.ph,09174290229,842-935-297-000,Cebu City,Cebu,0 days,"₱ 350,000.00"
+LEG-CUS-0079,Metrobank Logistics,info@metrobank.ph,09171639693,764-530-415-000,baguio,Benguet,15 days,470000.00
+LEG-CUS-0080,PLDT Infrastructure,info@pldt.ph,09177164788,881-733-898-000,  Cebu City  ,Cebu,60 days,330000.00
+LEG-CUS-0081,D.M.C.I. Holdings,info@dmci.ph,09177716630,141-751-233-000,Davao City,Davao del Sur,0 days,110000.00
+LEG-CUS-0082,Filinvest Land Dev,info@filinvest.ph,09179581239,728-849-809-000,Calamba,Laguna,0 days,100000.00
+LEG-CUS-0083,Robinsons Retail Hub,N/A,09179252208,358-262-431-000,MAKATI ,Metro Manila,30 days,230000.00
+LEG-CUS-0084,Globe Telecom Systems,info@globe.ph,09175264120,303-286-513-000,Makati,Metro Manila,15 days,370000.00
+LEG-CUS-0085,Universal Robina Lines,info@universal.ph,09176499979,993-563-668-000,Baguio,Benguet,0 days,290000.00
+LEG-CUS-0086,Universal Robina Lines,info@universal.ph,09177614524,280-730-861-000,Iloilo City,Iloilo,0 days,280000.00
+LEG-CUS-0087,Alliance Global Group,info@alliance.ph,09175255582,326-252-397-000,Iloilo City,Iloilo,60 days,"₱ 240,000.00"
+LEG-CUS-0088,PLDT Infrastructure,info@pldt.ph,+63 917 710 8567,635-465-646-000,Iloilo City,Iloilo,15 days,80000.00
+LEG-CUS-0089,PLDT Infrastructure,info@pldt.ph,+63 917 605 2542,252-561-198-000,Angeles,Pampanga,0 days,420000.00
+LEG-CUS-0090,Aboitiz Power Systems,info@aboitiz.ph,09175525824,692-554-716-000,Baguio,Benguet,60 days,300000.00
+LEG-CUS-0091,Monde Nissin Distribution,info@monde.ph,+63 917 100 6703,664-772-301-000,  Makati  ,Metro Manila,15 days,"70,000.00"
+LEG-CUS-0092,PLDT Infrastructure,info@pldt.ph,09179694927,149-841-901-000,Taguig,Metro Manila,60 days,"430,000.00"
+LEG-CUS-0093,Metrobank Logistics,info@metrobank.ph,09177294119,759-139-226-000,Manila,Metro Manila,30 days,"₱ 320,000.00"
+LEG-CUS-0094,Universal Robina Lines,info@universal.ph,09171881355,322-187-619-000,Calamba,Laguna,0 days,220000.00
+LEG-CUS-0095,DMCI Holdings PH,info@dmci.ph,09174961256,972-745-809-000,Pasig,Metro Manila,60 days,170000.00
+LEG-CUS-0096,Security Bank Commercial,info@security.ph,09171107067,179-678-275-000,Iloilo City,Iloilo,15 days,60000.00
+LEG-CUS-0097,San Miguel Packaging,,09172877253,749-143-813-000,  Manila  ,Metro Manila,0 days,110000.00
+LEG-CUS-0098,San Miguel Packaging,,0917 709 6942,134-135-968-000,Quezon City,Metro Manila,0 days,170000.00
+LEG-CUS-0099,Alliance Global Group,info@alliance.ph,09172675659,389-149-832-000,Davao City,Davao del Sur,30 days,"PHP 130,000.00"
+LEG-CUS-0100,Filinvest Land Dev,info@filinvest.ph,09179451309,455-580-821-000,Angeles,Pampanga,0 days,350000.00
+LEG-CUS-0101,Metrobank Logistics,info@metrobank.ph,+63 917 463 3513,868-155-104-000,ANGELES,Pampanga,30 days,500000.00
+LEG-CUS-0102,Security Bank Commercial,info@security.ph,09179245734,262-390-934-000,Quezon City,Metro Manila,15 days,490000.00
+LEG-CUS-0103,Monde Nissin Distribution,info@monde.ph,09173781511,464-197-510-000,Davao City,Davao del Sur,60 days,"PHP 120,000.00"
+LEG-CUS-0104,JG Summit Holdings,info@jg.ph,09171422350,339-571-229-000,Cebu City,Cebu,0 days,280000.00
+LEG-CUS-0105,Century Pacific Foods,info@century.ph,09176480448,891-363-693-000,Angeles,Pampanga,15 days,380000.00
+LEG-CUS-0106,Aboitiz Power Systems,info@aboitiz.ph,09178751375,258-840-259-000,Mandaluyong,Metro Manila,15 days,460000.00
+LEG-CUS-0107,Filinvest Land Dev,info@filinvest.ph,09179760705,204-300-493-000,Angeles,Pampanga,15 days,"270,000.00"
+LEG-CUS-0108,Aboitiz Power Systems,info@aboitiz.ph,09175989617,112-508-974-000,  Pasig  ,Metro Manila,60 days,320000.00
+LEG-CUS-0109,Monde Nissin Distribution,info@monde.ph,(02) 8596-9634,687-701-867-000,Iloilo City,Iloilo,60 days,340000.00
+LEG-CUS-0110,Monde Nissin Distribution,info@monde.ph,09174835374,348-901-509-000,BAGUIO,Benguet,15 days,"PHP 480,000.00"
+LEG-CUS-0111,Universal Robina Lines,info@universal.ph,09179099093,435-896-110-000,Cebu City,Cebu,60 days,340000.00
+LEG-CUS-0112,Security Bank Commercial,none@domain,09171639975,309-834-587-000,  Quezon City  ,Metro Manila,0 days,210000.00
+LEG-CUS-0113,Century Pacific Foods,info@century.ph,+63 917 675 2099,752-157-358-000,Iloilo City,Iloilo,30 days,310000.00
+LEG-CUS-0114,ICTSI Manila Terminal,info@ictsi.ph,09172031863,859-510-639-000,Cebu City,Cebu,15 days,"PHP 50,000.00"
+LEG-CUS-0115,ICTSI Manila Terminal,info@ictsi.ph,09174556984,331-934-249-000,Davao City,Davao del Sur,30 days,150000.00
+LEG-CUS-0116,PLDT Infrastructure,info@pldt.ph,09175938244,803-359-536-000,Davao City,Davao del Sur,15 days,400000.00
+LEG-CUS-0117,Security Bank Commercial,info@security.ph,09175717949,471-256-410-000,Manila,Metro Manila,60 days,270000.00
+LEG-CUS-0118,San Miguel Packaging,info@san.ph,09176447576,356-722-203-000,Quezon City,Metro Manila,15 days,"PHP 130,000.00"
+LEG-CUS-0119,Monde Nissin Distribution,info@monde.ph,09178582626,900-192-784-000,Makati,Metro Manila,30 days,270000.00
+LEG-CUS-0120,Robinsons Retail,info@robinsons.ph,+63 917 457 5237,242-584-604-000,Davao City,Davao del Sur,0 days,380000.00
+LEG-CUS-0121,Security Bank Commercial,N/A,09173422979,676-609-781-000,Davao City,Davao del Sur,30 days,490000.00
+LEG-CUS-0122,Globe Telecom Systems,info@globe.ph,09178143975,798-854-438-000,Mandaluyong,Metro Manila,0 days,"₱ 310,000.00"
+LEG-CUS-0123,BDO Capital Partners,info@bdo.ph,09179131506,585-897-638-000,Davao City,Davao del Sur,15 days,140000.00
+LEG-CUS-0124,Alliance Global Group,info@alliance.ph,09176737058,615-378-993-000,CEBU CITY,Cebu,30 days,320000.00
+LEG-CUS-0125,Robinsons Retail Hub,info@robinsons.ph,09179257627,141-508-840-000,Baguio,Benguet,60 days,120000.00
+LEG-CUS-0126,Metrobank Logistics,info@metrobank.ph,09171833820,161-907-612-000,  Angeles  ,Pampanga,60 days,300000.00
+LEG-CUS-0127,Jollibee Food Supplies,info@jollibee.ph,(02) 8239-2562,203-771-113-000,Makati,Metro Manila,30 days,180000.00
+LEG-CUS-0128,Aboitiz Power Systems,info@aboitiz.ph,09175328567,155-609-681-000,  Pasig  ,Metro Manila,0 days,240000.00
+LEG-CUS-0129,MEGAWIDE ENG.,info@megawide.ph,09177788874,661-204-184-000,Cebu City,Cebu,60 days,"PHP 330,000.00"
+LEG-CUS-0130,Robinsons Retail,info@robinsons.ph,+63 917 126 0551,682-348-561-000,makati,Metro Manila,15 days,"320,000.00"
+LEG-CUS-0131,San Miguel Packaging,info@san.ph,09173429333,153-834-132-000,Mandaluyong,Metro Manila,0 days,100000.00
+LEG-CUS-0132,San Miguel Packaging,info@san.ph,09172336818,845-549-581-000,Mnl,Metro Manila,15 days,290000.00
+LEG-CUS-0133,Aboitiz Power Systems,info@aboitiz.ph,09177094585,872-680-441-000,Quezon City,Metro Manila,30 days,460000.00
+LEG-CUS-0134,Universal Robina Lines,info@universal.ph,09176570707,352-485-496-000,  Manila  ,Metro Manila,60 days,430000.00
+LEG-CUS-0135,Jollibee Food Supplies,info@jollibee.ph,+63 917 857 1045,250-380-971-000,Taguig,Metro Manila,60 days,"230,000.00"
+LEG-CUS-0136,Century Pacific Foods,info@century.ph,09172427129,721-158-793-000,Iloilo City,Iloilo,60 days,390000.00
+LEG-CUS-0137,Globe Telecom Systems,N/A,09174465939,338-507-693-000,CALAMBA,Laguna,30 days,210000.00
+LEG-CUS-0138,BDO Capital Partners,info@bdo.ph,+63-917-899-5790,512-898-629-000,Mandaluyong,Metro Manila,15 days,370000.00
+LEG-CUS-0139,Monde Nissin Distribution,info@monde.ph,+63-917-927-5674,631-721-121-000,Manila,Metro Manila,0 days,280000.00
+LEG-CUS-0140,San Miguel Packaging,info@san.ph,09179159020,938-723-234-000,Taguig,Metro Manila,30 days,420000.00
+LEG-CUS-0141,San Miguel Packaging,info@san.ph,09174372037,965-165-983-000,  Mandaluyong  ,Metro Manila,60 days,160000.00
+LEG-CUS-0142,Megawide Engineering,info@megawide.ph,09172509230,479-340-838-000,Calamba,Laguna,15 days,"₱ 210,000.00"
+LEG-CUS-0143,D.M.C.I. Holdings,info@dmci.ph,09175292655,879-595-157-000, Manila ,Metro Manila,0 days,270000.00
+LEG-CUS-0144,Aboitiz Power Systems,N/A,09171096930,499-227-483-000,Mandaluyong,Metro Manila,60 days,170000.00
+LEG-CUS-0145,ICTSI Manila Terminal,info@ictsi.ph,09178405208,260-952-325-000,Makati,Metro Manila,0 days,200000.00
+LEG-CUS-0146,Jollibee Food Supplies,info@jollibee.ph,+63 917 334 4830,942-339-588-000,Mandaluyong,Metro Manila,0 days,330000.00
+LEG-CUS-0147,Century Pacific Foods,info@century.ph,09176569684,521-352-259-000,Makati,Metro Manila,0 days,"PHP 190,000.00"
+LEG-CUS-0148,Universal Robina Lines,info@universal.ph,09175975301,158-746-906-000,Angeles,Pampanga,15 days,"260,000.00"
+LEG-CUS-0149,Metrobank Logistics,info@metrobank.ph,09175802195,199-499-396-000,Davao City,Davao del Sur,60 days,120000.00
+LEG-CUS-0150,DMCI Holdings PH,info@dmci.ph,09175924522,393-290-468-000,manila,Metro Manila,60 days,"140,000.00"
+LEG-CUS-0151,San Miguel Packaging,info@san.ph,09174661877,181-948-189-000,  Cebu City  ,Cebu,60 days,"220,000.00"
+LEG-CUS-0152,Universal Robina Lines,info@universal.ph,09174456641,632-517-961-000,Makati,Metro Manila,0 days,"130,000.00"
+LEG-CUS-0153,BDO Capital Partners,info@bdo.ph,0917 662 4048,354-290-676-000,Mandaluyong,Metro Manila,30 days,230000.00
+LEG-CUS-0154,San Miguel Packaging,info@san.ph,09177227120,831-350-936-000,makati,Metro Manila,30 days,"PHP 410,000.00"
+LEG-CUS-0155,ICTSI Manila Terminal,info@ictsi.ph,09172026899,121-349-190-000,Angeles,Pampanga,15 days,230000.00
+LEG-CUS-0156,Jollibee Food Supplies,info@jollibee.ph,(02) 8381-6566,752-690-575-000,Makati,Metro Manila,15 days,110000.00
+LEG-CUS-0157,Globe Telecom Systems,info@globe.ph,09176883765,212-224-224-000,  Quezon City  ,Metro Manila,60 days,110000.00
+LEG-CUS-0158,Aboitiz Power,info@aboitiz.ph,+63 917 481 5694,530-711-959-000,Iloilo City,Iloilo,0 days,190000.00
+LEG-CUS-0159,ICTSI Manila Terminal,info@ictsi.ph,09177094402,428-934-510-000,Manila,Metro Manila,0 days,260000.00
+LEG-CUS-0160,Filinvest Land Dev,info@filinvest.ph,09173460029,170-432-543-000,Iloilo City,Iloilo,15 days,480000.00
+LEG-CUS-0161,BDO Capital Partners,info@bdo.ph,09171349434,141-135-986-000,Baguio,Benguet,30 days,190000.00
+LEG-CUS-0162,Jollibee Food Supplies,info@jollibee.ph,09171600266,412-455-763-000,  Pasig  ,Metro Manila,15 days,440000.00
+LEG-CUS-0163,MEGAWIDE ENG.,info@megawide.ph,09179619779,516-691-395-000,Manila,Metro Manila,30 days,220000.00
+LEG-CUS-0164,Monde Nissin Distribution,info@monde.ph,0917 247 3831,571-661-410-000,Calamba,Laguna,60 days,390000.00
+LEG-CUS-0165,Security Bank Commercial,info@security.ph,09171519461,266-982-344-000,Pasig,Metro Manila,30 days,200000.00
+LEG-CUS-0166,Metrobank Logistics,info@metrobank.ph,09179244447,550-773-163-000,Mandaluyong,Metro Manila,60 days,"PHP 220,000.00"
+LEG-CUS-0167,Globe Telecom Systems,info@globe.ph,+63-917-283-2814,731-725-970-000,Mandaluyong,Metro Manila,30 days,"₱ 380,000.00"
+LEG-CUS-0168,BDO Capital Partners,none@domain,+63 917 897 3177,609-507-685-000,Quezon City,Metro Manila,15 days,220000.00
+LEG-CUS-0169,PLDT Infrastructure,info@pldt.ph,09172862708,709-493-763-000,Pasig,Metro Manila,30 days,290000.00
+LEG-CUS-0170,Ayala Logistics Corp.,info@ayala.ph,0917 938 1055,431-963-722-000,Calamba,Laguna,15 days,"PHP 290,000.00"
+LEG-CUS-0171,Filinvest Land Dev,info@filinvest.ph,09178154597,734-547-629-000,Taguig,Metro Manila,60 days,50000.00
+LEG-CUS-0172,ICTSI Manila Terminal,info@ictsi.ph,09177001412,612-510-764-000,Davao City,Davao del Sur,15 days,"PHP 70,000.00"
+LEG-CUS-0173,Robinsons Retail Hub,info@robinsons.ph,09179165690,274-471-425-000,Cebu City,Cebu,30 days,300000.00
+LEG-CUS-0174,J.G. Summit Holdings Co.,info@jg.ph,09179599893,530-746-260-000,Pasig,Metro Manila,30 days,160000.00
+LEG-CUS-0175,BDO Capital Partners,info@bdo.ph,09179470604,751-840-143-000,taguig,Metro Manila,60 days,170000.00
+LEG-CUS-0176,Ayala Logistics Corp.,,09176146250,301-279-609-000,MANILA,Metro Manila,30 days,500000.00
+LEG-CUS-0177,Metrobank Logistics,info@metrobank.ph,09173411179,274-635-602-000,Iloilo City,Iloilo,60 days,"₱ 410,000.00"
+LEG-CUS-0178,Jollibee Food Supplies,info@jollibee.ph,09172042120,743-201-979-000,Cebu City,Cebu,0 days,"PHP 460,000.00"
+LEG-CUS-0179,Century Pacific Foods,info@century.ph,09178547036,735-344-355-000,TAGUIG,Metro Manila,15 days,440000.00
+LEG-CUS-0180,"San Miguel Packaging, Inc.",info@san.ph,09173911370,169-348-793-000,Makati,Metro Manila,60 days,250000.00
+LEG-CUS-0181,Puregold Price Club,info@puregold.ph,(02) 8793-7294,505-675-471-000,"BGC, Taguig",Metro Manila,0 days,"PHP 240,000.00"
+LEG-CUS-0182,Filinvest Land Dev,info@filinvest.ph,09177469250,496-295-578-000,  Iloilo City  ,Iloilo,30 days,260000.00
+LEG-CUS-0183,Century Pacific Foods,N/A,(02) 8830-7760,906-230-668-000,  Taguig  ,Metro Manila,60 days,70000.00
+LEG-CUS-0184,Globe Telecom Systems,info@globe.ph,09173671301,616-309-332-000,Taguig,Metro Manila,60 days,280000.00
+LEG-CUS-0185,Aboitiz Power Systems,info@aboitiz.ph,(02) 8537-4823,794-625-193-000,Calamba,Laguna,30 days,430000.00
+LEG-CUS-0186,ICTSI Manila Terminal,info@ictsi.ph,09173433867,169-675-470-000,Manila,Metro Manila,30 days,"₱ 240,000.00"
+LEG-CUS-0187,Robinsons Retail Hub,info@robinsons.ph,09176222286,575-893-743-000,quezon city,Metro Manila,15 days,100000.00
+LEG-CUS-0188,Universal Robina Lines,info@universal.ph,09171496170,354-967-510-000,Makati,Metro Manila,30 days,280000.00
+LEG-CUS-0189,Megawide Engineering,info@megawide.ph,09175890163,541-302-875-000,Makati,Metro Manila,30 days,120000.00
+LEG-CUS-0190,Aboitiz Power Systems,info@aboitiz.ph,09171658235,545-786-800-000,Cebu,Cebu,30 days,400000.00
+LEG-CUS-0191,Ayala Logistics Corp.,info@ayala.ph,09175803906,315-895-453-000,Quezon City,Metro Manila,0 days,"PHP 70,000.00"
+LEG-CUS-0192,PLDT Infrastructure,info@pldt.ph,09177604107,808-615-856-000,Calamba,Laguna,60 days,440000.00
+LEG-CUS-0193,BDO Capital Partners,info@bdo.ph,09174455586,944-925-672-000,Manila,Metro Manila,30 days,320000.00
+LEG-CUS-0194,DMCI Holdings PH,info@dmci.ph,+63-917-374-6366,418-240-239-000,Iloilo City,Iloilo,60 days,450000.00
+LEG-CUS-0195,Security Bank Commercial,info@security.ph,09175055247,245-701-676-000,Taguig,Metro Manila,15 days,50000.00
+LEG-CUS-0196,Filinvest Land Dev,info@filinvest.ph,0917 297 9229,311-217-806-000,Baguio,Benguet,30 days,400000.00
+LEG-CUS-0197,Ayala Logistics Corporation,info@ayala.ph,+63-917-916-3938,555-579-682-000,Mandaluyong,Metro Manila,30 days,"PHP 180,000.00"
+LEG-CUS-0198,Alliance Global Group,info@alliance.ph,+63-917-220-4911,211-760-600-000,Makati,Metro Manila,60 days,70000.00
+LEG-CUS-0199,Security Bank Commercial,info@security.ph,09176399126,357-768-351-000,TAGUIG,Metro Manila,0 days,50000.00
+LEG-CUS-0200,Aboitiz Power Systems,none@domain,(02) 8146-4200,860-731-434-000,Calamba,Laguna,60 days,60000.00
+LEG-CUS-0201,DMCI Holdings PH,info@dmci.ph,09176976829,680-922-743-000,BAGUIO,Benguet,60 days,"₱ 250,000.00"
+LEG-CUS-0202,San Miguel Packaging,info@san.ph,09179294317,267-241-553-000,TAGUIG,Metro Manila,60 days,"₱ 320,000.00"
+LEG-CUS-0203,JG Summit Holdings,info@jg.ph,+63 917 837 3630,531-446-164-000,Mnl,Metro Manila,60 days,350000.00
+LEG-CUS-0204,Ayala Logistics Corp.,info@ayala.ph,09173957519,655-431-629-000,baguio,Benguet,60 days,150000.00
+LEG-CUS-0205,PLDT Infrastructure,info@pldt.ph,+63-917-358-9808,684-531-477-000,Iloilo City,Iloilo,60 days,300000.00
+LEG-CUS-0206,Aboitiz Power Systems,info@aboitiz.ph,0917 676 1443,480-668-694-000,  Pasig  ,Metro Manila,60 days,"380,000.00"
+LEG-CUS-0207,Century Pacific Foods,info@century.ph,09175030530,326-982-957-000,Iloilo City,Iloilo,30 days,410000.00
+LEG-CUS-0208,Megawide Engineering,info@megawide.ph,+63 917 990 4942,680-182-971-000,Taguig,Metro Manila,60 days,470000.00
+LEG-CUS-0209,JG Summit Holdings,info@jg.ph,+63 917 325 2927,657-275-296-000,Davao City,Davao del Sur,60 days,370000.00
+LEG-CUS-0210,J.G. Summit Holdings Co.,info@jg.ph,(02) 8726-4012,536-189-736-000,Makati,Metro Manila,15 days,"₱ 440,000.00"
+LEG-CUS-0211,Puregold Price Club,N/A,09176950233,625-854-637-000,Quezon City,Metro Manila,30 days,"PHP 150,000.00"
+LEG-CUS-0212,Security Bank Commercial,info@security.ph,(02) 8692-9781,121-958-695-000,Manila,Metro Manila,60 days,"PHP 110,000.00"
+LEG-CUS-0213,MEGAWIDE ENG.,info@megawide.ph,09179188082,702-996-356-000,City of Manila,Metro Manila,30 days,120000.00
+LEG-CUS-0214,Globe Telecom Systems,none@domain,+63 917 141 5372,795-714-501-000,Manila,Metro Manila,60 days,260000.00
+LEG-CUS-0215,DMCI Holdings PH,info@dmci.ph,09178526043,234-703-739-000,Calamba,Laguna,0 days,300000.00
+LEG-CUS-0216,Robinsons Retail Hub,info@robinsons.ph,09177056325,332-121-354-000,Makati,Metro Manila,60 days,340000.00
+LEG-CUS-0217,Jollibee Food Supplies,info@jollibee.ph,09173446599,242-815-134-000,City of Manila,Metro Manila,0 days,470000.00
+LEG-CUS-0218,Robinsons Retail Hub,info@robinsons.ph,09172660819,857-471-621-000,Cebu City,Cebu,15 days,"PHP 280,000.00"
+LEG-CUS-0219,Century Pacific Foods,info@century.ph,09177810919,349-928-340-000,Iloilo City,Iloilo,30 days,260000.00
+LEG-CUS-0220,Aboitiz Power Systems,info@aboitiz.ph,09174445404,700-167-247-000,Makati,Metro Manila,30 days,50000.00
+LEG-CUS-0221,Alliance Global Group,info@alliance.ph,09176712091,893-806-538-000,Pasig City,Metro Manila,0 days,90000.00
+LEG-CUS-0222,Security Bank Commercial,info@security.ph,09173939922,509-558-305-000,Mandaluyong,Metro Manila,30 days,"₱ 220,000.00"
+LEG-CUS-0223,BDO Capital Partners,none@domain,09172670505,239-105-292-000,  Baguio  ,Benguet,30 days,170000.00
+LEG-CUS-0224,Metrobank Logistics,info@metrobank.ph,09171251775,515-724-795-000,BAGUIO,Benguet,30 days,450000.00
+LEG-CUS-0225,D.M.C.I. Holdings,info@dmci.ph,09177950328,994-113-126-000,Manila,Metro Manila,30 days,70000.00
+LEG-CUS-0226,Puregold Price Club,info@puregold.ph,+63 917 625 8595,466-933-470-000,Baguio,Benguet,60 days,"₱ 80,000.00"
+LEG-CUS-0227,Century Pacific Foods,info@century.ph,09173573790,132-894-762-000,Iloilo City,Iloilo,30 days,470000.00
+LEG-CUS-0228,Metrobank Logistics,info@metrobank.ph,+63 917 860 2780,254-743-333-000,Calamba,Laguna,60 days,"PHP 400,000.00"
+LEG-CUS-0229,J.G. Summit Holdings Co.,info@jg.ph,+63-917-325-0547,991-855-976-000,Manila,Metro Manila,15 days,120000.00
+LEG-CUS-0230,BDO Capital Partners,info@bdo.ph,09176885919,571-317-431-000,Manila,Metro Manila,0 days,500000.00
+LEG-CUS-0231,Megawide Engineering,info@megawide.ph,09171258981,484-772-742-000,Baguio,Benguet,15 days,90000.00
+LEG-CUS-0232,Ayala Logistics Corp.,info@ayala.ph,09171348382,610-321-683-000,Pasig,Metro Manila,15 days,210000.00
+LEG-CUS-0233,Security Bank Commercial,info@security.ph,09173290504,711-563-317-000,Pasig,Metro Manila,0 days,240000.00
+LEG-CUS-0234,Robinsons Retail Hub,info@robinsons.ph,09177045910,125-924-214-000,Calamba,Laguna,15 days,70000.00
+LEG-CUS-0235,Ayala Logistics Corp.,info@ayala.ph,09176078606,757-781-833-000,Makati,Metro Manila,60 days,140000.00
+LEG-CUS-0236,Filinvest Land Dev,info@filinvest.ph,09174936126,149-424-166-000,MANILA,Metro Manila,0 days,170000.00
+LEG-CUS-0237,Megawide Engineering,info@megawide.ph,09173278518,215-642-462-000,davao city,Davao del Sur,60 days,380000.00
+LEG-CUS-0238,JG Summit Holdings,,09174609406,517-908-669-000,Mandaluyong,Metro Manila,30 days,"₱ 190,000.00"
+LEG-CUS-0239,Universal Robina Lines,info@universal.ph,09176464539,863-834-375-000,Manila,Metro Manila,60 days,490000.00
+LEG-CUS-0240,PLDT Infrastructure,info@pldt.ph,09178032155,105-344-722-000,Mandaluyong,Metro Manila,30 days,290000.00
+LEG-CUS-0241,Jollibee Food Supplies,none@domain,09177324476,671-432-801-000,Calamba,Laguna,60 days,"200,000.00"
+LEG-CUS-0242,Metrobank Logistics,info@metrobank.ph,09176295161,659-489-340-000,baguio,Benguet,60 days,340000.00
+LEG-CUS-0243,Century Pacific Foods,none@domain,09172075720,727-883-371-000,Calamba,Laguna,30 days,300000.00
+LEG-CUS-0244,Security Bank Commercial,info@security.ph,+63-917-683-4740,932-474-344-000,Calamba,Laguna,15 days,380000.00
+LEG-CUS-0245,Aboitiz Power Systems,N/A,09178722531,984-937-538-000,Baguio,Benguet,0 days,160000.00
+LEG-CUS-0246,PLDT Infrastructure,info@pldt.ph,09175219164,397-556-811-000,Makati,Metro Manila,0 days,"PHP 290,000.00"
+LEG-CUS-0247,Globe Telecom Systems,info@globe.ph,0917 902 5213,479-635-448-000,baguio,Benguet,60 days,160000.00
+LEG-CUS-0248,Universal Robina Lines,info@universal.ph,09174369751,361-347-371-000,  Manila  ,Metro Manila,60 days,50000.00
+LEG-CUS-0249,JG Summit Holdings,info@jg.ph,09179277732,484-475-142-000,Iloilo City,Iloilo,30 days,"PHP 100,000.00"
+LEG-CUS-0250,PLDT Infrastructure,,+63-917-530-8248,172-181-874-000,Cebu ,Cebu,60 days,270000.00

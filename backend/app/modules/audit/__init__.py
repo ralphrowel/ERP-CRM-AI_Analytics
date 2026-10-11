@@ -2,6 +2,7 @@ from app.modules.audit.context import (
     AuditContext,
     clear_audit_context,
     get_audit_context,
+    sanitize_ip_address,
     set_audit_context,
 )
 from app.modules.audit.listener import register_audit_listener
@@ -16,6 +17,7 @@ __all__ = [
     "get_audit_context",
     "set_audit_context",
     "clear_audit_context",
+    "sanitize_ip_address",
     "register_audit_listener",
     "router",
 ]

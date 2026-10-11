@@ -46,11 +46,13 @@ def get_current_user_and_session(
 
     user, session = service.validate_session(token)
 
-    from app.modules.audit.context import set_audit_context
+    from app.modules.audit.context import sanitize_ip_address, set_audit_context
 
     req_id = getattr(request.state, "request_id", None)
     client_ip = request.client.host if request.client else None
-    set_audit_context(actor_user_id=user.id, request_id=req_id, ip_address=client_ip)
+    set_audit_context(
+        actor_user_id=user.id, request_id=req_id, ip_address=sanitize_ip_address(client_ip)
+    )
 
     # CSRF protection on mutating HTTP methods (enforced for browser cookie sessions)
     if request.method in ("POST", "PUT", "PATCH", "DELETE"):

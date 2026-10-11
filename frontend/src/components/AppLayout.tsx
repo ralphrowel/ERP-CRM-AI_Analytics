@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   ShoppingCart,
   Truck,
+  UploadCloud,
   UserCheck,
   UserPlus,
   Users,
@@ -42,6 +43,7 @@ export type NavTab =
   | 'audit_logs'
   | 'customers'
   | 'products'
+  | 'imports'
   | 'employees'
   | 'roles'
   | 'settings'
@@ -93,6 +95,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
   const masterDataItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
     { id: 'customers', label: 'Customers', icon: <Users size={18} /> },
     { id: 'products', label: 'Product Catalog', icon: <Package size={18} /> },
+    { id: 'imports', label: 'Legacy & CSV Imports', icon: <UploadCloud size={18} /> },
     { id: 'employees', label: 'Employees & Org', icon: <UserCheck size={18} /> },
     ...(isSuperuser || hasPermission('role:read')
       ? [{ id: 'roles' as NavTab, label: 'Roles & Security', icon: <ShieldCheck size={18} /> }]
