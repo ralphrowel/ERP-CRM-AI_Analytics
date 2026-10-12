@@ -7,7 +7,9 @@ DO
 $do$
 BEGIN
    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'erp_owner') THEN
-      CREATE ROLE erp_owner WITH LOGIN PASSWORD 'erp_owner_password';
+      CREATE ROLE erp_owner WITH LOGIN CREATEDB PASSWORD 'erp_owner_password';
+   ELSE
+      ALTER ROLE erp_owner WITH CREATEDB;
    END IF;
 END
 $do$;
