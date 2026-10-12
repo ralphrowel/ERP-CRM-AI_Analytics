@@ -1,0 +1,601 @@
+model Model
+	compatibilityLevel: 1600
+	culture: en-US
+
+table dim_date
+	/// Conformed calendar and fiscal date dimension (Asia/Manila, 2023-2026).
+	column date_key
+		dataType: int64
+
+	column date
+		dataType: dateTime
+		formatString: "yyyy-MM-dd"
+
+	column year
+		dataType: int64
+
+	column quarter
+		dataType: int64
+
+	column month
+		dataType: int64
+
+	column month_name
+		dataType: string
+
+	column day
+		dataType: int64
+
+	column day_of_week
+		dataType: int64
+
+	column day_name
+		dataType: string
+
+	column is_weekend
+		dataType: boolean
+
+	column fiscal_year
+		dataType: int64
+
+	column fiscal_quarter
+		dataType: int64
+
+table dim_customer
+	/// Conformed customer master with Slowly Changing Dimension Type 2 validity intervals.
+	column customer_key
+		dataType: int64
+
+	column customer_id
+		dataType: int64
+		isHidden
+
+	column customer_no
+		dataType: string
+
+	column legacy_customer_id
+		dataType: string
+		isHidden
+
+	column name
+		dataType: string
+
+	column customer_type
+		dataType: string
+
+	column industry
+		dataType: string
+
+	column city
+		dataType: string
+
+	column province
+		dataType: string
+
+	column region
+		dataType: string
+
+	column credit_limit
+		dataType: decimal
+		formatString: "₱#,##0.00"
+
+	column valid_from
+		dataType: dateTime
+		isHidden
+
+	column valid_to
+		dataType: dateTime
+		isHidden
+
+	column is_current
+		dataType: int64
+
+table dim_product
+	/// Conformed item catalog and standard costing dimension.
+	column product_key
+		dataType: int64
+
+	column product_id
+		dataType: int64
+		isHidden
+
+	column sku
+		dataType: string
+
+	column name
+		dataType: string
+
+	column category
+		dataType: string
+
+	column unit_of_measure
+		dataType: string
+
+	column standard_cost
+		dataType: decimal
+		formatString: "₱#,##0.00"
+
+	column list_price
+		dataType: decimal
+		formatString: "₱#,##0.00"
+
+	column is_active
+		dataType: boolean
+
+table dim_employee
+	/// Conformed workforce and sales representative dimension.
+	column employee_key
+		dataType: int64
+
+	column employee_id
+		dataType: int64
+		isHidden
+
+	column employee_no
+		dataType: string
+
+	column full_name
+		dataType: string
+
+	column email
+		dataType: string
+
+	column department_code
+		dataType: string
+
+	column department_name
+		dataType: string
+
+	column role
+		dataType: string
+
+	column is_active
+		dataType: boolean
+
+table dim_source_system
+	/// Conformed source lineage tracking upstream transactional engines.
+	column source_system_key
+		dataType: int64
+
+	column code
+		dataType: string
+
+	column name
+		dataType: string
+
+	column description
+		dataType: string
+
+table dim_warehouse
+	/// Conformed storage warehouse location dimension.
+	column warehouse_key
+		dataType: int64
+
+	column warehouse_id
+		dataType: int64
+		isHidden
+
+	column code
+		dataType: string
+
+	column name
+		dataType: string
+
+	column is_active
+		dataType: boolean
+
+table dim_supplier
+	/// Conformed procurement vendor and payment terms dimension.
+	column supplier_key
+		dataType: int64
+
+	column supplier_id
+		dataType: int64
+		isHidden
+
+	column supplier_no
+		dataType: string
+
+	column name
+		dataType: string
+
+	column email
+		dataType: string
+
+	column payment_terms_days
+		dataType: int64
+
+	column is_active
+		dataType: boolean
+
+table fact_sales_line
+	/// Sales line transactional fact: invoices, credit notes, and legacy sales items.
+	column sales_fact_key
+		dataType: int64
+		isHidden
+
+	column date_key
+		dataType: int64
+		isHidden
+
+	column customer_key
+		dataType: int64
+		isHidden
+
+	column product_key
+		dataType: int64
+		isHidden
+
+	column employee_key
+		dataType: int64
+		isHidden
+
+	column source_system_key
+		dataType: int64
+		isHidden
+
+	column invoice_no
+		dataType: string
+
+	column credit_note_no
+		dataType: string
+
+	column document_type
+		dataType: string
+
+	column source_system
+		dataType: string
+
+	column line_number
+		dataType: int64
+
+	column quantity
+		dataType: decimal
+		formatString: "#,##0.00"
+
+	column unit_price
+		dataType: decimal
+		formatString: "₱#,##0.00"
+
+	column gross
+		dataType: decimal
+		formatString: "₱#,##0.00"
+
+	column discount
+		dataType: decimal
+		formatString: "₱#,##0.00"
+
+	column net_revenue
+		dataType: decimal
+		formatString: "₱#,##0.00"
+
+	column tax
+		dataType: decimal
+		formatString: "₱#,##0.00"
+
+	column cogs
+		dataType: decimal
+		formatString: "₱#,##0.00"
+
+	column gross_margin
+		dataType: decimal
+		formatString: "₱#,##0.00"
+
+	measure 'KPI-001 Net Revenue' = SUM(fact_sales_line[net_revenue])
+		formatString: "₱#,##0.00"
+
+	measure 'KPI-001 Net Revenue MTD' = TOTALMTD([KPI-001 Net Revenue], dim_date[date])
+		formatString: "₱#,##0.00"
+
+	measure 'KPI-001 Net Revenue YTD' = TOTALYTD([KPI-001 Net Revenue], dim_date[date])
+		formatString: "₱#,##0.00"
+
+	measure 'KPI-001 Net Revenue PY' = CALCULATE([KPI-001 Net Revenue], SAMEPERIODLASTYEAR(dim_date[date]))
+		formatString: "₱#,##0.00"
+
+	measure 'KPI-001 Net Revenue YoY_Growth' = DIVIDE([KPI-001 Net Revenue] - [KPI-001 Net Revenue PY], [KPI-001 Net Revenue PY], 0)
+		formatString: "₱#,##0.00"
+
+	measure 'KPI-001 Net Revenue MoM_Growth' = DIVIDE([KPI-001 Net Revenue] - CALCULATE([KPI-001 Net Revenue], DATEADD(dim_date[date], -1, MONTH)), CALCULATE([KPI-001 Net Revenue], DATEADD(dim_date[date], -1, MONTH)), 0)
+		formatString: "₱#,##0.00"
+
+	measure 'KPI-002 Gross Margin' = SUM(fact_sales_line[gross_margin])
+		formatString: "₱#,##0.00"
+
+	measure 'KPI-002 Gross Margin YTD' = TOTALYTD([KPI-002 Gross Margin], dim_date[date])
+		formatString: "₱#,##0.00"
+
+	measure 'KPI-002 Gross Margin PY' = CALCULATE([KPI-002 Gross Margin], SAMEPERIODLASTYEAR(dim_date[date]))
+		formatString: "₱#,##0.00"
+
+	measure 'KPI-002 Gross Margin YoY_Growth' = DIVIDE([KPI-002 Gross Margin] - [KPI-002 Gross Margin PY], [KPI-002 Gross Margin PY], 0)
+		formatString: "₱#,##0.00"
+
+	measure 'KPI-003 Gross Margin %' = DIVIDE([KPI-002 Gross Margin], [KPI-001 Net Revenue], 0)
+		formatString: "0.0%"
+
+	measure 'KPI-003 Gross Margin % YTD' = DIVIDE([KPI-002 Gross Margin YTD], [KPI-001 Net Revenue YTD], 0)
+		formatString: "0.0%"
+
+	measure 'KPI-004 Orders' = DISTINCTCOUNT(fact_sales_line[invoice_no])
+		formatString: "#,##0"
+
+	measure 'KPI-004 Orders MTD' = TOTALMTD([KPI-004 Orders], dim_date[date])
+		formatString: "#,##0"
+
+	measure 'KPI-004 Orders YTD' = TOTALYTD([KPI-004 Orders], dim_date[date])
+		formatString: "#,##0"
+
+	measure 'KPI-004 Orders PY' = CALCULATE([KPI-004 Orders], SAMEPERIODLASTYEAR(dim_date[date]))
+		formatString: "#,##0"
+
+	measure 'KPI-011 Active Customers' = CALCULATE(DISTINCTCOUNT(fact_sales_line[customer_key]), DATESINPERIOD(dim_date[date], MAX(dim_date[date]), -12, MONTH))
+		formatString: "#,##0"
+
+	measure 'KPI-012 New Customers' = VAR CurrentCust = VALUES(fact_sales_line[customer_key]) VAR PriorCust = CALCULATE(VALUES(fact_sales_line[customer_key]), FILTER(ALL(dim_date), dim_date[date] < MIN(dim_date[date]))) RETURN COUNTROWS(EXCEPT(CurrentCust, PriorCust))
+		formatString: "#,##0"
+
+table fact_opportunity_stage
+	/// CRM pipeline conversion and stage duration tracking fact.
+	column stage_fact_key
+		dataType: int64
+		isHidden
+
+	column opportunity_id
+		dataType: int64
+
+	column transition_id
+		dataType: int64
+
+	column date_key
+		dataType: int64
+		isHidden
+
+	column customer_key
+		dataType: int64
+		isHidden
+
+	column employee_key
+		dataType: int64
+		isHidden
+
+	column from_stage
+		dataType: string
+
+	column to_stage
+		dataType: string
+
+	column days_in_previous_stage
+		dataType: int64
+
+	column estimated_amount
+		dataType: decimal
+		formatString: "₱#,##0.00"
+
+	measure 'KPI-007 Weighted Pipeline' = SUM(fact_opportunity_stage[estimated_amount])
+		formatString: "₱#,##0.00"
+
+	measure 'KPI-008 Win Rate' = VAR WonCount = CALCULATE(COUNTROWS(fact_opportunity_stage), fact_opportunity_stage[to_stage] = "closed_won") VAR ClosedCount = CALCULATE(COUNTROWS(fact_opportunity_stage), fact_opportunity_stage[to_stage] IN {"closed_won", "closed_lost"}) RETURN DIVIDE(WonCount, ClosedCount, 0)
+		formatString: "0.0%"
+
+	measure 'KPI-009 Lead Conversion Rate' = VAR Converted = CALCULATE(COUNTROWS(fact_opportunity_stage), fact_opportunity_stage[from_stage] = "lead_qualification") VAR Total = COUNTROWS(fact_opportunity_stage) RETURN DIVIDE(Converted, Total, 0)
+		formatString: "0.0%"
+
+	measure 'KPI-010 Avg Sales Cycle' = AVERAGE(fact_opportunity_stage[days_in_previous_stage])
+		formatString: "0.0 "days""
+
+table fact_inventory_daily
+	/// Daily snapshot of stock on hand, reservations, and inventory valuation.
+	column inventory_fact_key
+		dataType: int64
+		isHidden
+
+	column date_key
+		dataType: int64
+		isHidden
+
+	column product_key
+		dataType: int64
+		isHidden
+
+	column warehouse_key
+		dataType: int64
+		isHidden
+
+	column qty_on_hand
+		dataType: decimal
+		formatString: "#,##0.00"
+
+	column qty_reserved
+		dataType: decimal
+		formatString: "#,##0.00"
+
+	column inventory_value
+		dataType: decimal
+		formatString: "₱#,##0.00"
+
+	measure 'KPI-013 Inventory Value' = CALCULATE(SUM(fact_inventory_daily[inventory_value]), LASTDATE(fact_inventory_daily[date_key]))
+		formatString: "₱#,##0.00"
+
+	measure 'KPI-014 Inventory Turnover' = VAR T12COGS = CALCULATE(SUM(fact_sales_line[cogs]), DATESINPERIOD(dim_date[date], MAX(dim_date[date]), -12, MONTH)) VAR AvgInv = AVERAGE(fact_inventory_daily[inventory_value]) RETURN DIVIDE(T12COGS, AvgInv, 0)
+		formatString: "0.00 "x""
+
+	measure 'KPI-015 Low-Stock Items' = COUNTROWS(FILTER(fact_inventory_daily, fact_inventory_daily[qty_on_hand] <= 10))
+		formatString: "#,##0"
+
+table fact_purchase_line
+	/// Procurement purchase order lines and delivery punctuality fact.
+	column purchase_fact_key
+		dataType: int64
+		isHidden
+
+	column date_key
+		dataType: int64
+		isHidden
+
+	column supplier_key
+		dataType: int64
+		isHidden
+
+	column product_key
+		dataType: int64
+		isHidden
+
+	column po_no
+		dataType: string
+
+	column line_number
+		dataType: int64
+
+	column qty_ordered
+		dataType: decimal
+		formatString: "#,##0.00"
+
+	column qty_received
+		dataType: decimal
+		formatString: "#,##0.00"
+
+	column unit_cost
+		dataType: decimal
+		formatString: "₱#,##0.00"
+
+	column cost
+		dataType: decimal
+		formatString: "₱#,##0.00"
+
+	column days_late
+		dataType: int64
+
+	measure 'KPI-016 Purchase Spend' = SUM(fact_purchase_line[cost])
+		formatString: "₱#,##0.00"
+
+	measure 'KPI-016 Purchase Spend MTD' = TOTALMTD([KPI-016 Purchase Spend], dim_date[date])
+		formatString: "₱#,##0.00"
+
+	measure 'KPI-016 Purchase Spend YTD' = TOTALYTD([KPI-016 Purchase Spend], dim_date[date])
+		formatString: "₱#,##0.00"
+
+	measure 'KPI-017 Supplier On-Time Rate' = VAR OnTimeLines = CALCULATE(COUNTROWS(fact_purchase_line), fact_purchase_line[days_late] <= 0) VAR TotalLines = COUNTROWS(fact_purchase_line) RETURN DIVIDE(OnTimeLines, TotalLines, 0)
+		formatString: "0.0%"
+
+table fact_ar_allocation
+	/// Accounts receivable payment allocations and delinquency tracking fact.
+	column ar_fact_key
+		dataType: int64
+		isHidden
+
+	column customer_key
+		dataType: int64
+		isHidden
+
+	column payment_date_key
+		dataType: int64
+		isHidden
+
+	column payment_no
+		dataType: string
+
+	column invoice_no
+		dataType: string
+
+	column allocation_id
+		dataType: int64
+
+	column payment_method
+		dataType: string
+
+	column amount
+		dataType: decimal
+		formatString: "₱#,##0.00"
+
+	column days_after_due
+		dataType: int64
+
+	measure 'KPI-005 AR Outstanding' = SUM(fact_ar_allocation[amount])
+		formatString: "₱#,##0.00"
+
+	measure 'KPI-006 AR Aging' = CALCULATE(SUM(fact_ar_allocation[amount]), FILTER(fact_ar_allocation, fact_ar_allocation[days_after_due] > 0))
+		formatString: "₱#,##0.00"
+
+	measure 'KPI-018 DSO' = VAR Rev90 = CALCULATE(SUM(fact_sales_line[net_revenue]), DATESINPERIOD(dim_date[date], MAX(dim_date[date]), -90, DAY)) VAR DailyRev = DIVIDE(Rev90, 90, 0) RETURN DIVIDE([KPI-005 AR Outstanding], DailyRev, 0)
+		formatString: "0.0 "days""
+
+relationship fact_sales_line_date_key_to_dim_date
+	fromColumn: fact_sales_line.date_key
+	toColumn: dim_date.date_key
+	crossFilteringBehavior: single
+
+relationship fact_sales_line_customer_key_to_dim_customer
+	fromColumn: fact_sales_line.customer_key
+	toColumn: dim_customer.customer_key
+	crossFilteringBehavior: single
+
+relationship fact_sales_line_product_key_to_dim_product
+	fromColumn: fact_sales_line.product_key
+	toColumn: dim_product.product_key
+	crossFilteringBehavior: single
+
+relationship fact_sales_line_employee_key_to_dim_employee
+	fromColumn: fact_sales_line.employee_key
+	toColumn: dim_employee.employee_key
+	crossFilteringBehavior: single
+
+relationship fact_sales_line_source_system_key_to_dim_source_system
+	fromColumn: fact_sales_line.source_system_key
+	toColumn: dim_source_system.source_system_key
+	crossFilteringBehavior: single
+
+relationship fact_opportunity_stage_date_key_to_dim_date
+	fromColumn: fact_opportunity_stage.date_key
+	toColumn: dim_date.date_key
+	crossFilteringBehavior: single
+
+relationship fact_opportunity_stage_customer_key_to_dim_customer
+	fromColumn: fact_opportunity_stage.customer_key
+	toColumn: dim_customer.customer_key
+	crossFilteringBehavior: single
+
+relationship fact_opportunity_stage_employee_key_to_dim_employee
+	fromColumn: fact_opportunity_stage.employee_key
+	toColumn: dim_employee.employee_key
+	crossFilteringBehavior: single
+
+relationship fact_inventory_daily_date_key_to_dim_date
+	fromColumn: fact_inventory_daily.date_key
+	toColumn: dim_date.date_key
+	crossFilteringBehavior: single
+
+relationship fact_inventory_daily_product_key_to_dim_product
+	fromColumn: fact_inventory_daily.product_key
+	toColumn: dim_product.product_key
+	crossFilteringBehavior: single
+
+relationship fact_inventory_daily_warehouse_key_to_dim_warehouse
+	fromColumn: fact_inventory_daily.warehouse_key
+	toColumn: dim_warehouse.warehouse_key
+	crossFilteringBehavior: single
+
+relationship fact_purchase_line_date_key_to_dim_date
+	fromColumn: fact_purchase_line.date_key
+	toColumn: dim_date.date_key
+	crossFilteringBehavior: single
+
+relationship fact_purchase_line_supplier_key_to_dim_supplier
+	fromColumn: fact_purchase_line.supplier_key
+	toColumn: dim_supplier.supplier_key
+	crossFilteringBehavior: single
+
+relationship fact_purchase_line_product_key_to_dim_product
+	fromColumn: fact_purchase_line.product_key
+	toColumn: dim_product.product_key
+	crossFilteringBehavior: single
+
+relationship fact_ar_allocation_payment_date_key_to_dim_date
+	fromColumn: fact_ar_allocation.payment_date_key
+	toColumn: dim_date.date_key
+	crossFilteringBehavior: single
+
+relationship fact_ar_allocation_customer_key_to_dim_customer
+	fromColumn: fact_ar_allocation.customer_key
+	toColumn: dim_customer.customer_key
+	crossFilteringBehavior: single

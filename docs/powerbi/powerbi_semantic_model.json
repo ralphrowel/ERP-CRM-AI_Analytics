@@ -1,0 +1,1274 @@
+{
+  "name": "ERP_CRM_Analytical_Mart",
+  "compatibility_level": 1600,
+  "mode": "Import",
+  "source_database": "PostgreSQL",
+  "target_schema": "mart",
+  "tables": [
+    {
+      "name": "dim_date",
+      "schema": "mart",
+      "is_fact": false,
+      "description": "Conformed calendar and fiscal date dimension (Asia/Manila, 2023-2026).",
+      "columns": [
+        {
+          "name": "date_key",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "date",
+          "dataType": "dateTime",
+          "isHidden": false,
+          "formatString": "yyyy-MM-dd",
+          "description": null
+        },
+        {
+          "name": "year",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "quarter",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "month",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "month_name",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "day",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "day_of_week",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "day_name",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "is_weekend",
+          "dataType": "boolean",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "fiscal_year",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "fiscal_quarter",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "dim_customer",
+      "schema": "mart",
+      "is_fact": false,
+      "description": "Conformed customer master with Slowly Changing Dimension Type 2 validity intervals.",
+      "columns": [
+        {
+          "name": "customer_key",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "customer_id",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "customer_no",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "legacy_customer_id",
+          "dataType": "string",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "name",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "customer_type",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "industry",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "city",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "province",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "region",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "credit_limit",
+          "dataType": "decimal",
+          "isHidden": false,
+          "formatString": "\u20b1#,##0.00",
+          "description": null
+        },
+        {
+          "name": "valid_from",
+          "dataType": "dateTime",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "valid_to",
+          "dataType": "dateTime",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "is_current",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "dim_product",
+      "schema": "mart",
+      "is_fact": false,
+      "description": "Conformed item catalog and standard costing dimension.",
+      "columns": [
+        {
+          "name": "product_key",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "product_id",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "sku",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "name",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "category",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "unit_of_measure",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "standard_cost",
+          "dataType": "decimal",
+          "isHidden": false,
+          "formatString": "\u20b1#,##0.00",
+          "description": null
+        },
+        {
+          "name": "list_price",
+          "dataType": "decimal",
+          "isHidden": false,
+          "formatString": "\u20b1#,##0.00",
+          "description": null
+        },
+        {
+          "name": "is_active",
+          "dataType": "boolean",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "dim_employee",
+      "schema": "mart",
+      "is_fact": false,
+      "description": "Conformed workforce and sales representative dimension.",
+      "columns": [
+        {
+          "name": "employee_key",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "employee_id",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "employee_no",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "full_name",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "email",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "department_code",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "department_name",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "role",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "is_active",
+          "dataType": "boolean",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "dim_source_system",
+      "schema": "mart",
+      "is_fact": false,
+      "description": "Conformed source lineage tracking upstream transactional engines.",
+      "columns": [
+        {
+          "name": "source_system_key",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "code",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "name",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "description",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "dim_warehouse",
+      "schema": "mart",
+      "is_fact": false,
+      "description": "Conformed storage warehouse location dimension.",
+      "columns": [
+        {
+          "name": "warehouse_key",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "warehouse_id",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "code",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "name",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "is_active",
+          "dataType": "boolean",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "dim_supplier",
+      "schema": "mart",
+      "is_fact": false,
+      "description": "Conformed procurement vendor and payment terms dimension.",
+      "columns": [
+        {
+          "name": "supplier_key",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "supplier_id",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "supplier_no",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "name",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "email",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "payment_terms_days",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "is_active",
+          "dataType": "boolean",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "fact_sales_line",
+      "schema": "mart",
+      "is_fact": true,
+      "description": "Sales line transactional fact: invoices, credit notes, and legacy sales items.",
+      "columns": [
+        {
+          "name": "sales_fact_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "date_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "customer_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "product_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "employee_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "source_system_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "invoice_no",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "credit_note_no",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "document_type",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "source_system",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "line_number",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "quantity",
+          "dataType": "decimal",
+          "isHidden": false,
+          "formatString": "#,##0.00",
+          "description": null
+        },
+        {
+          "name": "unit_price",
+          "dataType": "decimal",
+          "isHidden": false,
+          "formatString": "\u20b1#,##0.00",
+          "description": null
+        },
+        {
+          "name": "gross",
+          "dataType": "decimal",
+          "isHidden": false,
+          "formatString": "\u20b1#,##0.00",
+          "description": null
+        },
+        {
+          "name": "discount",
+          "dataType": "decimal",
+          "isHidden": false,
+          "formatString": "\u20b1#,##0.00",
+          "description": null
+        },
+        {
+          "name": "net_revenue",
+          "dataType": "decimal",
+          "isHidden": false,
+          "formatString": "\u20b1#,##0.00",
+          "description": null
+        },
+        {
+          "name": "tax",
+          "dataType": "decimal",
+          "isHidden": false,
+          "formatString": "\u20b1#,##0.00",
+          "description": null
+        },
+        {
+          "name": "cogs",
+          "dataType": "decimal",
+          "isHidden": false,
+          "formatString": "\u20b1#,##0.00",
+          "description": null
+        },
+        {
+          "name": "gross_margin",
+          "dataType": "decimal",
+          "isHidden": false,
+          "formatString": "\u20b1#,##0.00",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "fact_opportunity_stage",
+      "schema": "mart",
+      "is_fact": true,
+      "description": "CRM pipeline conversion and stage duration tracking fact.",
+      "columns": [
+        {
+          "name": "stage_fact_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "opportunity_id",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "transition_id",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "date_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "customer_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "employee_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "from_stage",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "to_stage",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "days_in_previous_stage",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "estimated_amount",
+          "dataType": "decimal",
+          "isHidden": false,
+          "formatString": "\u20b1#,##0.00",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "fact_inventory_daily",
+      "schema": "mart",
+      "is_fact": true,
+      "description": "Daily snapshot of stock on hand, reservations, and inventory valuation.",
+      "columns": [
+        {
+          "name": "inventory_fact_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "date_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "product_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "warehouse_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "qty_on_hand",
+          "dataType": "decimal",
+          "isHidden": false,
+          "formatString": "#,##0.00",
+          "description": null
+        },
+        {
+          "name": "qty_reserved",
+          "dataType": "decimal",
+          "isHidden": false,
+          "formatString": "#,##0.00",
+          "description": null
+        },
+        {
+          "name": "inventory_value",
+          "dataType": "decimal",
+          "isHidden": false,
+          "formatString": "\u20b1#,##0.00",
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "fact_purchase_line",
+      "schema": "mart",
+      "is_fact": true,
+      "description": "Procurement purchase order lines and delivery punctuality fact.",
+      "columns": [
+        {
+          "name": "purchase_fact_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "date_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "supplier_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "product_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "po_no",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "line_number",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "qty_ordered",
+          "dataType": "decimal",
+          "isHidden": false,
+          "formatString": "#,##0.00",
+          "description": null
+        },
+        {
+          "name": "qty_received",
+          "dataType": "decimal",
+          "isHidden": false,
+          "formatString": "#,##0.00",
+          "description": null
+        },
+        {
+          "name": "unit_cost",
+          "dataType": "decimal",
+          "isHidden": false,
+          "formatString": "\u20b1#,##0.00",
+          "description": null
+        },
+        {
+          "name": "cost",
+          "dataType": "decimal",
+          "isHidden": false,
+          "formatString": "\u20b1#,##0.00",
+          "description": null
+        },
+        {
+          "name": "days_late",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "fact_ar_allocation",
+      "schema": "mart",
+      "is_fact": true,
+      "description": "Accounts receivable payment allocations and delinquency tracking fact.",
+      "columns": [
+        {
+          "name": "ar_fact_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "customer_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "payment_date_key",
+          "dataType": "int64",
+          "isHidden": true,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "payment_no",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "invoice_no",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "allocation_id",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "payment_method",
+          "dataType": "string",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        },
+        {
+          "name": "amount",
+          "dataType": "decimal",
+          "isHidden": false,
+          "formatString": "\u20b1#,##0.00",
+          "description": null
+        },
+        {
+          "name": "days_after_due",
+          "dataType": "int64",
+          "isHidden": false,
+          "formatString": null,
+          "description": null
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "fromTable": "fact_sales_line",
+      "fromColumn": "date_key",
+      "toTable": "dim_date",
+      "toColumn": "date_key",
+      "cardinality": "manyToOne",
+      "crossFilterDirection": "single",
+      "isActive": true
+    },
+    {
+      "fromTable": "fact_sales_line",
+      "fromColumn": "customer_key",
+      "toTable": "dim_customer",
+      "toColumn": "customer_key",
+      "cardinality": "manyToOne",
+      "crossFilterDirection": "single",
+      "isActive": true
+    },
+    {
+      "fromTable": "fact_sales_line",
+      "fromColumn": "product_key",
+      "toTable": "dim_product",
+      "toColumn": "product_key",
+      "cardinality": "manyToOne",
+      "crossFilterDirection": "single",
+      "isActive": true
+    },
+    {
+      "fromTable": "fact_sales_line",
+      "fromColumn": "employee_key",
+      "toTable": "dim_employee",
+      "toColumn": "employee_key",
+      "cardinality": "manyToOne",
+      "crossFilterDirection": "single",
+      "isActive": true
+    },
+    {
+      "fromTable": "fact_sales_line",
+      "fromColumn": "source_system_key",
+      "toTable": "dim_source_system",
+      "toColumn": "source_system_key",
+      "cardinality": "manyToOne",
+      "crossFilterDirection": "single",
+      "isActive": true
+    },
+    {
+      "fromTable": "fact_opportunity_stage",
+      "fromColumn": "date_key",
+      "toTable": "dim_date",
+      "toColumn": "date_key",
+      "cardinality": "manyToOne",
+      "crossFilterDirection": "single",
+      "isActive": true
+    },
+    {
+      "fromTable": "fact_opportunity_stage",
+      "fromColumn": "customer_key",
+      "toTable": "dim_customer",
+      "toColumn": "customer_key",
+      "cardinality": "manyToOne",
+      "crossFilterDirection": "single",
+      "isActive": true
+    },
+    {
+      "fromTable": "fact_opportunity_stage",
+      "fromColumn": "employee_key",
+      "toTable": "dim_employee",
+      "toColumn": "employee_key",
+      "cardinality": "manyToOne",
+      "crossFilterDirection": "single",
+      "isActive": true
+    },
+    {
+      "fromTable": "fact_inventory_daily",
+      "fromColumn": "date_key",
+      "toTable": "dim_date",
+      "toColumn": "date_key",
+      "cardinality": "manyToOne",
+      "crossFilterDirection": "single",
+      "isActive": true
+    },
+    {
+      "fromTable": "fact_inventory_daily",
+      "fromColumn": "product_key",
+      "toTable": "dim_product",
+      "toColumn": "product_key",
+      "cardinality": "manyToOne",
+      "crossFilterDirection": "single",
+      "isActive": true
+    },
+    {
+      "fromTable": "fact_inventory_daily",
+      "fromColumn": "warehouse_key",
+      "toTable": "dim_warehouse",
+      "toColumn": "warehouse_key",
+      "cardinality": "manyToOne",
+      "crossFilterDirection": "single",
+      "isActive": true
+    },
+    {
+      "fromTable": "fact_purchase_line",
+      "fromColumn": "date_key",
+      "toTable": "dim_date",
+      "toColumn": "date_key",
+      "cardinality": "manyToOne",
+      "crossFilterDirection": "single",
+      "isActive": true
+    },
+    {
+      "fromTable": "fact_purchase_line",
+      "fromColumn": "supplier_key",
+      "toTable": "dim_supplier",
+      "toColumn": "supplier_key",
+      "cardinality": "manyToOne",
+      "crossFilterDirection": "single",
+      "isActive": true
+    },
+    {
+      "fromTable": "fact_purchase_line",
+      "fromColumn": "product_key",
+      "toTable": "dim_product",
+      "toColumn": "product_key",
+      "cardinality": "manyToOne",
+      "crossFilterDirection": "single",
+      "isActive": true
+    },
+    {
+      "fromTable": "fact_ar_allocation",
+      "fromColumn": "payment_date_key",
+      "toTable": "dim_date",
+      "toColumn": "date_key",
+      "cardinality": "manyToOne",
+      "crossFilterDirection": "single",
+      "isActive": true
+    },
+    {
+      "fromTable": "fact_ar_allocation",
+      "fromColumn": "customer_key",
+      "toTable": "dim_customer",
+      "toColumn": "customer_key",
+      "cardinality": "manyToOne",
+      "crossFilterDirection": "single",
+      "isActive": true
+    }
+  ],
+  "measures": [
+    {
+      "kpi_id": "KPI-001",
+      "name": "KPI-001 Net Revenue",
+      "domain": "revenue",
+      "description": "Total accrual net revenue excluding VAT: sum of issued/paid invoices minus issued credit notes.",
+      "table": "fact_sales_line",
+      "expression": "SUM(fact_sales_line[net_revenue])",
+      "format_string": "\u20b1#,##0.00",
+      "time_intelligence": {
+        "MTD": "TOTALMTD([KPI-001 Net Revenue], dim_date[date])",
+        "YTD": "TOTALYTD([KPI-001 Net Revenue], dim_date[date])",
+        "PY": "CALCULATE([KPI-001 Net Revenue], SAMEPERIODLASTYEAR(dim_date[date]))",
+        "YoY_Growth": "DIVIDE([KPI-001 Net Revenue] - [KPI-001 Net Revenue PY], [KPI-001 Net Revenue PY], 0)",
+        "MoM_Growth": "DIVIDE([KPI-001 Net Revenue] - CALCULATE([KPI-001 Net Revenue], DATEADD(dim_date[date], -1, MONTH)), CALCULATE([KPI-001 Net Revenue], DATEADD(dim_date[date], -1, MONTH)), 0)"
+      }
+    },
+    {
+      "kpi_id": "KPI-002",
+      "name": "KPI-002 Gross Margin",
+      "domain": "revenue",
+      "description": "Net Revenue minus cost of goods sold (COGS).",
+      "table": "fact_sales_line",
+      "expression": "SUM(fact_sales_line[gross_margin])",
+      "format_string": "\u20b1#,##0.00",
+      "time_intelligence": {
+        "YTD": "TOTALYTD([KPI-002 Gross Margin], dim_date[date])",
+        "PY": "CALCULATE([KPI-002 Gross Margin], SAMEPERIODLASTYEAR(dim_date[date]))",
+        "YoY_Growth": "DIVIDE([KPI-002 Gross Margin] - [KPI-002 Gross Margin PY], [KPI-002 Gross Margin PY], 0)"
+      }
+    },
+    {
+      "kpi_id": "KPI-003",
+      "name": "KPI-003 Gross Margin %",
+      "domain": "revenue",
+      "description": "Gross Margin as a percentage of Net Revenue.",
+      "table": "fact_sales_line",
+      "expression": "DIVIDE([KPI-002 Gross Margin], [KPI-001 Net Revenue], 0)",
+      "format_string": "0.0%",
+      "time_intelligence": {
+        "YTD": "DIVIDE([KPI-002 Gross Margin YTD], [KPI-001 Net Revenue YTD], 0)"
+      }
+    },
+    {
+      "kpi_id": "KPI-004",
+      "name": "KPI-004 Orders",
+      "domain": "sales",
+      "description": "Count of distinct confirmed customer sales orders in the period.",
+      "table": "fact_sales_line",
+      "expression": "DISTINCTCOUNT(fact_sales_line[invoice_no])",
+      "format_string": "#,##0",
+      "time_intelligence": {
+        "MTD": "TOTALMTD([KPI-004 Orders], dim_date[date])",
+        "YTD": "TOTALYTD([KPI-004 Orders], dim_date[date])",
+        "PY": "CALCULATE([KPI-004 Orders], SAMEPERIODLASTYEAR(dim_date[date]))"
+      }
+    },
+    {
+      "kpi_id": "KPI-005",
+      "name": "KPI-005 AR Outstanding",
+      "domain": "ar",
+      "description": "Total outstanding accounts receivable balances on unpaid or partially paid invoices.",
+      "table": "fact_ar_allocation",
+      "expression": "SUM(fact_ar_allocation[amount])",
+      "format_string": "\u20b1#,##0.00",
+      "time_intelligence": {}
+    },
+    {
+      "kpi_id": "KPI-006",
+      "name": "KPI-006 AR Aging",
+      "domain": "ar",
+      "description": "Accounts receivable balance categorized by days past due date (current, 1-30, 31-60, 61-90, 90+).",
+      "table": "fact_ar_allocation",
+      "expression": "CALCULATE(SUM(fact_ar_allocation[amount]), FILTER(fact_ar_allocation, fact_ar_allocation[days_after_due] > 0))",
+      "format_string": "\u20b1#,##0.00",
+      "time_intelligence": {}
+    },
+    {
+      "kpi_id": "KPI-007",
+      "name": "KPI-007 Weighted Pipeline",
+      "domain": "crm",
+      "description": "Sum of opportunity estimated amounts weighted by stage probability.",
+      "table": "fact_opportunity_stage",
+      "expression": "SUM(fact_opportunity_stage[estimated_amount])",
+      "format_string": "\u20b1#,##0.00",
+      "time_intelligence": {}
+    },
+    {
+      "kpi_id": "KPI-008",
+      "name": "KPI-008 Win Rate",
+      "domain": "crm",
+      "description": "Ratio of won opportunities to total closed (won + lost) opportunities in the period.",
+      "table": "fact_opportunity_stage",
+      "expression": "VAR WonCount = CALCULATE(COUNTROWS(fact_opportunity_stage), fact_opportunity_stage[to_stage] = \"closed_won\") VAR ClosedCount = CALCULATE(COUNTROWS(fact_opportunity_stage), fact_opportunity_stage[to_stage] IN {\"closed_won\", \"closed_lost\"}) RETURN DIVIDE(WonCount, ClosedCount, 0)",
+      "format_string": "0.0%",
+      "time_intelligence": {}
+    },
+    {
+      "kpi_id": "KPI-009",
+      "name": "KPI-009 Lead Conversion Rate",
+      "domain": "crm",
+      "description": "Ratio of converted leads to total leads created in the cohort.",
+      "table": "fact_opportunity_stage",
+      "expression": "VAR Converted = CALCULATE(COUNTROWS(fact_opportunity_stage), fact_opportunity_stage[from_stage] = \"lead_qualification\") VAR Total = COUNTROWS(fact_opportunity_stage) RETURN DIVIDE(Converted, Total, 0)",
+      "format_string": "0.0%",
+      "time_intelligence": {}
+    },
+    {
+      "kpi_id": "KPI-010",
+      "name": "KPI-010 Avg Sales Cycle",
+      "domain": "crm",
+      "description": "Average days elapsed from opportunity creation to closed-won milestone.",
+      "table": "fact_opportunity_stage",
+      "expression": "AVERAGE(fact_opportunity_stage[days_in_previous_stage])",
+      "format_string": "0.0 \"days\"",
+      "time_intelligence": {}
+    },
+    {
+      "kpi_id": "KPI-011",
+      "name": "KPI-011 Active Customers",
+      "domain": "customer",
+      "description": "Count of distinct customers with at least one transaction in the trailing 12 months.",
+      "table": "fact_sales_line",
+      "expression": "CALCULATE(DISTINCTCOUNT(fact_sales_line[customer_key]), DATESINPERIOD(dim_date[date], MAX(dim_date[date]), -12, MONTH))",
+      "format_string": "#,##0",
+      "time_intelligence": {}
+    },
+    {
+      "kpi_id": "KPI-012",
+      "name": "KPI-012 New Customers",
+      "domain": "customer",
+      "description": "Count of customers whose initial transaction occurred during the evaluated period.",
+      "table": "fact_sales_line",
+      "expression": "VAR CurrentCust = VALUES(fact_sales_line[customer_key]) VAR PriorCust = CALCULATE(VALUES(fact_sales_line[customer_key]), FILTER(ALL(dim_date), dim_date[date] < MIN(dim_date[date]))) RETURN COUNTROWS(EXCEPT(CurrentCust, PriorCust))",
+      "format_string": "#,##0",
+      "time_intelligence": {}
+    },
+    {
+      "kpi_id": "KPI-013",
+      "name": "KPI-013 Inventory Value",
+      "domain": "inventory",
+      "description": "Total on-hand inventory valuation at standard cost as of latest snapshot date.",
+      "table": "fact_inventory_daily",
+      "expression": "CALCULATE(SUM(fact_inventory_daily[inventory_value]), LASTDATE(fact_inventory_daily[date_key]))",
+      "format_string": "\u20b1#,##0.00",
+      "time_intelligence": {}
+    },
+    {
+      "kpi_id": "KPI-014",
+      "name": "KPI-014 Inventory Turnover",
+      "domain": "inventory",
+      "description": "Trailing 12-month COGS divided by average inventory valuation.",
+      "table": "fact_inventory_daily",
+      "expression": "VAR T12COGS = CALCULATE(SUM(fact_sales_line[cogs]), DATESINPERIOD(dim_date[date], MAX(dim_date[date]), -12, MONTH)) VAR AvgInv = AVERAGE(fact_inventory_daily[inventory_value]) RETURN DIVIDE(T12COGS, AvgInv, 0)",
+      "format_string": "0.00 \"x\"",
+      "time_intelligence": {}
+    },
+    {
+      "kpi_id": "KPI-015",
+      "name": "KPI-015 Low-Stock Items",
+      "domain": "inventory",
+      "description": "Count of product-warehouse combinations where available quantity is below safety stock.",
+      "table": "fact_inventory_daily",
+      "expression": "COUNTROWS(FILTER(fact_inventory_daily, fact_inventory_daily[qty_on_hand] <= 10))",
+      "format_string": "#,##0",
+      "time_intelligence": {}
+    },
+    {
+      "kpi_id": "KPI-016",
+      "name": "KPI-016 Purchase Spend",
+      "domain": "purchasing",
+      "description": "Total procurement spend across purchase order line items in the period.",
+      "table": "fact_purchase_line",
+      "expression": "SUM(fact_purchase_line[cost])",
+      "format_string": "\u20b1#,##0.00",
+      "time_intelligence": {
+        "MTD": "TOTALMTD([KPI-016 Purchase Spend], dim_date[date])",
+        "YTD": "TOTALYTD([KPI-016 Purchase Spend], dim_date[date])"
+      }
+    },
+    {
+      "kpi_id": "KPI-017",
+      "name": "KPI-017 Supplier On-Time Rate",
+      "domain": "purchasing",
+      "description": "Percentage of purchase order deliveries completed on or before expected delivery date.",
+      "table": "fact_purchase_line",
+      "expression": "VAR OnTimeLines = CALCULATE(COUNTROWS(fact_purchase_line), fact_purchase_line[days_late] <= 0) VAR TotalLines = COUNTROWS(fact_purchase_line) RETURN DIVIDE(OnTimeLines, TotalLines, 0)",
+      "format_string": "0.0%",
+      "time_intelligence": {}
+    },
+    {
+      "kpi_id": "KPI-018",
+      "name": "KPI-018 DSO",
+      "domain": "ar",
+      "description": "Days Sales Outstanding: AR Outstanding divided by (Net Revenue in last 90 days / 90).",
+      "table": "fact_ar_allocation",
+      "expression": "VAR Rev90 = CALCULATE(SUM(fact_sales_line[net_revenue]), DATESINPERIOD(dim_date[date], MAX(dim_date[date]), -90, DAY)) VAR DailyRev = DIVIDE(Rev90, 90, 0) RETURN DIVIDE([KPI-005 AR Outstanding], DailyRev, 0)",
+      "format_string": "0.0 \"days\"",
+      "time_intelligence": {}
+    },
+    {
+      "kpi_id": "KPI-019",
+      "name": "KPI-019 Data Quality Score",
+      "domain": "dq",
+      "description": "Weighted pass rate score across all evaluated data quality rules (0 to 100).",
+      "table": "_Measures",
+      "expression": "AVERAGE(dq_results[score])",
+      "format_string": "0.0 \"%\"",
+      "time_intelligence": {}
+    }
+  ]
+}
