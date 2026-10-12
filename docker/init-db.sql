@@ -67,3 +67,52 @@ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'erp_analytics')\gexec
 
 GRANT ALL ON DATABASE erp_analytics TO analytics_owner;
 
+-- 7. Ensure root and runner roles exist
+DO
+$do$
+BEGIN
+   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'root') THEN
+      CREATE ROLE root WITH SUPERUSER LOGIN;
+   END IF;
+   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'runner') THEN
+      CREATE ROLE runner WITH SUPERUSER LOGIN;
+   END IF;
+END
+$do$;
+
+-- 8. Analytics & ETL schemas
+CREATE SCHEMA IF NOT EXISTS etl;
+CREATE SCHEMA IF NOT EXISTS raw;
+CREATE SCHEMA IF NOT EXISTS staging;
+CREATE SCHEMA IF NOT EXISTS dq;
+
+-- Create etl.runs table with pipeline_name column
+CREATE TABLE IF NOT EXISTS etl.runs (
+  id SERIAL PRIMARY KEY,
+  run_id UUID NOT NULL UNIQUE,
+  pipeline_name VARCHAR(255) NOT NULL,
+  status VARCHAR(50) NOT NULL,
+  started_at TIMESTAMP,
+  completed_at TIMESTAMP,
+  records_extracted INTEGER DEFAULT 0,
+  records_loaded INTEGER DEFAULT 0
+);
+ALTER TABLE etl.runs ADD COLUMN IF NOT EXISTS pipeline_name VARCHAR(255);
+
+-- Create dq.test_results table
+CREATE TABLE IF NOT EXISTS dq.test_results (
+  id SERIAL PRIMARY KEY,
+  test_name VARCHAR(255) NOT NULL,
+  layer VARCHAR(50) NOT NULL,
+  target_table VARCHAR(255) NOT NULL,
+  defect_count INTEGER DEFAULT 0,
+  details TEXT,
+  status VARCHAR(50) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Grant schema permissions
+GRANT USAGE ON SCHEMA etl, raw, staging, dq TO erp_app, etl_reader;
+GRANT ALL ON SCHEMA etl, raw, staging, dq TO analytics_owner;
+
+
