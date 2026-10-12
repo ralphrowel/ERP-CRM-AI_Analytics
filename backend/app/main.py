@@ -9,6 +9,7 @@ from app.core.database import SessionLocal
 from app.core.errors import register_error_handlers
 from app.core.logging import RequestIdMiddleware, setup_logging
 from app.core.numbering import DocumentSequence
+from app.modules.assistant.router import router as assistant_router
 from app.modules.audit.listener import register_audit_listener
 from app.modules.audit.router import router as audit_router
 from app.modules.catalog.router import router as catalog_router
@@ -217,3 +218,4 @@ app.include_router(audit_router, prefix=API_PREFIX)
 app.include_router(reporting_router, prefix=API_PREFIX)
 app.include_router(imports_router, prefix=API_PREFIX)
 app.include_router(visiq_router, prefix=API_PREFIX)
+app.include_router(assistant_router, prefix=API_PREFIX)
