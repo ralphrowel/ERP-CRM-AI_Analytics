@@ -72,8 +72,18 @@ def run_backup(
         "POSTGRES_OWNER_USER", os.getenv("POSTGRES_USER", "postgres")
     )
     password = password or os.getenv(
-        "POSTGRES_OWNER_PASSWORD", os.getenv("POSTGRES_PASSWORD", "")
+        "POSTGRES_OWNER_PASSWORD",
+        os.getenv("POSTGRES_PASSWORD", os.getenv("PGPASSWORD", "")),
     )
+    if not password and os.getenv("MIGRATION_DATABASE_URL"):
+        try:
+            from urllib.parse import urlparse
+
+            parsed = urlparse(os.getenv("MIGRATION_DATABASE_URL"))
+            if parsed.password:
+                password = parsed.password
+        except Exception as err:  # noqa: BLE001
+            logger.debug("Failed parsing MIGRATION_DATABASE_URL: %s", err)
 
     now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
     output_file = backup_dir / f"erp_crm_backup_{now_str}.sql"

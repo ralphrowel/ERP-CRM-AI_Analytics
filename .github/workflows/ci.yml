@@ -139,6 +139,13 @@ jobs:
           MIGRATION_DATABASE_URL: postgresql+psycopg://erp_owner:erp_owner_password@localhost:5432/erp_crm
           ETL_READER_DATABASE_URL: postgresql+psycopg://etl_reader:etl_reader_password@localhost:5432/erp_crm
           ANALYTICS_DATABASE_URL: postgresql+psycopg://analytics_owner:analytics_owner_password@localhost:5432/erp_analytics
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: "5432"
+          POSTGRES_DB: erp_crm
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_password
+          POSTGRES_OWNER_USER: erp_owner
+          POSTGRES_OWNER_PASSWORD: erp_owner_password
           SECRET_KEY: test-secret-key-for-ci-pipeline-min-32-chars-long!
         run: |
           pytest -v
