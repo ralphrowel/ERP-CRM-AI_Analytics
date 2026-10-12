@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.database import SessionLocal
 from app.core.errors import register_error_handlers
 from app.core.logging import RequestIdMiddleware, setup_logging
+from app.core.middleware import SecurityHeadersMiddleware
 from app.core.numbering import DocumentSequence
 from app.modules.assistant.router import router as assistant_router
 from app.modules.audit.listener import register_audit_listener
@@ -182,8 +183,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Register request ID tracking middleware
+# Register request ID tracking & production security headers middleware
 app.add_middleware(RequestIdMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Register RFC 7807 problem+json error handlers
 register_error_handlers(app)

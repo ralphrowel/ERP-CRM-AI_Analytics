@@ -7,7 +7,9 @@ DO
 $do$
 BEGIN
    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'erp_owner') THEN
-      CREATE ROLE erp_owner WITH LOGIN PASSWORD 'erp_owner_password';
+      CREATE ROLE erp_owner WITH LOGIN CREATEDB PASSWORD 'erp_owner_password';
+   ELSE
+      ALTER ROLE erp_owner WITH CREATEDB;
    END IF;
 END
 $do$;
@@ -66,4 +68,71 @@ SELECT 'CREATE DATABASE erp_analytics OWNER analytics_owner'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'erp_analytics')\gexec
 
 GRANT ALL ON DATABASE erp_analytics TO analytics_owner;
+
+-- 7. Ensure root and runner roles exist and root database exists
+DO
+$do$
+BEGIN
+   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'root') THEN
+      CREATE ROLE root WITH SUPERUSER LOGIN;
+   END IF;
+   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'runner') THEN
+      CREATE ROLE runner WITH SUPERUSER LOGIN;
+   END IF;
+END
+$do$;
+
+SELECT 'CREATE DATABASE root OWNER postgres'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'root')\gexec
+
+-- 8. Connect to erp_analytics to initialize Analytics schemas and tables
+\connect erp_analytics
+
+CREATE SCHEMA IF NOT EXISTS etl;
+CREATE SCHEMA IF NOT EXISTS raw;
+CREATE SCHEMA IF NOT EXISTS staging;
+CREATE SCHEMA IF NOT EXISTS dq;
+CREATE SCHEMA IF NOT EXISTS mart;
+
+ALTER SCHEMA etl OWNER TO analytics_owner;
+ALTER SCHEMA raw OWNER TO analytics_owner;
+ALTER SCHEMA staging OWNER TO analytics_owner;
+ALTER SCHEMA dq OWNER TO analytics_owner;
+ALTER SCHEMA mart OWNER TO analytics_owner;
+
+-- Create etl.runs table compatible with both SQLAlchemy EtlRun and VisiQ Engine
+CREATE TABLE IF NOT EXISTS etl.runs (
+  id SERIAL,
+  run_id BIGSERIAL PRIMARY KEY,
+  job VARCHAR(100),
+  pipeline_name VARCHAR(255) DEFAULT 'daily_pipeline',
+  status VARCHAR(50) NOT NULL DEFAULT 'running',
+  started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  finished_at TIMESTAMP,
+  completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  rows_extracted INTEGER DEFAULT 0,
+  records_extracted INTEGER DEFAULT 0,
+  records_loaded INTEGER DEFAULT 0,
+  error TEXT
+);
+
+-- Create dq.test_results table for DQ health monitoring
+CREATE TABLE IF NOT EXISTS dq.test_results (
+  id SERIAL PRIMARY KEY,
+  test_name VARCHAR(255) NOT NULL,
+  layer VARCHAR(50) NOT NULL,
+  target_table VARCHAR(255) NOT NULL,
+  defect_count INTEGER DEFAULT 0,
+  details TEXT,
+  status VARCHAR(50) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Grant schema permissions
+GRANT ALL ON ALL TABLES IN SCHEMA etl, dq, raw, staging, mart TO analytics_owner;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA etl, dq, raw, staging, mart TO analytics_owner;
+GRANT USAGE ON SCHEMA etl, dq, raw, staging, mart TO analytics_owner, erp_app, etl_reader;
+
+\connect erp_crm
+
 

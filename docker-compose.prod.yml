@@ -1,0 +1,127 @@
+# Production Docker Compose Configuration (Roadmap §V1.9)
+# Strict Invariant: DB ports (5432) and backend ports (8000) are NOT exposed on host.
+# Public traffic is strictly accepted on ports 80/443 via Caddy with automatic TLS.
+
+services:
+  caddy:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.caddy
+    container_name: erp_caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - APP_DOMAIN=${APP_DOMAIN:-erp.example.com}
+      - TLS_MODE=${TLS_MODE:-internal}
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - internal_net
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: erp_backend
+    restart: always
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+    # Note: No host ports published. Reachable only within internal_net.
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-erp_app}:${POSTGRES_PASSWORD:-erp_app_password}@postgres:5432/erp_crm
+      - MIGRATION_DATABASE_URL=postgresql+psycopg://${POSTGRES_OWNER_USER:-erp_owner}:${POSTGRES_OWNER_PASSWORD:-erp_owner_password}@postgres:5432/erp_crm
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=erp_crm
+      - POSTGRES_USER=${POSTGRES_USER:-erp_app}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-erp_app_password}
+      - SECRET_KEY=${SECRET_KEY}
+      - CSRF_SECRET_KEY=${CSRF_SECRET_KEY}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@erp-crm.local}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - internal_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: erp_worker
+    restart: always
+    command: python -m app.modules.events.worker_daemon
+    # Note: No host ports published. Reachable only within internal_net.
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-erp_app}:${POSTGRES_PASSWORD:-erp_app_password}@postgres:5432/erp_crm
+      - MIGRATION_DATABASE_URL=postgresql+psycopg://${POSTGRES_OWNER_USER:-erp_owner}:${POSTGRES_OWNER_PASSWORD:-erp_owner_password}@postgres:5432/erp_crm
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=erp_crm
+      - POSTGRES_USER=${POSTGRES_USER:-erp_app}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-erp_app_password}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@erp-crm.local}
+    networks:
+      - internal_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: erp_postgres_prod
+    restart: always
+    environment:
+      POSTGRES_DB: erp_crm
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-postgres_prod_secret}
+      APP_DB_USER: ${POSTGRES_USER:-erp_app}
+      APP_DB_PASSWORD: ${POSTGRES_PASSWORD:-erp_app_password}
+      OWNER_DB_USER: ${POSTGRES_OWNER_USER:-erp_owner}
+      OWNER_DB_PASSWORD: ${POSTGRES_OWNER_PASSWORD:-erp_owner_password}
+    # Invariant Verification (Exit Criterion 3):
+    # Port 5432 is strictly unmapped to the host machine.
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d erp_crm"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal_net
+
+networks:
+  internal_net:
+    driver: bridge
+
+volumes:
+  postgres_data_prod:
+  caddy_data:
+  caddy_config:

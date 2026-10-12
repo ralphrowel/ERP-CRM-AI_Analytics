@@ -1,0 +1,57 @@
+# Caddyfile for ERP/CRM Production Deployment (Roadmap §V1.9)
+# Automatic TLS, SPA static delivery, and /api reverse-proxying on same origin.
+
+{
+    admin off
+    auto_https disable_redirects
+}
+
+{$APP_DOMAIN:localhost} {
+    # 1. TLS Settings (Defaults to Let's Encrypt / ZeroSSL in production, internal self-signed if local)
+    tls {$TLS_MODE:internal}
+
+    # 2. Strict Security Headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'none'; connect-src 'self';"
+        -Server
+    }
+
+    # 3. API & Observability Reverse Proxy
+    handle /api/* {
+        reverse_proxy backend:8000 {
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Real-IP {remote_host}
+        }
+    }
+
+    handle /health {
+        reverse_proxy backend:8000
+    }
+
+    handle /ready {
+        reverse_proxy backend:8000
+    }
+
+    handle /docs {
+        reverse_proxy backend:8000
+    }
+
+    handle /openapi.json {
+        reverse_proxy backend:8000
+    }
+
+    # 4. Frontend SPA Static Delivery with fallback routing
+    handle {
+        root * /var/www/html
+        file_server
+        try_files {path} /index.html
+    }
+
+    # 5. Compression
+    encode zstd gzip
+}
