@@ -40,7 +40,7 @@ def init_analytics_db(engine: Engine) -> None:
         Base.metadata.create_all(bind=engine)
     else:
         # SQLite schema emulation: map schemas to default
-        import analytics.dq.models  # noqa: F401
+        import analytics.dq.models
         import analytics.mart.models  # noqa: F401
         from analytics.extract.models import Base
 
