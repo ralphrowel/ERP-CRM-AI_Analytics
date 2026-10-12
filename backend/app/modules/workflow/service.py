@@ -217,6 +217,24 @@ class WorkflowService:
         )
         self.db.add(req)
         self.db.flush()
+
+        from app.modules.events.service import OutboxService
+
+        OutboxService.record_event(
+            db=self.db,
+            event_type="approval_request.created",
+            aggregate_type="approval_request",
+            aggregate_id=req.id,
+            payload={
+                "approval_request_id": req.id,
+                "rule_id": rule.id,
+                "entity_type": entity_type,
+                "entity_id": entity_id,
+                "document_no": f"{entity_type} #{entity_id}",
+                "approver_permission": rule.approver_permission,
+                "comment": comment,
+            },
+        )
         return req
 
     # ── Approval Decision ────────────────────────────────────────────────
