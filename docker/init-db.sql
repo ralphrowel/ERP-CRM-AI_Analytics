@@ -67,7 +67,7 @@ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'erp_analytics')\gexec
 
 GRANT ALL ON DATABASE erp_analytics TO analytics_owner;
 
--- 7. Ensure root and runner roles exist
+-- 7. Ensure root and runner roles exist and root database exists
 DO
 $do$
 BEGIN
@@ -80,26 +80,41 @@ BEGIN
 END
 $do$;
 
--- 8. Analytics & ETL schemas
+SELECT 'CREATE DATABASE root OWNER postgres'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'root')\gexec
+
+-- 8. Connect to erp_analytics to initialize Analytics schemas and tables
+\connect erp_analytics
+
 CREATE SCHEMA IF NOT EXISTS etl;
 CREATE SCHEMA IF NOT EXISTS raw;
 CREATE SCHEMA IF NOT EXISTS staging;
 CREATE SCHEMA IF NOT EXISTS dq;
+CREATE SCHEMA IF NOT EXISTS mart;
 
--- Create etl.runs table with pipeline_name column
+ALTER SCHEMA etl OWNER TO analytics_owner;
+ALTER SCHEMA raw OWNER TO analytics_owner;
+ALTER SCHEMA staging OWNER TO analytics_owner;
+ALTER SCHEMA dq OWNER TO analytics_owner;
+ALTER SCHEMA mart OWNER TO analytics_owner;
+
+-- Create etl.runs table compatible with both SQLAlchemy EtlRun and VisiQ Engine
 CREATE TABLE IF NOT EXISTS etl.runs (
-  id SERIAL PRIMARY KEY,
-  run_id UUID NOT NULL UNIQUE,
-  pipeline_name VARCHAR(255) NOT NULL,
-  status VARCHAR(50) NOT NULL,
-  started_at TIMESTAMP,
-  completed_at TIMESTAMP,
+  id SERIAL,
+  run_id BIGSERIAL PRIMARY KEY,
+  job VARCHAR(100),
+  pipeline_name VARCHAR(255) DEFAULT 'daily_pipeline',
+  status VARCHAR(50) NOT NULL DEFAULT 'running',
+  started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  finished_at TIMESTAMP,
+  completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  rows_extracted INTEGER DEFAULT 0,
   records_extracted INTEGER DEFAULT 0,
-  records_loaded INTEGER DEFAULT 0
+  records_loaded INTEGER DEFAULT 0,
+  error TEXT
 );
-ALTER TABLE etl.runs ADD COLUMN IF NOT EXISTS pipeline_name VARCHAR(255);
 
--- Create dq.test_results table
+-- Create dq.test_results table for DQ health monitoring
 CREATE TABLE IF NOT EXISTS dq.test_results (
   id SERIAL PRIMARY KEY,
   test_name VARCHAR(255) NOT NULL,
@@ -112,7 +127,10 @@ CREATE TABLE IF NOT EXISTS dq.test_results (
 );
 
 -- Grant schema permissions
-GRANT USAGE ON SCHEMA etl, raw, staging, dq TO erp_app, etl_reader;
-GRANT ALL ON SCHEMA etl, raw, staging, dq TO analytics_owner;
+GRANT ALL ON ALL TABLES IN SCHEMA etl, dq, raw, staging, mart TO analytics_owner;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA etl, dq, raw, staging, mart TO analytics_owner;
+GRANT USAGE ON SCHEMA etl, dq, raw, staging, mart TO analytics_owner, erp_app, etl_reader;
+
+\connect erp_crm
 
 
