@@ -187,7 +187,7 @@ def test_customer_scd_type2_dimension(analytics_test_engine: Engine):
         assert cust["customer_key"] is not None
         assert cust["customer_no"] == "CUS-101"
         assert cust["name"] == "Philippine Industrial Corp"
-        assert cust["is_current"] == 1
+        assert bool(cust["is_current"]) is True
         assert cust["valid_from"] is not None
         assert cust["valid_to"] is None
 

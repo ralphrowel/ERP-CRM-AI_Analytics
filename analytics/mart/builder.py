@@ -53,6 +53,16 @@ class MartBuilder:
         except Exception:  # noqa: BLE001
             return False
 
+    def _get_columns(self, schema: str, table: str) -> set[str]:
+        """Returns set of lowercase column names in a table."""
+        try:
+            tbl_name = self._qual(schema, table)
+            with self.engine.connect() as conn:
+                res = conn.execute(text(f"SELECT * FROM {tbl_name} LIMIT 0"))
+                return {c.lower() for c in res.keys()}  # noqa: SIM118
+        except Exception:  # noqa: BLE001
+            return set()
+
     # =========================================================================
     # 1. Populate Conformed Dimensions
     # =========================================================================
@@ -836,12 +846,24 @@ class MartBuilder:
         if self._table_exists("raw", "status_history") and self._table_exists(
             "raw", "opportunities"
         ):
+            cols = self._get_columns("raw", "status_history")
+            has_record_id = "record_id" in cols
+            id_col = "h.record_id" if has_record_id else "h.entity_id"
+            tbl_filter = (
+                "h.table_name = 'opportunities'"
+                if "table_name" in cols
+                else "h.entity_type IN ('opportunity', 'opportunities')"
+            )
+            old_status_col = "h.old_status" if "old_status" in cols else "h.from_status"
+            new_status_col = "h.new_status" if "new_status" in cols else "h.to_status"
+
             sql = f"""
-            SELECT h.id AS transition_id, h.record_id AS opportunity_id, h.old_status, h.new_status,
+            SELECT h.id AS transition_id, {id_col} AS opportunity_id,
+                   {old_status_col} AS old_status, {new_status_col} AS new_status,
                    h.changed_at, o.estimated_amount, o.customer_id
             FROM {hist_tbl} h
-            JOIN {opp_tbl} o ON h.record_id = o.id
-            WHERE h.table_name = 'opportunities'
+            JOIN {opp_tbl} o ON {id_col} = o.id
+            WHERE {tbl_filter}
             """
             rows = self._fetch_all(sql)
             for r in rows:

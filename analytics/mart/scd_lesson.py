@@ -41,11 +41,11 @@ def run_scd_discovery_lesson(engine: Engine) -> dict[str, Any]:
                 INSERT INTO {qual_cust} (
                     customer_id, customer_no, name, region, valid_from, valid_to, is_current
                 ) VALUES (
-                    9999, 'CUS-SCD-9999', 'Atlas Discovery Corp', 'Luzon', :vf, NULL, 1
+                    9999, 'CUS-SCD-9999', 'Atlas Discovery Corp', 'Luzon', :vf, NULL, :is_current
                 )
                 """
             ),
-            {"vf": datetime(2023, 1, 1, tzinfo=UTC)},
+            {"vf": datetime(2023, 1, 1, tzinfo=UTC), "is_current": True},
         )
         c_key_luzon = conn.execute(
             text(f"SELECT customer_key FROM {qual_cust} WHERE customer_id = 9999")
@@ -97,34 +97,39 @@ def run_scd_discovery_lesson(engine: Engine) -> dict[str, Any]:
         results["type1_flaw_2024_report"] = type1_report
 
         # Step 4: SCD Type 2 Fix
-        # Reset row 1 to Luzon, valid until 2025-01-01, is_current = 0
+        # Reset row 1 to Luzon, valid until 2025-01-01, is_current = False
         conn.execute(
             text(
                 f"""
                 UPDATE {qual_cust}
-                SET region = 'Luzon', valid_to = :vt, is_current = 0
+                SET region = 'Luzon', valid_to = :vt, is_current = :is_current
                 WHERE customer_key = :ck
                 """
             ),
-            {"vt": datetime(2025, 1, 1, tzinfo=UTC), "ck": c_key_luzon},
+            {
+                "vt": datetime(2025, 1, 1, tzinfo=UTC),
+                "ck": c_key_luzon,
+                "is_current": False,
+            },
         )
-        # Insert new Type 2 record for Visayas, valid from 2025-01-01, is_current = 1
+        # Insert new Type 2 record for Visayas, valid from 2025-01-01, is_current = True
         conn.execute(
             text(
                 f"""
                 INSERT INTO {qual_cust} (
                     customer_id, customer_no, name, region, valid_from, valid_to, is_current
                 ) VALUES (
-                    9999, 'CUS-SCD-9999', 'Atlas Discovery Corp', 'Visayas', :vf, NULL, 1
+                    9999, 'CUS-SCD-9999', 'Atlas Discovery Corp', 'Visayas', :vf, NULL, :is_current
                 )
                 """
             ),
-            {"vf": datetime(2025, 1, 1, tzinfo=UTC)},
+            {"vf": datetime(2025, 1, 1, tzinfo=UTC), "is_current": True},
         )
         c_key_visayas = conn.execute(
             text(
-                f"SELECT customer_key FROM {qual_cust} WHERE customer_id = 9999 AND is_current = 1"
-            )
+                f"SELECT customer_key FROM {qual_cust} WHERE customer_id = 9999 AND is_current = :is_current"
+            ),
+            {"is_current": True},
         ).scalar()
 
         # Insert 2025 Invoice of 50,000 PHP under the new Visayas key
