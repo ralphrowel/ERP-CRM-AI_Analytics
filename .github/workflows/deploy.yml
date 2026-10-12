@@ -1,6 +1,6 @@
 name: CD Pipeline - Automated Staging & Approved Production Deployment
 
-on:
+"on":
   push:
     tags:
       - "v*"
