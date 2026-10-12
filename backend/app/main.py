@@ -22,6 +22,7 @@ from app.modules.organization.service import OrganizationService
 from app.modules.purchasing.router import router as purchasing_router
 from app.modules.reporting.router import router as reporting_router
 from app.modules.sales.router import router as sales_router
+from app.modules.visiq.router import router as visiq_router
 from app.modules.workflow.router import router as workflow_router
 
 # Initialize structured logging and audit session listener
@@ -215,3 +216,4 @@ app.include_router(workflow_router, prefix=API_PREFIX)
 app.include_router(audit_router, prefix=API_PREFIX)
 app.include_router(reporting_router, prefix=API_PREFIX)
 app.include_router(imports_router, prefix=API_PREFIX)
+app.include_router(visiq_router, prefix=API_PREFIX)
