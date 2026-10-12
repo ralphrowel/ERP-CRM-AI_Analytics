@@ -34,12 +34,14 @@ def init_analytics_db(engine: Engine) -> None:
             for schema in analytics_settings.SCHEMAS:
                 conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema};"))
         import analytics.dq.models
+        import analytics.mart.models
         from analytics.extract.models import Base
 
         Base.metadata.create_all(bind=engine)
     else:
         # SQLite schema emulation: map schemas to default
         import analytics.dq.models  # noqa: F401
+        import analytics.mart.models  # noqa: F401
         from analytics.extract.models import Base
 
         with engine.connect().execution_options(
