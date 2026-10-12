@@ -67,9 +67,7 @@ def analytics_test_engine(db_session: Session) -> Engine:
     return engine
 
 
-def test_end_to_end_business_scenario_trace(
-    db_session: Session, analytics_test_engine: Engine
-):
+def test_end_to_end_business_scenario_trace(db_session: Session, analytics_test_engine: Engine):
     """
     Traces the entire lifecycle of business data across all platform layers:
     Hop 1: ERP Operational Processing (Lead -> Customer/Opp -> Quote -> Order -> Invoice -> Payment)
@@ -103,12 +101,16 @@ def test_end_to_end_business_scenario_trace(
             }[st]
             inc_yr = st not in ["customer"]
             db_session.add(
-                DocumentSequence(doc_type=st, prefix=prefix, include_year=inc_yr, padding=6, next_value=1)
+                DocumentSequence(
+                    doc_type=st, prefix=prefix, include_year=inc_yr, padding=6, next_value=1
+                )
             )
 
     tax_vat12 = db_session.query(TaxRate).filter_by(code="VAT12").first()
     if not tax_vat12:
-        tax_vat12 = TaxRate(code="VAT12", name="VAT 12%", rate=Decimal("0.1200"), is_default=True, is_active=True)
+        tax_vat12 = TaxRate(
+            code="VAT12", name="VAT 12%", rate=Decimal("0.1200"), is_default=True, is_active=True
+        )
         db_session.add(tax_vat12)
 
     cat = db_session.query(ProductCategory).filter_by(name="Industrial Equipment").first()
@@ -146,7 +148,9 @@ def test_end_to_end_business_scenario_trace(
         db_session.add(wh)
         db_session.flush()
 
-    bal = db_session.query(InventoryBalance).filter_by(product_id=prod.id, warehouse_id=wh.id).first()
+    bal = (
+        db_session.query(InventoryBalance).filter_by(product_id=prod.id, warehouse_id=wh.id).first()
+    )
     if not bal:
         bal = InventoryBalance(
             product_id=prod.id,
@@ -198,10 +202,14 @@ def test_end_to_end_business_scenario_trace(
 
     # 1.3 Lead Conversion -> Customer & Opportunity
     lead = crm_service.transition_lead(
-        lead.id, LeadTransitionPayload(to_status="contacted", reason="Initial sales contact"), user_id=user.id
+        lead.id,
+        LeadTransitionPayload(to_status="contacted", reason="Initial sales contact"),
+        user_id=user.id,
     )
     lead = crm_service.transition_lead(
-        lead.id, LeadTransitionPayload(to_status="qualified", reason="Budget and timeline confirmed"), user_id=user.id
+        lead.id,
+        LeadTransitionPayload(to_status="qualified", reason="Budget and timeline confirmed"),
+        user_id=user.id,
     )
     lead = crm_service.convert_lead(
         lead_id=lead.id,
@@ -296,7 +304,9 @@ def test_end_to_end_business_scenario_trace(
         ),
         current_user_id=user.id,
     )
-    sales_service.allocate_payment(payment.id, invoice.id, Decimal("16800.00"), current_user_id=user.id)
+    sales_service.allocate_payment(
+        payment.id, invoice.id, Decimal("16800.00"), current_user_id=user.id
+    )
     db_session.refresh(invoice)
     db_session.refresh(payment)
     assert invoice.status == "paid"
@@ -322,7 +332,9 @@ def test_end_to_end_business_scenario_trace(
     # -------------------------------------------------------------------------
     transformer = TransformRunner(engine=analytics_test_engine)
     transform_summary = transformer.run()
-    assert transform_summary["status"] == "success", f"Failed models: {[m for m in transform_summary['models'] if m['status'] != 'success']}"
+    assert transform_summary["status"] == "success", (
+        f"Failed models: {[m for m in transform_summary['models'] if m['status'] != 'success']}"
+    )
     assert transform_summary["rows_affected"] > 0
 
     # -------------------------------------------------------------------------
@@ -358,9 +370,15 @@ def test_end_to_end_business_scenario_trace(
     fact_ar = "mart.fact_ar_allocation" if is_postgres else "fact_ar_allocation"
     with analytics_test_engine.connect() as conn:
         # KPI-001: Net Revenue Parity for the traced invoice (₱15,000.00 subtotal)
-        net_rev_row = conn.execute(
-            text(f"SELECT SUM(net_revenue) AS net_revenue, SUM(gross_margin) AS total_margin FROM {fact_sales} WHERE invoice_no = '{invoice.invoice_no}'")
-        ).mappings().first()
+        net_rev_row = (
+            conn.execute(
+                text(
+                    f"SELECT SUM(net_revenue) AS net_revenue, SUM(gross_margin) AS total_margin FROM {fact_sales} WHERE invoice_no = '{invoice.invoice_no}'"
+                )
+            )
+            .mappings()
+            .first()
+        )
         assert net_rev_row is not None
         assert Decimal(str(net_rev_row["net_revenue"])) == Decimal("15000.00")
 
@@ -369,7 +387,9 @@ def test_end_to_end_business_scenario_trace(
 
         # KPI-005: AR Allocation Parity (Payment fully applied)
         ar_alloc_sum = conn.execute(
-            text(f"SELECT SUM(amount) AS total_allocated FROM {fact_ar} WHERE payment_no = '{payment.payment_no}'")
+            text(
+                f"SELECT SUM(amount) AS total_allocated FROM {fact_ar} WHERE payment_no = '{payment.payment_no}'"
+            )
         ).scalar_one()
         assert Decimal(str(ar_alloc_sum)) == Decimal("16800.00")
 
