@@ -767,10 +767,16 @@ class MartBuilder:
                    sku, quantity, parsed_quantity, unit_price, parsed_unit_price,
                    total_amount, parsed_total_amount
             FROM {clean_sales_tbl}
-            WHERE (parsed_quantity IS NULL OR parsed_quantity >= 0)
             """
             leg_rows = self._fetch_all(leg_sql)
             for r in leg_rows:
+                raw_q = r.get("parsed_quantity") or r.get("quantity")
+                if raw_q is not None:
+                    try:
+                        if float(raw_q) < 0:
+                            continue
+                    except (ValueError, TypeError):
+                        continue
                 od_str = str(
                     r.get("parsed_order_date") or r.get("order_date") or "2024-01-01"
                 )
