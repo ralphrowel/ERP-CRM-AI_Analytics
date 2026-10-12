@@ -44,17 +44,20 @@ class MartBuilder:
             return [dict(r._mapping) for r in res]
 
     def _table_exists(self, schema: str, table: str) -> bool:
-        """Checks if a table exists in the target database."""
+        """Checks if a table exists in the target database using metadata catalog."""
         try:
-            tbl_name = self._qual(schema, table)
-            with self.engine.connect() as conn:
-                conn.execute(text(f"SELECT 1 FROM {tbl_name} LIMIT 1"))
-            return True
+            from sqlalchemy import inspect
+
+            inspector = inspect(self.engine)
+            target_schema = schema if self.is_postgres else None
+            return bool(inspector.has_table(table, schema=target_schema))
         except Exception:  # noqa: BLE001
             return False
 
     def _get_columns(self, schema: str, table: str) -> set[str]:
         """Returns set of lowercase column names in a table."""
+        if not self._table_exists(schema, table):
+            return set()
         try:
             tbl_name = self._qual(schema, table)
             with self.engine.connect() as conn:
