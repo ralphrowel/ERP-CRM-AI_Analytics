@@ -1,0 +1,18 @@
+# Production Web Tier: SPA Builder + Caddy Reverse Proxy & TLS (Roadmap §V1.9)
+
+# 1. Build Single Page Application (SPA)
+FROM node:20-alpine AS frontend-builder
+WORKDIR /app
+COPY frontend/package*.json ./
+RUN npm install
+COPY frontend/ ./
+RUN npm run build
+
+# 2. Production Caddy Server
+FROM caddy:2.7-alpine
+COPY docker/Caddyfile /etc/caddy/Caddyfile
+COPY --from=frontend-builder /app/dist /var/www/html
+
+EXPOSE 80 443
+
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
