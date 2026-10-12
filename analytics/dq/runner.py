@@ -209,8 +209,20 @@ class DqRunner:
         clean_tbl = self._get_target_table("staging", f"clean_{table_name}")
         cols = list(rows[0].keys())
 
+        numeric_cols = {
+            "parsed_quantity",
+            "quantity",
+            "unit_price",
+            "parsed_unit_price",
+            "total_amount",
+            "parsed_total_amount",
+            "credit_limit",
+        }
+
         # Define column DDL
-        col_defs = ", ".join(f'"{c}" TEXT' for c in cols)
+        col_defs = ", ".join(
+            f'"{c}" NUMERIC' if c in numeric_cols else f'"{c}" TEXT' for c in cols
+        )
         cascade = " CASCADE" if self.is_postgres else ""
 
         with self.engine.begin() as conn:
@@ -225,13 +237,26 @@ class DqRunner:
             )
 
             for r in rows:
-                conn.execute(
-                    insert_sql,
-                    {
-                        c: (str(r.get(c)) if r.get(c) is not None else None)
-                        for c in cols
-                    },
-                )
+                param_dict = {}
+                for c in cols:
+                    val = r.get(c)
+                    if val is None or val == "":
+                        param_dict[c] = None
+                    elif c in numeric_cols:
+                        try:
+                            clean_val = (
+                                str(val)
+                                .replace("₱", "")
+                                .replace("PHP", "")
+                                .replace(",", "")
+                                .strip()
+                            )
+                            param_dict[c] = float(clean_val)
+                        except (ValueError, TypeError):
+                            param_dict[c] = None
+                    else:
+                        param_dict[c] = str(val)
+                conn.execute(insert_sql, param_dict)
 
     def run(
         self,
