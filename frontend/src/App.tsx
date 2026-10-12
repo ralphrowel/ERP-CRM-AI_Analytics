@@ -23,6 +23,7 @@ import { SalesOrdersPage } from './pages/SalesOrdersPage'
 import { SupplierInvoicesPage } from './pages/SupplierInvoicesPage'
 import { SupplierPaymentsPage } from './pages/SupplierPaymentsPage'
 import { SuppliersPage } from './pages/SuppliersPage'
+import { NotificationsPage } from './pages/NotificationsPage'
 
 const MainRouter: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth()
@@ -91,6 +92,7 @@ const MainRouter: React.FC = () => {
       {activeTab === 'employees' && <EmployeesPage />}
       {activeTab === 'roles' && <RolesPage />}
       {activeTab === 'settings' && <CompanySettingsPage />}
+      {activeTab === 'notifications' && <NotificationsPage />}
     </AppLayout>
   )
 }

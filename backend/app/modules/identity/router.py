@@ -16,6 +16,7 @@ from app.modules.identity.schemas import (
     LoginResponse,
     PaginatedRolesResponse,
     PaginatedUsersResponse,
+    PasswordResetRequestPayload,
     PermissionResponse,
     RoleCreate,
     RoleResponse,
@@ -75,6 +76,16 @@ def login(
         csrf_token=csrf_token,
         message="Login successful.",
     )
+
+
+@router.post("/auth/password-reset/request", status_code=status.HTTP_200_OK)
+def request_password_reset(
+    payload: PasswordResetRequestPayload,
+    service: Annotated[IdentityService, Depends(get_identity_service)],
+) -> dict[str, str]:
+    """Initiates password reset by enqueuing an outbox event. Never sends email in HTTP request."""
+    service.request_password_reset(payload.email)
+    return {"message": "If this email is registered, password reset instructions have been sent."}
 
 
 @router.post("/auth/logout", status_code=status.HTTP_200_OK)

@@ -1,10 +1,13 @@
-import React from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import {
   BarChart3,
+  Bell,
   Boxes,
   Building2,
   CheckCircle2,
+  CheckCheck,
   CreditCard,
+  ExternalLink,
   FileCheck,
   FileText,
   History,
@@ -24,6 +27,13 @@ import {
   Warehouse,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import {
+  fetchNotifications,
+  fetchUnreadCount,
+  type InAppNotification,
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
+} from '../api/notifications'
 
 export type NavTab =
   | 'reports'
@@ -47,6 +57,7 @@ export type NavTab =
   | 'employees'
   | 'roles'
   | 'settings'
+  | 'notifications'
 
 interface AppLayoutProps {
   activeTab: NavTab
@@ -56,6 +67,63 @@ interface AppLayoutProps {
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, children }) => {
   const { user, logout, hasPermission, isSuperuser } = useAuth()
+
+  const [unreadCount, setUnreadCount] = useState<number>(0)
+  const [showBellDropdown, setShowBellDropdown] = useState<boolean>(false)
+  const [recentNotifs, setRecentNotifs] = useState<InAppNotification[]>([])
+  const [loadingRecent, setLoadingRecent] = useState<boolean>(false)
+
+  const refreshUnread = useCallback(async () => {
+    try {
+      const res = await fetchUnreadCount()
+      setUnreadCount(res.unread_count)
+    } catch {
+      // background polling
+    }
+  }, [])
+
+  useEffect(() => {
+    refreshUnread()
+    const timer = setInterval(refreshUnread, 30000)
+    return () => clearInterval(timer)
+  }, [refreshUnread])
+
+  const toggleBellDropdown = async () => {
+    const next = !showBellDropdown
+    setShowBellDropdown(next)
+    if (next) {
+      setLoadingRecent(true)
+      try {
+        const resp = await fetchNotifications({ unread_only: true, page: 1, page_size: 5 })
+        setRecentNotifs(resp.items)
+        setUnreadCount(resp.unread_count)
+      } catch (err) {
+        console.error('Failed to load recent notifications', err)
+      } finally {
+        setLoadingRecent(false)
+      }
+    }
+  }
+
+  const handleDropdownMarkAllRead = async () => {
+    try {
+      await markAllNotificationsAsRead()
+      setRecentNotifs([])
+      setUnreadCount(0)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleDropdownMarkOneRead = async (id: number) => {
+    try {
+      await markNotificationAsRead(id)
+      setRecentNotifs((prev) => prev.filter((n) => n.id !== id))
+      setUnreadCount((c) => Math.max(0, c - 1))
+    } catch (err) {
+      console.error(err)
+    }
+  }
 
   const analyticsItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
     { id: 'reports', label: 'Analytics & KPIs', icon: <BarChart3 size={18} /> },
@@ -87,6 +155,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
 
   const workflowItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
     { id: 'approvals', label: 'Approvals & Governance', icon: <CheckCircle2 size={18} /> },
+    {
+      id: 'notifications',
+      label: unreadCount > 0 ? `Notifications (${unreadCount})` : 'Notifications',
+      icon: <Bell size={18} />,
+    },
     ...(isSuperuser || hasPermission('audit:read')
       ? [{ id: 'audit_logs' as NavTab, label: 'Audit Trail', icon: <History size={18} /> }]
       : []),
@@ -539,13 +612,209 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', position: 'relative' }}>
             <span className="badge badge-subtle">
               PHP (₱) · VAT 12%
             </span>
             <span className="badge badge-cyan">
               Asia/Manila (UTC+8)
             </span>
+
+            {/* Notification Bell Button */}
+            <div style={{ position: 'relative' }}>
+              <button
+                id="notification-bell-btn"
+                onClick={toggleBellDropdown}
+                title="Notifications"
+                style={{
+                  background: showBellDropdown ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid',
+                  borderColor: showBellDropdown ? '#6366f1' : 'var(--border-subtle)',
+                  borderRadius: '8px',
+                  width: '38px',
+                  height: '38px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: showBellDropdown ? '#a5b4fc' : 'var(--text-main)',
+                  position: 'relative',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <Bell size={18} />
+                {unreadCount > 0 && (
+                  <span
+                    id="bell-unread-badge"
+                    style={{
+                      position: 'absolute',
+                      top: '-4px',
+                      right: '-4px',
+                      backgroundColor: '#ef4444',
+                      color: '#ffffff',
+                      borderRadius: '999px',
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      minWidth: '18px',
+                      height: '18px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '0 4px',
+                      boxShadow: '0 0 8px rgba(239, 68, 68, 0.8)',
+                    }}
+                  >
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification Dropdown Menu */}
+              {showBellDropdown && (
+                <div
+                  id="notifications-dropdown-menu"
+                  style={{
+                    position: 'absolute',
+                    top: '46px',
+                    right: 0,
+                    width: '360px',
+                    backgroundColor: 'rgba(15, 23, 42, 0.96)',
+                    backdropFilter: 'blur(16px)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '12px',
+                    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.6)',
+                    zIndex: 1000,
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                  {/* Dropdown Header */}
+                  <div
+                    style={{
+                      padding: '12px 16px',
+                      borderBottom: '1px solid var(--border-subtle)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#f8fafc' }}>
+                        Notifications
+                      </span>
+                      {unreadCount > 0 && (
+                        <span className="badge badge-rose" style={{ fontSize: '0.7rem' }}>
+                          {unreadCount} unread
+                        </span>
+                      )}
+                    </div>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={handleDropdownMarkAllRead}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#38bdf8',
+                          fontSize: '0.75rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <CheckCheck size={13} /> Mark all read
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dropdown List */}
+                  <div style={{ maxHeight: '320px', overflowY: 'auto' }}>
+                    {loadingRecent ? (
+                      <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.85rem' }}>
+                        Loading...
+                      </div>
+                    ) : recentNotifs.length === 0 ? (
+                      <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--text-dim)' }}>
+                        <Bell size={24} style={{ opacity: 0.3, marginBottom: '6px' }} />
+                        <div style={{ fontSize: '0.85rem', fontWeight: 500 }}>No unread notifications</div>
+                      </div>
+                    ) : (
+                      recentNotifs.map((notif) => (
+                        <div
+                          key={notif.id}
+                          style={{
+                            padding: '12px 16px',
+                            borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px',
+                            backgroundColor: 'rgba(30, 41, 59, 0.4)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: 600, fontSize: '0.825rem', color: '#f8fafc' }}>
+                              {notif.title}
+                            </span>
+                            <button
+                              onClick={() => handleDropdownMarkOneRead(notif.id)}
+                              title="Mark as read"
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--text-dim)',
+                                cursor: 'pointer',
+                                padding: '2px',
+                              }}
+                            >
+                              <CheckCheck size={14} />
+                            </button>
+                          </div>
+                          <p style={{ margin: 0, fontSize: '0.775rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                            {notif.message}
+                          </p>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                            {new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Dropdown Footer */}
+                  <div
+                    style={{
+                      padding: '10px 16px',
+                      borderTop: '1px solid var(--border-subtle)',
+                      backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <button
+                      id="view-all-notifications-btn"
+                      onClick={() => {
+                        setShowBellDropdown(false)
+                        onTabChange('notifications')
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#818cf8',
+                        fontWeight: 600,
+                        fontSize: '0.825rem',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      View all notifications <ExternalLink size={13} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

@@ -617,3 +617,36 @@ class IdentityService:
         self.revoke_all_user_sessions(user_id)
 
         return self.get_user_roles(user_id)
+
+    def request_password_reset(self, email: str) -> None:
+        """
+        Initiates password reset flow (Roadmap §V1.8).
+        Inserts an event into the outbox ledger without sending email inside HTTP request.
+        """
+        normalized_email = email.strip().lower()
+        user = self.db.execute(
+            select(User).where(func.lower(User.email) == normalized_email)
+        ).scalar_one_or_none()
+        if not user or not user.is_active:
+            # Silent return to prevent email enumeration
+            return
+
+        import secrets
+
+        reset_token = secrets.token_urlsafe(32)
+
+        from app.modules.events.service import OutboxService
+
+        OutboxService.record_event(
+            db=self.db,
+            event_type="password_reset.requested",
+            aggregate_type="user",
+            aggregate_id=user.id,
+            payload={
+                "user_id": user.id,
+                "email": user.email,
+                "reset_token": reset_token,
+                "full_name": user.full_name,
+            },
+        )
+        self.db.commit()

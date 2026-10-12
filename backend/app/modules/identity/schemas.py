@@ -10,6 +10,10 @@ class LoginRequest(BaseModel):
     password: str = Field(..., min_length=1)
 
 
+class PasswordResetRequestPayload(BaseModel):
+    email: EmailStr
+
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
