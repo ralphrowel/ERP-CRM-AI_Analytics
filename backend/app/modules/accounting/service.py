@@ -24,7 +24,10 @@ from app.modules.accounting.models import (
 )
 from app.modules.accounting.schemas import (
     AccountCreatePayload,
+    BalanceSheetReport,
+    FinancialStatementItem,
     FiscalPeriodCreatePayload,
+    IncomeStatementReport,
     JournalEntryCreatePayload,
     JournalEntryLinePayload,
     TrialBalanceAccountRow,
@@ -80,6 +83,7 @@ class GLService:
     def seed_default_chart_of_accounts(self, creator_id: int | None = None) -> list[Account]:
         """Seeds standard enterprise Philippine Chart of Accounts baseline."""
         accounts = []
+        now = self.clock.now()
         for def_acc in DEFAULT_COA:
             existing = self.db.execute(
                 select(Account).where(Account.code == def_acc["code"])
@@ -93,6 +97,8 @@ class GLService:
                     is_reconcilable=def_acc.get("reconcilable", False),
                     is_active=True,
                     created_by=creator_id,
+                    created_at=now,
+                    updated_at=now,
                 )
                 self.db.add(acc)
                 accounts.append(acc)
@@ -117,6 +123,7 @@ class GLService:
             if not parent:
                 raise NotFoundException(detail="Parent account not found.")
 
+        now = self.clock.now()
         account = Account(
             code=data.code,
             name=data.name,
@@ -127,6 +134,8 @@ class GLService:
             is_reconcilable=data.is_reconcilable,
             is_active=True,
             created_by=creator_id,
+            created_at=now,
+            updated_at=now,
         )
         self.db.add(account)
         self.db.commit()
@@ -171,12 +180,15 @@ class GLService:
                 detail=f"Fiscal period '{data.period_name}' already exists.",
             )
 
+        now = self.clock.now()
         period = FiscalPeriod(
             period_name=data.period_name,
             start_date=data.start_date,
             end_date=data.end_date,
             status="open",
             created_by=creator_id,
+            created_at=now,
+            updated_at=now,
         )
         self.db.add(period)
         self.db.commit()
@@ -264,6 +276,7 @@ class GLService:
 
         entry_no = generate_next_number(self.db, "journal_entry", clock=self.clock)
 
+        now = self.clock.now()
         entry = JournalEntry(
             entry_no=entry_no,
             posting_date=data.posting_date,
@@ -274,6 +287,8 @@ class GLService:
             total_credit=round_money(total_credit),
             description=data.description,
             created_by=user_id,
+            created_at=now,
+            updated_at=now,
         )
         entry.lines.extend(line_objects)
 
@@ -476,5 +491,538 @@ class GLService:
             rows=report_rows,
             total_debits=grand_total_debits,
             total_credits=grand_total_credits,
+            is_balanced=is_balanced,
+        )
+
+    # =========================================================================
+    # 5. Automated Subledger-to-GL Integration (Milestone V2.2)
+    # =========================================================================
+
+    def ensure_account(self, code: str) -> Account:
+        """Finds account by code, auto-seeding default Philippine COA if needed."""
+        acc = self.db.execute(select(Account).where(Account.code == code)).scalar_one_or_none()
+        if not acc:
+            self.seed_default_chart_of_accounts()
+            acc = self.db.execute(select(Account).where(Account.code == code)).scalar_one_or_none()
+        if not acc:
+            raise NotFoundException(detail=f"Account with code '{code}' not found.")
+        return acc
+
+    def post_invoice_to_gl(
+        self,
+        invoice_id: int,
+        invoice_no: str,
+        customer_name: str,
+        posting_date: date,
+        subtotal: Decimal,
+        tax_total: Decimal,
+        grand_total: Decimal,
+        user_id: int | None = None,
+    ) -> JournalEntry:
+        """
+        Subledger hook: posts sales invoice to General Ledger.
+        Dr Accounts Receivable (1200): grand_total
+        Cr Sales Revenue (4100): subtotal
+        Cr Output VAT Payable (2210): tax_total (if > 0)
+        """
+        existing = self.db.execute(
+            select(JournalEntry).where(
+                JournalEntry.source_document_type == "invoice",
+                JournalEntry.source_document_id == invoice_id,
+                JournalEntry.status == "posted",
+            )
+        ).scalar_one_or_none()
+        if existing:
+            return existing
+
+        ar = self.ensure_account("1200")
+        rev = self.ensure_account("4100")
+        vat = self.ensure_account("2210")
+
+        lines = [
+            JournalEntryLinePayload(
+                account_id=ar.id,
+                debit_amount=round_money(grand_total),
+                credit_amount=Decimal("0.00"),
+                description=f"AR - {customer_name}",
+            ),
+            JournalEntryLinePayload(
+                account_id=rev.id,
+                debit_amount=Decimal("0.00"),
+                credit_amount=round_money(subtotal),
+                description="Sales Revenue",
+            ),
+        ]
+        if round_money(tax_total) > Decimal("0.00"):
+            lines.append(
+                JournalEntryLinePayload(
+                    account_id=vat.id,
+                    debit_amount=Decimal("0.00"),
+                    credit_amount=round_money(tax_total),
+                    description="Output VAT (12%)",
+                )
+            )
+
+        payload = JournalEntryCreatePayload(
+            posting_date=posting_date,
+            description=f"Sales Invoice {invoice_no} to {customer_name}",
+            source_document_type="invoice",
+            source_document_id=invoice_id,
+            lines=lines,
+        )
+        return self.create_journal_entry(payload, user_id=user_id, auto_post=True)
+
+    def post_payment_to_gl(
+        self,
+        payment_id: int,
+        payment_no: str,
+        posting_date: date,
+        amount_allocated: Decimal,
+        customer_name: str | None = None,
+        user_id: int | None = None,
+    ) -> JournalEntry | None:
+        """
+        Subledger hook: posts customer payment allocation to General Ledger.
+        Dr Cash in Bank (1120): amount_allocated
+        Cr Accounts Receivable (1200): amount_allocated
+        """
+        if round_money(amount_allocated) <= Decimal("0.00"):
+            return None
+
+        bank = self.ensure_account("1120")
+        ar = self.ensure_account("1200")
+
+        lines = [
+            JournalEntryLinePayload(
+                account_id=bank.id,
+                debit_amount=round_money(amount_allocated),
+                credit_amount=Decimal("0.00"),
+                description=f"Collection: {payment_no}",
+            ),
+            JournalEntryLinePayload(
+                account_id=ar.id,
+                debit_amount=Decimal("0.00"),
+                credit_amount=round_money(amount_allocated),
+                description=f"AR settlement{f' - {customer_name}' if customer_name else ''}",
+            ),
+        ]
+
+        payload = JournalEntryCreatePayload(
+            posting_date=posting_date,
+            description=f"Payment {payment_no} collection & allocation",
+            source_document_type="payment",
+            source_document_id=payment_id,
+            lines=lines,
+        )
+        return self.create_journal_entry(payload, user_id=user_id, auto_post=True)
+
+    def post_credit_note_to_gl(
+        self,
+        credit_note_id: int,
+        credit_note_no: str,
+        customer_name: str,
+        posting_date: date,
+        subtotal: Decimal,
+        tax_total: Decimal,
+        grand_total: Decimal,
+        user_id: int | None = None,
+    ) -> JournalEntry:
+        """
+        Subledger hook: posts sales credit note to General Ledger.
+        Dr Sales Discounts / Returns (4200): subtotal
+        Dr Output VAT Payable (2210): tax_total (if > 0)
+        Cr Accounts Receivable (1200): grand_total
+        """
+        existing = self.db.execute(
+            select(JournalEntry).where(
+                JournalEntry.source_document_type == "credit_note",
+                JournalEntry.source_document_id == credit_note_id,
+                JournalEntry.status == "posted",
+            )
+        ).scalar_one_or_none()
+        if existing:
+            return existing
+
+        ar = self.ensure_account("1200")
+        disc = self.ensure_account("4200")
+        vat = self.ensure_account("2210")
+
+        lines = [
+            JournalEntryLinePayload(
+                account_id=disc.id,
+                debit_amount=round_money(subtotal),
+                credit_amount=Decimal("0.00"),
+                description=f"Credit adjustment - {credit_note_no}",
+            ),
+        ]
+        if round_money(tax_total) > Decimal("0.00"):
+            lines.append(
+                JournalEntryLinePayload(
+                    account_id=vat.id,
+                    debit_amount=round_money(tax_total),
+                    credit_amount=Decimal("0.00"),
+                    description="Output VAT reversal",
+                )
+            )
+        lines.append(
+            JournalEntryLinePayload(
+                account_id=ar.id,
+                debit_amount=Decimal("0.00"),
+                credit_amount=round_money(grand_total),
+                description=f"AR credit - {customer_name}",
+            )
+        )
+
+        payload = JournalEntryCreatePayload(
+            posting_date=posting_date,
+            description=f"Credit Note {credit_note_no} to {customer_name}",
+            source_document_type="credit_note",
+            source_document_id=credit_note_id,
+            lines=lines,
+        )
+        return self.create_journal_entry(payload, user_id=user_id, auto_post=True)
+
+    def post_supplier_invoice_to_gl(
+        self,
+        invoice_id: int,
+        invoice_no: str,
+        supplier_name: str,
+        posting_date: date,
+        subtotal: Decimal,
+        tax_total: Decimal,
+        grand_total: Decimal,
+        user_id: int | None = None,
+    ) -> JournalEntry:
+        """
+        Subledger hook: posts approved supplier invoice / bill to General Ledger.
+        Dr Goods Received Not Invoiced / Purchases (2150): subtotal
+        Dr Input VAT (1400): tax_total (if > 0)
+        Cr Accounts Payable (2100): grand_total
+        """
+        existing = self.db.execute(
+            select(JournalEntry).where(
+                JournalEntry.source_document_type == "supplier_invoice",
+                JournalEntry.source_document_id == invoice_id,
+                JournalEntry.status == "posted",
+            )
+        ).scalar_one_or_none()
+        if existing:
+            return existing
+
+        grni = self.ensure_account("2150")
+        input_vat = self.ensure_account("1400")
+        ap = self.ensure_account("2100")
+
+        lines = [
+            JournalEntryLinePayload(
+                account_id=grni.id,
+                debit_amount=round_money(subtotal),
+                credit_amount=Decimal("0.00"),
+                description=f"Goods/Services Billed - {supplier_name}",
+            ),
+        ]
+        if round_money(tax_total) > Decimal("0.00"):
+            lines.append(
+                JournalEntryLinePayload(
+                    account_id=input_vat.id,
+                    debit_amount=round_money(tax_total),
+                    credit_amount=Decimal("0.00"),
+                    description="Input VAT (12%)",
+                )
+            )
+        lines.append(
+            JournalEntryLinePayload(
+                account_id=ap.id,
+                debit_amount=Decimal("0.00"),
+                credit_amount=round_money(grand_total),
+                description=f"AP - {supplier_name}",
+            )
+        )
+
+        payload = JournalEntryCreatePayload(
+            posting_date=posting_date,
+            description=f"Supplier Bill {invoice_no} from {supplier_name}",
+            source_document_type="supplier_invoice",
+            source_document_id=invoice_id,
+            lines=lines,
+        )
+        return self.create_journal_entry(payload, user_id=user_id, auto_post=True)
+
+    def post_supplier_payment_to_gl(
+        self,
+        payment_id: int,
+        payment_no: str,
+        supplier_name: str,
+        posting_date: date,
+        amount: Decimal,
+        user_id: int | None = None,
+    ) -> JournalEntry | None:
+        """
+        Subledger hook: posts supplier payment disbursement to General Ledger.
+        Dr Accounts Payable (2100): amount
+        Cr Cash in Bank (1120): amount
+        """
+        if round_money(amount) <= Decimal("0.00"):
+            return None
+
+        ap = self.ensure_account("2100")
+        bank = self.ensure_account("1120")
+
+        lines = [
+            JournalEntryLinePayload(
+                account_id=ap.id,
+                debit_amount=round_money(amount),
+                credit_amount=Decimal("0.00"),
+                description=f"AP disbursement - {supplier_name}",
+            ),
+            JournalEntryLinePayload(
+                account_id=bank.id,
+                debit_amount=Decimal("0.00"),
+                credit_amount=round_money(amount),
+                description=f"Disbursement {payment_no}",
+            ),
+        ]
+
+        payload = JournalEntryCreatePayload(
+            posting_date=posting_date,
+            description=f"Supplier Payment {payment_no} to {supplier_name}",
+            source_document_type="supplier_payment",
+            source_document_id=payment_id,
+            lines=lines,
+        )
+        return self.create_journal_entry(payload, user_id=user_id, auto_post=True)
+
+    def reverse_source_document_entries(
+        self,
+        source_document_type: str,
+        source_document_id: int,
+        reason: str,
+        user_id: int | None = None,
+    ) -> list[JournalEntry]:
+        """Reverses all active posted journal entries for a source document."""
+        entries = (
+            self.db.execute(
+                select(JournalEntry).where(
+                    JournalEntry.source_document_type == source_document_type,
+                    JournalEntry.source_document_id == source_document_id,
+                    JournalEntry.status == "posted",
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        reversals = []
+        for e in entries:
+            rev = self.reverse_journal_entry(e.id, reason=reason, user_id=user_id)
+            reversals.append(rev)
+        return reversals
+
+    # =========================================================================
+    # 6. Financial Reporting: Balance Sheet & Income Statement
+    # =========================================================================
+
+    def generate_income_statement(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> IncomeStatementReport:
+        """
+        Generates formal Income Statement (Statement of Comprehensive Income / P&L)
+        for transactions within the specified date range.
+        Net Income = Revenue - COGS - Operating Expenses
+        """
+        stmt = (
+            select(
+                Account.id.label("account_id"),
+                Account.code.label("code"),
+                Account.name.label("name"),
+                Account.account_type.label("account_type"),
+                Account.normal_balance.label("normal_balance"),
+                func.coalesce(func.sum(JournalEntryLine.debit_amount), Decimal("0.00")).label(
+                    "total_debit"
+                ),
+                func.coalesce(func.sum(JournalEntryLine.credit_amount), Decimal("0.00")).label(
+                    "total_credit"
+                ),
+            )
+            .join(JournalEntryLine, JournalEntryLine.account_id == Account.id, isouter=True)
+            .join(
+                JournalEntry,
+                (JournalEntry.id == JournalEntryLine.journal_entry_id)
+                & (JournalEntry.status == "posted")
+                & (JournalEntry.posting_date >= start_date)
+                & (JournalEntry.posting_date <= end_date),
+                isouter=True,
+            )
+            .where(
+                Account.is_active == True,  # noqa: E712
+                Account.account_type.in_(["revenue", "expense"]),
+            )
+            .group_by(
+                Account.id, Account.code, Account.name, Account.account_type, Account.normal_balance
+            )
+            .order_by(Account.code)
+        )
+
+        rows = self.db.execute(stmt).all()
+
+        revenue_items: list[FinancialStatementItem] = []
+        cogs_items: list[FinancialStatementItem] = []
+        expense_items: list[FinancialStatementItem] = []
+
+        total_revenue = Decimal("0.00")
+        total_cogs = Decimal("0.00")
+        total_expenses = Decimal("0.00")
+
+        for r in rows:
+            d_sum = round_money(Decimal(str(r.total_debit)))
+            c_sum = round_money(Decimal(str(r.total_credit)))
+
+            if r.account_type == "revenue":
+                amount = c_sum - d_sum
+                total_revenue += amount
+                revenue_items.append(
+                    FinancialStatementItem(
+                        account_id=r.account_id,
+                        code=r.code,
+                        name=r.name,
+                        amount=amount,
+                    )
+                )
+            elif r.account_type == "expense":
+                amount = d_sum - c_sum
+                if r.code == "5100" or "COGS" in r.name:
+                    total_cogs += amount
+                    cogs_items.append(
+                        FinancialStatementItem(
+                            account_id=r.account_id,
+                            code=r.code,
+                            name=r.name,
+                            amount=amount,
+                        )
+                    )
+                else:
+                    total_expenses += amount
+                    expense_items.append(
+                        FinancialStatementItem(
+                            account_id=r.account_id,
+                            code=r.code,
+                            name=r.name,
+                            amount=amount,
+                        )
+                    )
+
+        gross_profit = total_revenue - total_cogs
+        net_income = gross_profit - total_expenses
+
+        return IncomeStatementReport(
+            start_date=start_date,
+            end_date=end_date,
+            revenue_items=revenue_items,
+            total_revenue=round_money(total_revenue),
+            cogs_items=cogs_items,
+            total_cogs=round_money(total_cogs),
+            gross_profit=round_money(gross_profit),
+            expense_items=expense_items,
+            total_expenses=round_money(total_expenses),
+            net_income=round_money(net_income),
+        )
+
+    def generate_balance_sheet(self, as_of_date: date) -> BalanceSheetReport:
+        """
+        Generates formal Balance Sheet (Statement of Financial Position) as of target date.
+        Strict Invariant: Total Assets == Total Liabilities + Total Equity.
+        """
+        stmt = (
+            select(
+                Account.id.label("account_id"),
+                Account.code.label("code"),
+                Account.name.label("name"),
+                Account.account_type.label("account_type"),
+                Account.normal_balance.label("normal_balance"),
+                func.coalesce(func.sum(JournalEntryLine.debit_amount), Decimal("0.00")).label(
+                    "total_debit"
+                ),
+                func.coalesce(func.sum(JournalEntryLine.credit_amount), Decimal("0.00")).label(
+                    "total_credit"
+                ),
+            )
+            .join(JournalEntryLine, JournalEntryLine.account_id == Account.id, isouter=True)
+            .join(
+                JournalEntry,
+                (JournalEntry.id == JournalEntryLine.journal_entry_id)
+                & (JournalEntry.status == "posted")
+                & (JournalEntry.posting_date <= as_of_date),
+                isouter=True,
+            )
+            .where(Account.is_active == True)  # noqa: E712
+            .group_by(
+                Account.id, Account.code, Account.name, Account.account_type, Account.normal_balance
+            )
+            .order_by(Account.code)
+        )
+
+        rows = self.db.execute(stmt).all()
+
+        asset_items: list[FinancialStatementItem] = []
+        liability_items: list[FinancialStatementItem] = []
+        equity_items: list[FinancialStatementItem] = []
+
+        total_assets = Decimal("0.00")
+        total_liabilities = Decimal("0.00")
+        total_equity_base = Decimal("0.00")
+
+        total_revenue_to_date = Decimal("0.00")
+        total_expense_to_date = Decimal("0.00")
+
+        for r in rows:
+            d_sum = round_money(Decimal(str(r.total_debit)))
+            c_sum = round_money(Decimal(str(r.total_credit)))
+
+            if r.account_type == "asset":
+                amount = d_sum - c_sum
+                total_assets += amount
+                asset_items.append(
+                    FinancialStatementItem(
+                        account_id=r.account_id, code=r.code, name=r.name, amount=amount
+                    )
+                )
+            elif r.account_type == "liability":
+                amount = c_sum - d_sum
+                total_liabilities += amount
+                liability_items.append(
+                    FinancialStatementItem(
+                        account_id=r.account_id, code=r.code, name=r.name, amount=amount
+                    )
+                )
+            elif r.account_type == "equity":
+                amount = c_sum - d_sum
+                total_equity_base += amount
+                equity_items.append(
+                    FinancialStatementItem(
+                        account_id=r.account_id, code=r.code, name=r.name, amount=amount
+                    )
+                )
+            elif r.account_type == "revenue":
+                total_revenue_to_date += c_sum - d_sum
+            elif r.account_type == "expense":
+                total_expense_to_date += d_sum - c_sum
+
+        current_period_net_income = round_money(total_revenue_to_date - total_expense_to_date)
+        total_equity = round_money(total_equity_base + current_period_net_income)
+        total_liabilities_and_equity = round_money(total_liabilities + total_equity)
+        is_balanced = abs(total_assets - total_liabilities_and_equity) == Decimal("0.00")
+
+        return BalanceSheetReport(
+            as_of_date=as_of_date,
+            assets=asset_items,
+            total_assets=round_money(total_assets),
+            liabilities=liability_items,
+            total_liabilities=round_money(total_liabilities),
+            equity=equity_items,
+            current_period_net_income=current_period_net_income,
+            total_equity=total_equity,
+            total_liabilities_and_equity=total_liabilities_and_equity,
             is_balanced=is_balanced,
         )

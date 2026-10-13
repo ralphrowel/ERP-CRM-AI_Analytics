@@ -119,3 +119,36 @@ class TrialBalanceReport(BaseModel):
     total_debits: Decimal
     total_credits: Decimal
     is_balanced: bool
+
+
+class FinancialStatementItem(BaseModel):
+    account_id: int
+    code: str
+    name: str
+    amount: Decimal
+
+
+class BalanceSheetReport(BaseModel):
+    as_of_date: date
+    assets: list[FinancialStatementItem]
+    total_assets: Decimal
+    liabilities: list[FinancialStatementItem]
+    total_liabilities: Decimal
+    equity: list[FinancialStatementItem]
+    current_period_net_income: Decimal
+    total_equity: Decimal
+    total_liabilities_and_equity: Decimal
+    is_balanced: bool
+
+
+class IncomeStatementReport(BaseModel):
+    start_date: date
+    end_date: date
+    revenue_items: list[FinancialStatementItem]
+    total_revenue: Decimal
+    cogs_items: list[FinancialStatementItem]
+    total_cogs: Decimal
+    gross_profit: Decimal
+    expense_items: list[FinancialStatementItem]
+    total_expenses: Decimal
+    net_income: Decimal

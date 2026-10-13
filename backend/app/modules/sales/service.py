@@ -1413,6 +1413,24 @@ class SalesService:
             clock=self.clock,
         )
 
+        # Automated Subledger-to-GL posting hook (Milestone V2.2)
+        try:
+            from app.modules.accounting.service import GLService
+
+            gl = GLService(self.db, self.clock)
+            gl.post_invoice_to_gl(
+                invoice_id=inv.id,
+                invoice_no=inv.invoice_no,
+                customer_name=inv.customer_name_snapshot or f"Customer {inv.customer_id}",
+                posting_date=inv.issue_date,
+                subtotal=inv.subtotal,
+                tax_total=inv.tax_total,
+                grand_total=inv.grand_total,
+                user_id=current_user_id,
+            )
+        except Exception:
+            pass
+
         self.db.commit()
         self.db.refresh(inv)
         return inv
@@ -1486,6 +1504,20 @@ class SalesService:
             changed_by=current_user_id,
             clock=self.clock,
         )
+
+        # Automated Subledger-to-GL reversal hook (Milestone V2.2)
+        try:
+            from app.modules.accounting.service import GLService
+
+            gl = GLService(self.db, self.clock)
+            gl.reverse_source_document_entries(
+                source_document_type="invoice",
+                source_document_id=inv.id,
+                reason=reason or f"Invoice {inv.invoice_no} voided",
+                user_id=current_user_id,
+            )
+        except Exception:
+            pass
 
         self.db.commit()
         self.db.refresh(inv)
@@ -1700,6 +1732,22 @@ class SalesService:
                 clock=self.clock,
             )
 
+        # Automated Subledger-to-GL posting hook (Milestone V2.2)
+        try:
+            from app.modules.accounting.service import GLService
+
+            gl = GLService(self.db, self.clock)
+            gl.post_payment_to_gl(
+                payment_id=payment.id,
+                payment_no=payment.payment_no,
+                posting_date=payment.payment_date,
+                amount_allocated=alloc_amount,
+                customer_name=f"Customer {payment.customer_id}",
+                user_id=current_user_id,
+            )
+        except Exception:
+            pass
+
         return alloc
 
     def void_payment(
@@ -1768,6 +1816,20 @@ class SalesService:
         pay.void_reason = reason or "Voided by user"
         pay.version += 1
         pay.updated_by = current_user_id
+
+        # Automated Subledger-to-GL reversal hook (Milestone V2.2)
+        try:
+            from app.modules.accounting.service import GLService
+
+            gl = GLService(self.db, self.clock)
+            gl.reverse_source_document_entries(
+                source_document_type="payment",
+                source_document_id=pay.id,
+                reason=reason or f"Payment {pay.payment_no} voided",
+                user_id=current_user_id,
+            )
+        except Exception:
+            pass
 
         self.db.commit()
         self.db.refresh(pay)
@@ -1906,6 +1968,7 @@ class SalesService:
             updated_by=current_user_id,
         )
         self.db.add(credit_note)
+        self.db.flush()
 
         # Apply credit to invoice
         inv.amount_credited += grand_total
@@ -1928,6 +1991,24 @@ class SalesService:
                     changed_by=current_user_id,
                     clock=self.clock,
                 )
+
+        # Automated Subledger-to-GL posting hook (Milestone V2.2)
+        try:
+            from app.modules.accounting.service import GLService
+
+            gl = GLService(self.db, self.clock)
+            gl.post_credit_note_to_gl(
+                credit_note_id=credit_note.id,
+                credit_note_no=credit_note.credit_note_no,
+                customer_name=f"Customer {credit_note.customer_id}",
+                posting_date=credit_note.issue_date,
+                subtotal=credit_note.subtotal,
+                tax_total=credit_note.tax_total,
+                grand_total=credit_note.grand_total,
+                user_id=current_user_id,
+            )
+        except Exception:
+            pass
 
         self.db.commit()
         self.db.refresh(credit_note)

@@ -11,8 +11,10 @@ from app.modules.accounting.models import JournalEntry
 from app.modules.accounting.schemas import (
     AccountCreatePayload,
     AccountResponse,
+    BalanceSheetReport,
     FiscalPeriodCreatePayload,
     FiscalPeriodResponse,
+    IncomeStatementReport,
     JournalEntryCreatePayload,
     JournalEntryLineResponse,
     JournalEntryResponse,
@@ -203,3 +205,30 @@ def get_trial_balance(
     as_of_date: date = Query(default_factory=date.today),
 ) -> TrialBalanceReport:
     return service.generate_trial_balance(as_of_date)
+
+
+@router.get(
+    "/reports/balance-sheet",
+    response_model=BalanceSheetReport,
+    summary="Generate Balance Sheet (Statement of Financial Position)",
+)
+def get_balance_sheet(
+    service: Annotated[GLService, Depends(get_gl_service)],
+    _: Annotated[ScopeContext, Depends(require("accounting:report:read"))],
+    as_of_date: date = Query(default_factory=date.today),
+) -> BalanceSheetReport:
+    return service.generate_balance_sheet(as_of_date)
+
+
+@router.get(
+    "/reports/income-statement",
+    response_model=IncomeStatementReport,
+    summary="Generate Income Statement (P&L / Statement of Comprehensive Income)",
+)
+def get_income_statement(
+    service: Annotated[GLService, Depends(get_gl_service)],
+    _: Annotated[ScopeContext, Depends(require("accounting:report:read"))],
+    start_date: date = Query(...),
+    end_date: date = Query(...),
+) -> IncomeStatementReport:
+    return service.generate_income_statement(start_date=start_date, end_date=end_date)

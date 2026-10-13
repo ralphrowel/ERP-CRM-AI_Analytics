@@ -34,14 +34,18 @@ def upgrade() -> None:
         ),
         sa.Column("is_active", sa.Boolean(), server_default=sa.true(), nullable=False),
         sa.Column("is_reconcilable", sa.Boolean(), server_default=sa.false(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.Column(
             "created_by",
             sa.BigInteger(),
             sa.ForeignKey("users.id", ondelete="SET NULL"),
             nullable=True,
         ),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.Column(
             "updated_by",
             sa.BigInteger(),
@@ -68,14 +72,18 @@ def upgrade() -> None:
         sa.Column("start_date", sa.Date(), nullable=False),
         sa.Column("end_date", sa.Date(), nullable=False),
         sa.Column("status", sa.String(20), server_default="open", nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.Column(
             "created_by",
             sa.BigInteger(),
             sa.ForeignKey("users.id", ondelete="SET NULL"),
             nullable=True,
         ),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.Column(
             "updated_by",
             sa.BigInteger(),
@@ -112,14 +120,18 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.Column("version", sa.Integer(), server_default="1", nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.Column(
             "created_by",
             sa.BigInteger(),
             sa.ForeignKey("users.id", ondelete="SET NULL"),
             nullable=True,
         ),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.Column(
             "updated_by",
             sa.BigInteger(),
