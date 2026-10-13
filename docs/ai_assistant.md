@@ -43,7 +43,7 @@ The ERP AI Assistant (Copilot) operates inside the core ERP/CRM to assist busine
 ┌────────────────────────────────────────────────────────┐
 │                   ERP User Interface                   │
 └───────────────────────────┬────────────────────────────┘
-                            │ HTTP (JWT Bearer Token)
+                            │ HTTP (Session Cookie / Bearer Token)
                             ▼
 ┌────────────────────────────────────────────────────────┐
 │      REST API Router (/api/v1/assistant)               │
