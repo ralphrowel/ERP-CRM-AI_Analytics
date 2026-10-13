@@ -163,3 +163,57 @@ class JournalEntryLine(Base):
 
     journal_entry: Mapped["JournalEntry"] = relationship("JournalEntry", back_populates="lines")
     account: Mapped["Account"] = relationship("Account")
+
+
+class Currency(Base, AuditMixin):
+    """
+    ISO-4217 Currency Master (Roadmap §V2.3).
+    """
+
+    __tablename__ = "currencies"
+
+    code: Mapped[str] = mapped_column(String(3), primary_key=True)  # 'PHP', 'USD', 'EUR', etc.
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    symbol: Mapped[str] = mapped_column(String(10), nullable=False)
+    decimal_places: Mapped[int] = mapped_column(
+        SmallInteger, default=2, server_default="2", nullable=False
+    )
+    is_base: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default="true", nullable=False
+    )
+
+
+class ExchangeRate(Base, AuditMixin):
+    """
+    Historical and spot foreign exchange rates (Roadmap §V2.3).
+    """
+
+    __tablename__ = "fx_rates"
+    __table_args__ = (
+        CheckConstraint("rate > 0", name="ck_fx_rates_rate_positive"),
+        UniqueConstraint(
+            "from_currency_code",
+            "to_currency_code",
+            "effective_date",
+            name="uq_fx_rates_pair_date",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
+    from_currency_code: Mapped[str] = mapped_column(
+        String(3), ForeignKey("currencies.code", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    to_currency_code: Mapped[str] = mapped_column(
+        String(3), ForeignKey("currencies.code", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    effective_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    rate: Mapped[Decimal] = mapped_column(Numeric(19, 6), nullable=False)
+    source: Mapped[str] = mapped_column(
+        String(50), default="manual", server_default="manual", nullable=False
+    )
+
+    from_currency: Mapped["Currency"] = relationship("Currency", foreign_keys=[from_currency_code])
+    to_currency: Mapped["Currency"] = relationship("Currency", foreign_keys=[to_currency_code])

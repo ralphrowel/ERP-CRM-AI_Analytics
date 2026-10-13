@@ -1426,6 +1426,7 @@ class SalesService:
                 subtotal=inv.subtotal,
                 tax_total=inv.tax_total,
                 grand_total=inv.grand_total,
+                currency_code=inv.currency_code or "PHP",
                 user_id=current_user_id,
             )
         except Exception:
@@ -1743,6 +1744,8 @@ class SalesService:
                 posting_date=payment.payment_date,
                 amount_allocated=alloc_amount,
                 customer_name=f"Customer {payment.customer_id}",
+                payment_currency_code=getattr(payment, "currency_code", "PHP") or "PHP",
+                invoice_currency_code=inv.currency_code or "PHP",
                 user_id=current_user_id,
             )
         except Exception:
