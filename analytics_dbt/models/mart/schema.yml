@@ -1,0 +1,91 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: "Conformed calendar and fiscal date dimension."
+    columns:
+      - name: date_key
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_customer
+    description: "Conformed customer dimension with SCD Type 2 history."
+    columns:
+      - name: customer_key
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        data_tests:
+          - not_null
+
+  - name: dim_account
+    description: "Chart of Accounts financial dimension (Phase 3)."
+    columns:
+      - name: account_key
+        data_tests:
+          - unique
+          - not_null
+      - name: account_code
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_product
+    description: "Conformed product catalog dimension."
+    columns:
+      - name: product_key
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_supplier
+    description: "Conformed purchasing supplier dimension."
+    columns:
+      - name: supplier_key
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_warehouse
+    description: "Conformed warehouse dimension."
+    columns:
+      - name: warehouse_key
+        data_tests:
+          - unique
+          - not_null
+
+  - name: fact_sales_line
+    description: "Sales line item transactional fact."
+    columns:
+      - name: sales_line_key
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_key
+
+  - name: fact_gl_journal_line
+    description: "General Ledger double-entry lines fact (Phase 3)."
+    columns:
+      - name: journal_line_key
+        data_tests:
+          - unique
+          - not_null
+      - name: account_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_account')
+                field: account_key
+      - name: debit_amount
+        data_tests:
+          - not_null
+      - name: credit_amount
+        data_tests:
+          - not_null

@@ -1,0 +1,29 @@
+version: 2
+
+models:
+  - name: int_customer_scd2
+    description: "Intermediate Slowly Changing Dimension Type 2 representation of customers."
+    columns:
+      - name: customer_id
+        data_tests:
+          - not_null
+      - name: valid_from
+        data_tests:
+          - not_null
+      - name: is_current
+        data_tests:
+          - not_null
+
+  - name: int_ar_aging_buckets
+    description: "Intermediate accounts receivable outstanding balance aging buckets."
+    columns:
+      - name: invoice_id
+        data_tests:
+          - unique
+          - not_null
+      - name: aging_bucket
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['current', '1-30_days', '31-60_days', '61-90_days', 'over_90_days']
