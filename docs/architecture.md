@@ -179,15 +179,16 @@ All architectural decisions are formally indexed and enforced:
 | **ADR-0014** | Permission-Gated AI Tools with PII Sanitization | V1.6 | AI models (Visiq and ERP Assistant) cannot execute raw SQL. All data access occurs through typed, permission-checked tools with automatic PII masking (RA 10173 compliance). |
 | **ADR-0015** | Transactional Outbox Pattern for Background Automation | V1.8 | Domain events are committed atomically into `outbox_events` within business transactions. Independent worker daemon polls, processes, retries with exponential backoff, and dead-letters failures. |
 | **ADR-0016** | Double-Entry General Ledger Immutability & Reversals | V2.1 | Chart of Accounts with strict double-entry balance enforcement (`SUM(debits) == SUM(credits)`). Once posted, journal entries are permanently immutable; corrections require explicit reversing counter-entries. |
+| **ADR-0017** | Automated Subledger-to-GL Real-Time Posting & Financial Statements | V2.2 | Operational subledger events automatically generate posted double-entry journal vouchers in real time. Voiding creates formal counter-entry reversals. Financial statement generation (Balance Sheet, Income Statement) evaluates dynamic accounting period balances with exact centavo parity (`Assets = Liabilities + Equity + Net Income`). |
 
 ---
 
 ## 5. Known Limitations & Technical Debt
 
 1. **Single Company / Single Currency**:
-   - The platform models single domestic Philippine operations (PHP). Multi-currency conversion, FX gain/loss revaluations, and consolidated group reporting are planned for V2.2.
-2. **Subledger-to-GL Automation in Progress**:
-   - V2.1 introduces the core General Ledger (COA, Fiscal Periods, Journal Entries, Trial Balance). Automated real-time posting hooks from operational subledgers (Sales Invoices, Payments, Supplier Bills) into GL journal entries are scheduled for subsequent integration.
+   - The platform models single domestic Philippine operations (PHP). Multi-currency conversion, FX gain/loss revaluations, and consolidated group reporting are planned for future major releases.
+2. **Automated Subledger-to-GL Realized**:
+   - Milestone V2.2 completes the real-time subledger-to-GL posting pipeline (AR Invoices, Payments, Credit Notes, AP Bills, AP Disbursements) and provides GAAP/PFRS-compliant Balance Sheet and Income Statement reporting.
 3. **Polling Outbox Worker**:
    - Uses row-level lock polling (`SKIP LOCKED`) every 5 seconds. Highly reliable for current throughput, but would benefit from `LISTEN / NOTIFY` or Kafka if event throughput exceeds 1,000 events/second.
 4. **CDC Extraction vs Batch Watermarks**:

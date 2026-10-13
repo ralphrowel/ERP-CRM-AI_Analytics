@@ -1157,6 +1157,27 @@ class PurchasingService:
             clock=self.clock,
         )
         self.db.flush()
+
+        # Automated Subledger-to-GL posting hook (Milestone V2.2)
+        try:
+            from app.modules.accounting.service import GLService
+
+            gl = GLService(self.db, self.clock)
+            gl.post_supplier_invoice_to_gl(
+                invoice_id=bill.id,
+                invoice_no=bill.bill_no,
+                supplier_name=bill.supplier.name
+                if bill.supplier
+                else f"Supplier {bill.supplier_id}",
+                posting_date=bill.invoice_date,
+                subtotal=bill.subtotal,
+                tax_total=bill.tax_total,
+                grand_total=bill.grand_total,
+                user_id=current_user_id,
+            )
+        except Exception:
+            pass
+
         return self.get_supplier_invoice(bill.id)
 
     def void_supplier_invoice(
@@ -1197,6 +1218,21 @@ class PurchasingService:
             clock=self.clock,
         )
         self.db.flush()
+
+        # Automated Subledger-to-GL reversal hook (Milestone V2.2)
+        try:
+            from app.modules.accounting.service import GLService
+
+            gl = GLService(self.db, self.clock)
+            gl.reverse_source_document_entries(
+                source_document_type="supplier_invoice",
+                source_document_id=bill.id,
+                reason=reason or f"Supplier bill {bill.bill_no} voided",
+                user_id=current_user_id,
+            )
+        except Exception:
+            pass
+
         return self.get_supplier_invoice(bill.id)
 
     # ── Accounts Payable (Supplier Payments & Allocations) ──────────────
@@ -1366,6 +1402,23 @@ class PurchasingService:
             clock=self.clock,
         )
         self.db.flush()
+
+        # Automated Subledger-to-GL posting hook (Milestone V2.2)
+        try:
+            from app.modules.accounting.service import GLService
+
+            gl = GLService(self.db, self.clock)
+            gl.post_supplier_payment_to_gl(
+                payment_id=payment.id,
+                payment_no=payment.payment_no,
+                supplier_name=supplier.name,
+                posting_date=payment.payment_date,
+                amount=payment.amount,
+                user_id=current_user_id,
+            )
+        except Exception:
+            pass
+
         return self.get_supplier_payment(payment.id)
 
     def void_supplier_payment(
@@ -1420,6 +1473,21 @@ class PurchasingService:
             clock=self.clock,
         )
         self.db.flush()
+
+        # Automated Subledger-to-GL reversal hook (Milestone V2.2)
+        try:
+            from app.modules.accounting.service import GLService
+
+            gl = GLService(self.db, self.clock)
+            gl.reverse_source_document_entries(
+                source_document_type="supplier_payment",
+                source_document_id=payment.id,
+                reason=reason or f"Supplier payment {payment.payment_no} voided",
+                user_id=current_user_id,
+            )
+        except Exception:
+            pass
+
         return self.get_supplier_payment(payment.id)
 
     # ── Supplier Statement & AP Reconciliation ──────────────────────────
