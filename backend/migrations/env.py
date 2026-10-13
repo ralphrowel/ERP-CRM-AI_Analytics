@@ -8,6 +8,12 @@ from app.core.config import settings
 from app.core.database import Base
 from app.core.numbering import DocumentSequence  # noqa: F401
 from app.core.status_history import StatusHistory  # noqa: F401
+from app.modules.accounting.models import (  # noqa: F401
+    Account,
+    FiscalPeriod,
+    JournalEntry,
+    JournalEntryLine,
+)
 from app.modules.catalog.models import Product, ProductCategory  # noqa: F401
 from app.modules.crm.models import (  # noqa: F401
     Activity,
