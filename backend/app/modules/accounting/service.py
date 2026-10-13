@@ -18,6 +18,8 @@ from app.core.money import round_money
 from app.core.numbering import generate_next_number
 from app.modules.accounting.models import (
     Account,
+    Currency,
+    ExchangeRate,
     FiscalPeriod,
     JournalEntry,
     JournalEntryLine,
@@ -25,6 +27,7 @@ from app.modules.accounting.models import (
 from app.modules.accounting.schemas import (
     AccountCreatePayload,
     BalanceSheetReport,
+    CurrencyCreate,
     FinancialStatementItem,
     FiscalPeriodCreatePayload,
     IncomeStatementReport,
@@ -64,8 +67,46 @@ DEFAULT_COA = [
     {"code": "3200", "name": "Retained Earnings", "type": "equity", "normal": "credit"},
     {"code": "4100", "name": "Sales Revenue", "type": "revenue", "normal": "credit"},
     {"code": "4200", "name": "Sales Discounts", "type": "revenue", "normal": "debit"},
+    {
+        "code": "4300",
+        "name": "Realized Foreign Exchange Gain",
+        "type": "revenue",
+        "normal": "credit",
+    },
+    {
+        "code": "4310",
+        "name": "Unrealized Foreign Exchange Gain",
+        "type": "revenue",
+        "normal": "credit",
+    },
     {"code": "5100", "name": "Cost of Goods Sold (COGS)", "type": "expense", "normal": "debit"},
+    {
+        "code": "5300",
+        "name": "Realized Foreign Exchange Loss",
+        "type": "expense",
+        "normal": "debit",
+    },
+    {
+        "code": "5310",
+        "name": "Unrealized Foreign Exchange Loss",
+        "type": "expense",
+        "normal": "debit",
+    },
     {"code": "6100", "name": "Operating Expenses", "type": "expense", "normal": "debit"},
+]
+
+DEFAULT_CURRENCIES = [
+    {"code": "PHP", "name": "Philippine Peso", "symbol": "₱", "decimal_places": 2, "is_base": True},
+    {"code": "USD", "name": "US Dollar", "symbol": "$", "decimal_places": 2, "is_base": False},
+    {"code": "EUR", "name": "Euro", "symbol": "€", "decimal_places": 2, "is_base": False},
+    {
+        "code": "SGD",
+        "name": "Singapore Dollar",
+        "symbol": "S$",
+        "decimal_places": 2,
+        "is_base": False,
+    },
+    {"code": "JPY", "name": "Japanese Yen", "symbol": "¥", "decimal_places": 0, "is_base": False},
 ]
 
 
@@ -495,7 +536,224 @@ class GLService:
         )
 
     # =========================================================================
-    # 5. Automated Subledger-to-GL Integration (Milestone V2.2)
+    # 5. Currency & Foreign Exchange Management (Milestone V2.3)
+    # =========================================================================
+
+    def seed_default_currencies(self, creator_id: int | None = None) -> list[Currency]:
+        """Seeds standard ISO-4217 currencies baseline with PHP as the base currency."""
+        now = self.clock.now()
+        currencies = []
+        for c in DEFAULT_CURRENCIES:
+            existing = self.db.get(Currency, c["code"])
+            if not existing:
+                curr = Currency(
+                    code=c["code"],
+                    name=c["name"],
+                    symbol=c["symbol"],
+                    decimal_places=c["decimal_places"],
+                    is_base=c["is_base"],
+                    is_active=True,
+                    created_by=creator_id,
+                    created_at=now,
+                    updated_at=now,
+                )
+                self.db.add(curr)
+                currencies.append(curr)
+            else:
+                currencies.append(existing)
+        self.db.commit()
+        return currencies
+
+    def create_currency(self, data: CurrencyCreate, creator_id: int | None = None) -> Currency:
+        """Registers a new currency."""
+        code = data.code.upper().strip()
+        existing = self.db.get(Currency, code)
+        if existing:
+            raise BusinessRuleException(
+                code="CURRENCY_ALREADY_EXISTS",
+                detail=f"Currency '{code}' already exists.",
+            )
+
+        if data.is_base:
+            current_base = self.db.execute(
+                select(Currency).where(Currency.is_base == True)  # noqa: E712
+            ).scalar_one_or_none()
+            if current_base:
+                raise BusinessRuleException(
+                    code="BASE_CURRENCY_EXISTS",
+                    detail=f"Currency '{current_base.code}' is already set as base. Only one base currency is allowed.",
+                )
+
+        now = self.clock.now()
+        currency = Currency(
+            code=code,
+            name=data.name.strip(),
+            symbol=data.symbol.strip(),
+            decimal_places=data.decimal_places,
+            is_base=data.is_base,
+            is_active=data.is_active,
+            created_by=creator_id,
+            created_at=now,
+            updated_at=now,
+        )
+        self.db.add(currency)
+        self.db.commit()
+        self.db.refresh(currency)
+        return currency
+
+    def list_currencies(self, is_active: bool | None = None) -> list[Currency]:
+        """Lists registered currencies."""
+        stmt = select(Currency)
+        if is_active is not None:
+            stmt = stmt.where(Currency.is_active == is_active)
+        return list(
+            self.db.execute(stmt.order_by(Currency.is_base.desc(), Currency.code)).scalars().all()
+        )
+
+    def get_currency(self, code: str) -> Currency:
+        """Retrieves currency by code."""
+        code_clean = code.upper().strip()
+        curr = self.db.get(Currency, code_clean)
+        if not curr:
+            self.seed_default_currencies()
+            curr = self.db.get(Currency, code_clean)
+        if not curr:
+            raise NotFoundException(detail=f"Currency '{code_clean}' not found.")
+        return curr
+
+    def set_exchange_rate(
+        self,
+        from_currency: str,
+        to_currency: str,
+        rate: Decimal,
+        effective_date: date,
+        source: str = "manual",
+        user_id: int | None = None,
+    ) -> ExchangeRate:
+        """Sets or updates an exchange rate for a given currency pair on an effective date."""
+        from_code = from_currency.upper().strip()
+        to_code = to_currency.upper().strip()
+
+        if from_code == to_code:
+            raise BusinessRuleException(
+                code="INVALID_CURRENCY_PAIR",
+                detail="From currency and to currency cannot be the same.",
+            )
+
+        self.get_currency(from_code)
+        self.get_currency(to_code)
+
+        if rate <= Decimal("0.000000"):
+            raise BusinessRuleException(
+                code="INVALID_EXCHANGE_RATE",
+                detail="Exchange rate must be greater than zero.",
+            )
+
+        existing = self.db.execute(
+            select(ExchangeRate).where(
+                ExchangeRate.from_currency_code == from_code,
+                ExchangeRate.to_currency_code == to_code,
+                ExchangeRate.effective_date == effective_date,
+            )
+        ).scalar_one_or_none()
+
+        now = self.clock.now()
+        if existing:
+            existing.rate = rate
+            existing.source = source
+            existing.updated_at = now
+            existing.updated_by = user_id
+            self.db.commit()
+            self.db.refresh(existing)
+            return existing
+
+        fx = ExchangeRate(
+            from_currency_code=from_code,
+            to_currency_code=to_code,
+            effective_date=effective_date,
+            rate=rate,
+            source=source,
+            created_by=user_id,
+            updated_by=user_id,
+            created_at=now,
+            updated_at=now,
+        )
+        self.db.add(fx)
+        self.db.commit()
+        self.db.refresh(fx)
+        return fx
+
+    def get_exchange_rate(
+        self,
+        from_currency: str,
+        to_currency: str = "PHP",
+        as_of_date: date | None = None,
+    ) -> Decimal:
+        """
+        Resolves exchange rate as of a given date (effective_date <= as_of_date).
+        Supports direct rates and inverse rates (1/rate).
+        """
+        from_code = from_currency.upper().strip()
+        to_code = to_currency.upper().strip()
+
+        if from_code == to_code:
+            return Decimal("1.000000")
+
+        target_date = as_of_date or self.clock.today()
+
+        direct = (
+            self.db.execute(
+                select(ExchangeRate)
+                .where(
+                    ExchangeRate.from_currency_code == from_code,
+                    ExchangeRate.to_currency_code == to_code,
+                    ExchangeRate.effective_date <= target_date,
+                )
+                .order_by(ExchangeRate.effective_date.desc(), ExchangeRate.id.desc())
+            )
+            .scalars()
+            .first()
+        )
+
+        if direct:
+            return direct.rate
+
+        inverse = (
+            self.db.execute(
+                select(ExchangeRate)
+                .where(
+                    ExchangeRate.from_currency_code == to_code,
+                    ExchangeRate.to_currency_code == from_code,
+                    ExchangeRate.effective_date <= target_date,
+                )
+                .order_by(ExchangeRate.effective_date.desc(), ExchangeRate.id.desc())
+            )
+            .scalars()
+            .first()
+        )
+
+        if inverse:
+            return Decimal(str(round(1 / float(inverse.rate), 6)))
+
+        raise BusinessRuleException(
+            code="EXCHANGE_RATE_NOT_FOUND",
+            detail=f"No exchange rate found for {from_code} -> {to_code} on or before {target_date}.",
+        )
+
+    def convert_amount(
+        self,
+        amount: Decimal,
+        from_currency: str,
+        to_currency: str = "PHP",
+        as_of_date: date | None = None,
+    ) -> tuple[Decimal, Decimal]:
+        """Converts an amount using prevailing exchange rate. Returns (converted_amount, rate)."""
+        rate = self.get_exchange_rate(from_currency, to_currency, as_of_date=as_of_date)
+        converted = round_money(amount * rate)
+        return converted, rate
+
+    # =========================================================================
+    # 6. Automated Subledger-to-GL Integration (Milestones V2.2 & V2.3)
     # =========================================================================
 
     def ensure_account(self, code: str) -> Account:
@@ -517,13 +775,16 @@ class GLService:
         subtotal: Decimal,
         tax_total: Decimal,
         grand_total: Decimal,
+        currency_code: str = "PHP",
+        exchange_rate: Decimal | None = None,
         user_id: int | None = None,
     ) -> JournalEntry:
         """
-        Subledger hook: posts sales invoice to General Ledger.
-        Dr Accounts Receivable (1200): grand_total
-        Cr Sales Revenue (4100): subtotal
-        Cr Output VAT Payable (2210): tax_total (if > 0)
+        Subledger hook: posts sales invoice to General Ledger in base currency (PHP).
+        Converts foreign currency amounts using exchange_rate.
+        Dr Accounts Receivable (1200): base_grand_total
+        Cr Sales Revenue (4100): base_subtotal
+        Cr Output VAT Payable (2210): base_tax_total (if > 0)
         """
         existing = self.db.execute(
             select(JournalEntry).where(
@@ -535,37 +796,55 @@ class GLService:
         if existing:
             return existing
 
+        curr = currency_code.upper().strip()
+        rate = exchange_rate
+        if rate is None:
+            if curr == "PHP":
+                rate = Decimal("1.000000")
+            else:
+                rate = self.get_exchange_rate(curr, "PHP", as_of_date=posting_date)
+
+        base_grand = round_money(grand_total * rate)
+        base_sub = round_money(subtotal * rate)
+        base_tax = round_money(tax_total * rate)
+
+        diff = base_grand - (base_sub + base_tax)
+        if diff != Decimal("0.00"):
+            base_sub += diff
+
         ar = self.ensure_account("1200")
         rev = self.ensure_account("4100")
         vat = self.ensure_account("2210")
 
+        fx_desc = f" ({curr} {grand_total} @ {rate})" if curr != "PHP" else ""
+
         lines = [
             JournalEntryLinePayload(
                 account_id=ar.id,
-                debit_amount=round_money(grand_total),
+                debit_amount=base_grand,
                 credit_amount=Decimal("0.00"),
-                description=f"AR - {customer_name}",
+                description=f"AR - {customer_name}{fx_desc}",
             ),
             JournalEntryLinePayload(
                 account_id=rev.id,
                 debit_amount=Decimal("0.00"),
-                credit_amount=round_money(subtotal),
-                description="Sales Revenue",
+                credit_amount=base_sub,
+                description=f"Sales Revenue{fx_desc}",
             ),
         ]
-        if round_money(tax_total) > Decimal("0.00"):
+        if base_tax > Decimal("0.00"):
             lines.append(
                 JournalEntryLinePayload(
                     account_id=vat.id,
                     debit_amount=Decimal("0.00"),
-                    credit_amount=round_money(tax_total),
-                    description="Output VAT (12%)",
+                    credit_amount=base_tax,
+                    description=f"Output VAT (12%){fx_desc}",
                 )
             )
 
         payload = JournalEntryCreatePayload(
             posting_date=posting_date,
-            description=f"Sales Invoice {invoice_no} to {customer_name}",
+            description=f"Sales Invoice {invoice_no} to {customer_name}{fx_desc}",
             source_document_type="invoice",
             source_document_id=invoice_id,
             lines=lines,
@@ -579,37 +858,85 @@ class GLService:
         posting_date: date,
         amount_allocated: Decimal,
         customer_name: str | None = None,
+        payment_currency_code: str = "PHP",
+        invoice_currency_code: str | None = None,
+        payment_exchange_rate: Decimal | None = None,
+        invoice_exchange_rate: Decimal | None = None,
         user_id: int | None = None,
     ) -> JournalEntry | None:
         """
-        Subledger hook: posts customer payment allocation to General Ledger.
-        Dr Cash in Bank (1120): amount_allocated
-        Cr Accounts Receivable (1200): amount_allocated
+        Subledger hook: posts customer payment allocation to General Ledger in base currency (PHP).
+        Calculates and posts Realized FX Gain (4300) or Realized FX Loss (5300) when settling foreign invoices.
         """
         if round_money(amount_allocated) <= Decimal("0.00"):
             return None
 
+        curr = payment_currency_code.upper().strip()
+        p_rate = payment_exchange_rate
+        if p_rate is None:
+            if curr == "PHP":
+                p_rate = Decimal("1.000000")
+            else:
+                p_rate = self.get_exchange_rate(curr, "PHP", as_of_date=posting_date)
+
+        if invoice_exchange_rate is not None:
+            inv_rate = invoice_exchange_rate
+        elif invoice_currency_code and invoice_currency_code.upper().strip() != "PHP":
+            inv_rate = self.get_exchange_rate(
+                invoice_currency_code.upper().strip(), "PHP", as_of_date=posting_date
+            )
+        else:
+            inv_rate = p_rate
+
+        base_bank_received = round_money(amount_allocated * p_rate)
+        base_ar_settled = round_money(amount_allocated * inv_rate)
+
         bank = self.ensure_account("1120")
         ar = self.ensure_account("1200")
+
+        fx_desc = f" ({curr} {amount_allocated} @ {p_rate})" if curr != "PHP" else ""
 
         lines = [
             JournalEntryLinePayload(
                 account_id=bank.id,
-                debit_amount=round_money(amount_allocated),
+                debit_amount=base_bank_received,
                 credit_amount=Decimal("0.00"),
-                description=f"Collection: {payment_no}",
+                description=f"Collection: {payment_no}{fx_desc}",
             ),
             JournalEntryLinePayload(
                 account_id=ar.id,
                 debit_amount=Decimal("0.00"),
-                credit_amount=round_money(amount_allocated),
-                description=f"AR settlement{f' - {customer_name}' if customer_name else ''}",
+                credit_amount=base_ar_settled,
+                description=f"AR settlement{f' - {customer_name}' if customer_name else ''}{fx_desc}",
             ),
         ]
 
+        if base_bank_received > base_ar_settled:
+            fx_gain_acc = self.ensure_account("4300")
+            gain_amount = base_bank_received - base_ar_settled
+            lines.append(
+                JournalEntryLinePayload(
+                    account_id=fx_gain_acc.id,
+                    debit_amount=Decimal("0.00"),
+                    credit_amount=gain_amount,
+                    description=f"Realized FX Gain on settlement ({payment_no})",
+                )
+            )
+        elif base_bank_received < base_ar_settled:
+            fx_loss_acc = self.ensure_account("5300")
+            loss_amount = base_ar_settled - base_bank_received
+            lines.append(
+                JournalEntryLinePayload(
+                    account_id=fx_loss_acc.id,
+                    debit_amount=loss_amount,
+                    credit_amount=Decimal("0.00"),
+                    description=f"Realized FX Loss on settlement ({payment_no})",
+                )
+            )
+
         payload = JournalEntryCreatePayload(
             posting_date=posting_date,
-            description=f"Payment {payment_no} collection & allocation",
+            description=f"Payment {payment_no} collection & allocation{fx_desc}",
             source_document_type="payment",
             source_document_id=payment_id,
             lines=lines,

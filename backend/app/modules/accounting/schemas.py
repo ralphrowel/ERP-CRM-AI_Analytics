@@ -152,3 +152,65 @@ class IncomeStatementReport(BaseModel):
     expense_items: list[FinancialStatementItem]
     total_expenses: Decimal
     net_income: Decimal
+
+
+# --- Multi-Currency & FX Schemas (Milestone V2.3) ---
+
+
+class CurrencyCreate(BaseModel):
+    code: str = Field(..., min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
+    name: str = Field(..., min_length=1, max_length=100)
+    symbol: str = Field(..., min_length=1, max_length=10)
+    decimal_places: int = Field(default=2, ge=0, le=4)
+    is_base: bool = False
+    is_active: bool = True
+
+
+class CurrencyOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    code: str
+    name: str
+    symbol: str
+    decimal_places: int
+    is_base: bool
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class ExchangeRateCreate(BaseModel):
+    from_currency_code: str = Field(..., min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
+    to_currency_code: str = Field(default="PHP", min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
+    effective_date: date
+    rate: Decimal = Field(..., gt=Decimal("0.000000"))
+    source: str = Field(default="manual", max_length=50)
+
+
+class ExchangeRateOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    from_currency_code: str
+    to_currency_code: str
+    effective_date: date
+    rate: Decimal
+    source: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class FxConversionRequest(BaseModel):
+    amount: Decimal = Field(..., gt=Decimal("0.00"))
+    from_currency: str = Field(..., min_length=3, max_length=3)
+    to_currency: str = Field(default="PHP", min_length=3, max_length=3)
+    as_of_date: date | None = None
+
+
+class FxConversionResponse(BaseModel):
+    original_amount: Decimal
+    from_currency: str
+    to_currency: str
+    rate: Decimal
+    converted_amount: Decimal
+    as_of_date: date

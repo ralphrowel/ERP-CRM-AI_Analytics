@@ -12,8 +12,14 @@ from app.modules.accounting.schemas import (
     AccountCreatePayload,
     AccountResponse,
     BalanceSheetReport,
+    CurrencyCreate,
+    CurrencyOut,
+    ExchangeRateCreate,
+    ExchangeRateOut,
     FiscalPeriodCreatePayload,
     FiscalPeriodResponse,
+    FxConversionRequest,
+    FxConversionResponse,
     IncomeStatementReport,
     JournalEntryCreatePayload,
     JournalEntryLineResponse,
@@ -232,3 +238,105 @@ def get_income_statement(
     end_date: date = Query(...),
 ) -> IncomeStatementReport:
     return service.generate_income_statement(start_date=start_date, end_date=end_date)
+
+
+# -----------------------------------------------------------------------------
+# Currencies & Foreign Exchange (FX) Endpoints (Milestone V2.3)
+# -----------------------------------------------------------------------------
+
+
+@router.get(
+    "/currencies",
+    response_model=list[CurrencyOut],
+    summary="List Currencies",
+)
+def list_currencies(
+    service: Annotated[GLService, Depends(get_gl_service)],
+    _: Annotated[ScopeContext, Depends(require("accounting:read"))],
+    is_active: bool | None = Query(default=None),
+) -> list[CurrencyOut]:
+    return [CurrencyOut.model_validate(c) for c in service.list_currencies(is_active=is_active)]
+
+
+@router.post(
+    "/currencies",
+    response_model=CurrencyOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register Currency",
+)
+def create_currency(
+    payload: CurrencyCreate,
+    service: Annotated[GLService, Depends(get_gl_service)],
+    _: Annotated[ScopeContext, Depends(require("accounting:manage"))],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> CurrencyOut:
+    return CurrencyOut.model_validate(service.create_currency(payload, creator_id=current_user.id))
+
+
+@router.get(
+    "/fx-rates",
+    summary="Get Prevailing Exchange Rate",
+)
+def get_exchange_rate(
+    service: Annotated[GLService, Depends(get_gl_service)],
+    _: Annotated[ScopeContext, Depends(require("accounting:read"))],
+    from_currency: str = Query(..., min_length=3, max_length=3),
+    to_currency: str = Query(default="PHP", min_length=3, max_length=3),
+    as_of_date: date | None = Query(default=None),
+):
+    rate = service.get_exchange_rate(from_currency, to_currency, as_of_date=as_of_date)
+    return {
+        "from_currency": from_currency.upper(),
+        "to_currency": to_currency.upper(),
+        "rate": rate,
+        "as_of_date": as_of_date or date.today(),
+    }
+
+
+@router.post(
+    "/fx-rates",
+    response_model=ExchangeRateOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Set Exchange Rate",
+)
+def set_exchange_rate(
+    payload: ExchangeRateCreate,
+    service: Annotated[GLService, Depends(get_gl_service)],
+    _: Annotated[ScopeContext, Depends(require("accounting:manage"))],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> ExchangeRateOut:
+    fx = service.set_exchange_rate(
+        from_currency=payload.from_currency_code,
+        to_currency=payload.to_currency_code,
+        rate=payload.rate,
+        effective_date=payload.effective_date,
+        source=payload.source,
+        user_id=current_user.id,
+    )
+    return ExchangeRateOut.model_validate(fx)
+
+
+@router.post(
+    "/fx-rates/convert",
+    response_model=FxConversionResponse,
+    summary="Convert Amount via FX Rate",
+)
+def convert_fx_amount(
+    payload: FxConversionRequest,
+    service: Annotated[GLService, Depends(get_gl_service)],
+    _: Annotated[ScopeContext, Depends(require("accounting:read"))],
+) -> FxConversionResponse:
+    converted, rate = service.convert_amount(
+        amount=payload.amount,
+        from_currency=payload.from_currency,
+        to_currency=payload.to_currency,
+        as_of_date=payload.as_of_date,
+    )
+    return FxConversionResponse(
+        original_amount=payload.amount,
+        from_currency=payload.from_currency.upper(),
+        to_currency=payload.to_currency.upper(),
+        rate=rate,
+        converted_amount=converted,
+        as_of_date=payload.as_of_date or date.today(),
+    )

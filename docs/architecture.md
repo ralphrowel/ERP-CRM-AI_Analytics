@@ -180,14 +180,15 @@ All architectural decisions are formally indexed and enforced:
 | **ADR-0015** | Transactional Outbox Pattern for Background Automation | V1.8 | Domain events are committed atomically into `outbox_events` within business transactions. Independent worker daemon polls, processes, retries with exponential backoff, and dead-letters failures. |
 | **ADR-0016** | Double-Entry General Ledger Immutability & Reversals | V2.1 | Chart of Accounts with strict double-entry balance enforcement (`SUM(debits) == SUM(credits)`). Once posted, journal entries are permanently immutable; corrections require explicit reversing counter-entries. |
 | **ADR-0017** | Automated Subledger-to-GL Real-Time Posting & Financial Statements | V2.2 | Operational subledger events automatically generate posted double-entry journal vouchers in real time. Voiding creates formal counter-entry reversals. Financial statement generation (Balance Sheet, Income Statement) evaluates dynamic accounting period balances with exact centavo parity (`Assets = Liabilities + Equity + Net Income`). |
+| **ADR-0018** | Multi-Currency Operations and Realized FX Settlement Engine | V2.3 | Commercial documents support foreign currencies with date-effective exchange rates (direct or reciprocal) converted to base PHP. Subledger settlements automatically compute and post Realized FX Gain (`4300`) or Realized FX Loss (`5300`) vouchers, maintaining exact double-entry equilibrium and flowing directly into Income Statement and folded Balance Sheet equity. |
 
 ---
 
 ## 5. Known Limitations & Technical Debt
 
-1. **Single Company / Single Currency**:
-   - The platform models single domestic Philippine operations (PHP). Multi-currency conversion, FX gain/loss revaluations, and consolidated group reporting are planned for future major releases.
-2. **Automated Subledger-to-GL Realized**:
+1. **Multi-Currency Delivered (V2.3)**:
+   - Milestone V2.3 delivered full ISO-4217 currency registry, date-effective exchange rate resolution, automated foreign invoice GL conversion, and realized FX gain/loss settlement posting. Period-end unrealized mark-to-market revaluations and multi-tenant consolidation remain future enhancements.
+2. **Automated Subledger-to-GL Realized (V2.2)**:
    - Milestone V2.2 completes the real-time subledger-to-GL posting pipeline (AR Invoices, Payments, Credit Notes, AP Bills, AP Disbursements) and provides GAAP/PFRS-compliant Balance Sheet and Income Statement reporting.
 3. **Polling Outbox Worker**:
    - Uses row-level lock polling (`SKIP LOCKED`) every 5 seconds. Highly reliable for current throughput, but would benefit from `LISTEN / NOTIFY` or Kafka if event throughput exceeds 1,000 events/second.
