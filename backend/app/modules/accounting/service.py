@@ -83,6 +83,7 @@ class GLService:
     def seed_default_chart_of_accounts(self, creator_id: int | None = None) -> list[Account]:
         """Seeds standard enterprise Philippine Chart of Accounts baseline."""
         accounts = []
+        now = self.clock.now()
         for def_acc in DEFAULT_COA:
             existing = self.db.execute(
                 select(Account).where(Account.code == def_acc["code"])
@@ -96,6 +97,8 @@ class GLService:
                     is_reconcilable=def_acc.get("reconcilable", False),
                     is_active=True,
                     created_by=creator_id,
+                    created_at=now,
+                    updated_at=now,
                 )
                 self.db.add(acc)
                 accounts.append(acc)
@@ -120,6 +123,7 @@ class GLService:
             if not parent:
                 raise NotFoundException(detail="Parent account not found.")
 
+        now = self.clock.now()
         account = Account(
             code=data.code,
             name=data.name,
@@ -130,6 +134,8 @@ class GLService:
             is_reconcilable=data.is_reconcilable,
             is_active=True,
             created_by=creator_id,
+            created_at=now,
+            updated_at=now,
         )
         self.db.add(account)
         self.db.commit()
@@ -174,12 +180,15 @@ class GLService:
                 detail=f"Fiscal period '{data.period_name}' already exists.",
             )
 
+        now = self.clock.now()
         period = FiscalPeriod(
             period_name=data.period_name,
             start_date=data.start_date,
             end_date=data.end_date,
             status="open",
             created_by=creator_id,
+            created_at=now,
+            updated_at=now,
         )
         self.db.add(period)
         self.db.commit()
@@ -267,6 +276,7 @@ class GLService:
 
         entry_no = generate_next_number(self.db, "journal_entry", clock=self.clock)
 
+        now = self.clock.now()
         entry = JournalEntry(
             entry_no=entry_no,
             posting_date=data.posting_date,
@@ -277,6 +287,8 @@ class GLService:
             total_credit=round_money(total_credit),
             description=data.description,
             created_by=user_id,
+            created_at=now,
+            updated_at=now,
         )
         entry.lines.extend(line_objects)
 
