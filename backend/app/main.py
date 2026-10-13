@@ -10,6 +10,7 @@ from app.core.errors import register_error_handlers
 from app.core.logging import RequestIdMiddleware, setup_logging
 from app.core.middleware import SecurityHeadersMiddleware
 from app.core.numbering import DocumentSequence
+from app.modules.accounting.router import router as accounting_router
 from app.modules.assistant.router import router as assistant_router
 from app.modules.audit.listener import register_audit_listener
 from app.modules.audit.router import router as audit_router
@@ -146,6 +147,13 @@ async def lifespan(app: FastAPI):
                 padding=6,
                 next_value=1,
             ),
+            DocumentSequence(
+                doc_type="journal_entry",
+                prefix="JV",
+                include_year=True,
+                padding=6,
+                next_value=1,
+            ),
         ]
         for seq in sequences:
             existing = db.execute(
@@ -227,3 +235,4 @@ app.include_router(visiq_router, prefix=API_PREFIX)
 app.include_router(assistant_router, prefix=API_PREFIX)
 app.include_router(notifications_router, prefix=API_PREFIX)
 app.include_router(events_router, prefix=API_PREFIX)
+app.include_router(accounting_router, prefix=API_PREFIX)

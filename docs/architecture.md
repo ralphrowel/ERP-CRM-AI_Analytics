@@ -178,15 +178,16 @@ All architectural decisions are formally indexed and enforced:
 | **ADR-0013** | Dual-Database Separation with Read-Only ETL Role | V1.1 | Physical separation of OLTP and OLAP into `erp_crm` and `erp_analytics`. ETL extracts via dedicated read-only role `etl_reader`. Eliminates operational interference from reporting queries. |
 | **ADR-0014** | Permission-Gated AI Tools with PII Sanitization | V1.6 | AI models (Visiq and ERP Assistant) cannot execute raw SQL. All data access occurs through typed, permission-checked tools with automatic PII masking (RA 10173 compliance). |
 | **ADR-0015** | Transactional Outbox Pattern for Background Automation | V1.8 | Domain events are committed atomically into `outbox_events` within business transactions. Independent worker daemon polls, processes, retries with exponential backoff, and dead-letters failures. |
+| **ADR-0016** | Double-Entry General Ledger Immutability & Reversals | V2.1 | Chart of Accounts with strict double-entry balance enforcement (`SUM(debits) == SUM(credits)`). Once posted, journal entries are permanently immutable; corrections require explicit reversing counter-entries. |
 
 ---
 
 ## 5. Known Limitations & Technical Debt
 
 1. **Single Company / Single Currency**:
-   - The platform models single domestic Philippine operations (PHP). Multi-currency conversion, FX gain/loss revaluations, and consolidated group reporting are not modeled.
-2. **Lightweight AR/AP (No General Ledger)**:
-   - Tracks subledger invoices, payments, allocations, and supplier bills. Does not generate formal debit/credit journal entries, chart of accounts, or balance sheets.
+   - The platform models single domestic Philippine operations (PHP). Multi-currency conversion, FX gain/loss revaluations, and consolidated group reporting are planned for V2.2.
+2. **Subledger-to-GL Automation in Progress**:
+   - V2.1 introduces the core General Ledger (COA, Fiscal Periods, Journal Entries, Trial Balance). Automated real-time posting hooks from operational subledgers (Sales Invoices, Payments, Supplier Bills) into GL journal entries are scheduled for subsequent integration.
 3. **Polling Outbox Worker**:
    - Uses row-level lock polling (`SKIP LOCKED`) every 5 seconds. Highly reliable for current throughput, but would benefit from `LISTEN / NOTIFY` or Kafka if event throughput exceeds 1,000 events/second.
 4. **CDC Extraction vs Batch Watermarks**:
