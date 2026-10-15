@@ -77,6 +77,25 @@ class DbtRunner:
         cmd += ["--profiles-dir", str(self.profiles_dir)]
 
         run_env = os.environ.copy()
+        defaults = {
+            "DBT_HOST": run_env.get("ANALYTICS_HOST", "127.0.0.1"),
+            "DBT_PORT": run_env.get("ANALYTICS_PORT", "5432"),
+            "DBT_USER": run_env.get(
+                "ANALYTICS_USER", run_env.get("POSTGRES_USER", "postgres")
+            ),
+            "DBT_PASSWORD": run_env.get(
+                "ANALYTICS_PASSWORD",
+                run_env.get("POSTGRES_PASSWORD", "postgres_password"),
+            ),
+            "DBT_DB": run_env.get(
+                "ANALYTICS_DB", run_env.get("POSTGRES_DB", "erp_crm")
+            ),
+            "DBT_SCHEMA": run_env.get("DBT_SCHEMA", "public"),
+            "DBT_PROFILES_DIR": str(self.profiles_dir),
+        }
+        for k, v in defaults.items():
+            run_env.setdefault(k, v)
+
         if env:
             run_env.update(env)
 

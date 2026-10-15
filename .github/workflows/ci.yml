@@ -60,10 +60,14 @@ jobs:
                 CREATE ROLE analytics_owner WITH LOGIN PASSWORD 'analytics_owner_password';
               END IF;
               IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'root') THEN
-                CREATE ROLE root WITH SUPERUSER LOGIN;
+                CREATE ROLE root WITH SUPERUSER LOGIN PASSWORD 'postgres_password';
+              ELSE
+                ALTER ROLE root WITH SUPERUSER LOGIN PASSWORD 'postgres_password';
               END IF;
               IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'runner') THEN
-                CREATE ROLE runner WITH SUPERUSER LOGIN;
+                CREATE ROLE runner WITH SUPERUSER LOGIN PASSWORD 'postgres_password';
+              ELSE
+                ALTER ROLE runner WITH SUPERUSER LOGIN PASSWORD 'postgres_password';
               END IF;
             END
             \$\$;
@@ -141,13 +145,25 @@ jobs:
           MIGRATION_DATABASE_URL: postgresql+psycopg://erp_owner:erp_owner_password@localhost:5432/erp_crm
           ETL_READER_DATABASE_URL: postgresql+psycopg://etl_reader:etl_reader_password@localhost:5432/erp_crm
           ANALYTICS_DATABASE_URL: postgresql+psycopg://analytics_owner:analytics_owner_password@localhost:5432/erp_analytics
-          POSTGRES_HOST: localhost
+          POSTGRES_HOST: 127.0.0.1
           POSTGRES_PORT: "5432"
           POSTGRES_DB: erp_crm
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres_password
           POSTGRES_OWNER_USER: erp_owner
           POSTGRES_OWNER_PASSWORD: erp_owner_password
+          DBT_HOST: 127.0.0.1
+          DBT_PORT: "5432"
+          DBT_USER: postgres
+          DBT_PASSWORD: postgres_password
+          DBT_DB: erp_crm
+          DBT_SCHEMA: public
+          DBT_PROFILES_DIR: ${{ github.workspace }}/analytics_dbt
+          ANALYTICS_HOST: 127.0.0.1
+          ANALYTICS_PORT: "5432"
+          ANALYTICS_USER: postgres
+          ANALYTICS_PASSWORD: postgres_password
+          ANALYTICS_DB: erp_crm
           SECRET_KEY: test-secret-key-for-ci-pipeline-min-32-chars-long!
         run: |
           pytest -v

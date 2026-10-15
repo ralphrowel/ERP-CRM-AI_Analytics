@@ -90,7 +90,9 @@ def test_sources_yml_definitions(dbt_runner: DbtRunner):
 def test_dbt_parse_and_manifest_generation(dbt_runner: DbtRunner):
     """Executes dbt parse and validates target/manifest.json contents."""
     res = dbt_runner.execute(["parse"])
-    assert res.success is True
+    assert res.success is True, (
+        f"dbt parse failed (rc={res.returncode}):\nSTDOUT: {res.stdout}\nSTDERR: {res.stderr}"
+    )
     assert res.returncode == 0
 
     manifest = dbt_runner.load_manifest()
