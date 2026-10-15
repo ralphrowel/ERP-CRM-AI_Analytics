@@ -1,0 +1,154 @@
+version: 2
+
+models:
+  - name: stg_customers
+    description: "Staging customer records deduplicated from raw.customers."
+    columns:
+      - name: id
+        description: "Primary key for customer."
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_no
+        description: "Unique formatted business identifier."
+        data_tests:
+          - unique
+          - not_null
+
+  - name: stg_invoices
+    description: "Staging invoice headers deduplicated from raw.invoices."
+    columns:
+      - name: id
+        description: "Primary key for invoice."
+        data_tests:
+          - unique
+          - not_null
+      - name: invoice_no
+        description: "Document number (INV-YYYY-XXXXXX)."
+        data_tests:
+          - unique
+          - not_null
+      - name: status
+        data_tests:
+          - not_null
+
+  - name: stg_payments
+    description: "Staging customer payments deduplicated from raw.payments."
+    columns:
+      - name: id
+        data_tests:
+          - unique
+          - not_null
+      - name: payment_no
+        data_tests:
+          - unique
+          - not_null
+
+  - name: stg_products
+    description: "Staging product master records."
+    columns:
+      - name: id
+        data_tests:
+          - unique
+          - not_null
+      - name: sku
+        data_tests:
+          - unique
+          - not_null
+
+  # Phase 3: General Ledger Staging Models
+  - name: stg_accounts
+    description: "Staging Chart of Accounts master."
+    columns:
+      - name: id
+        data_tests:
+          - unique
+          - not_null
+      - name: code
+        data_tests:
+          - unique
+          - not_null
+      - name: account_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['asset', 'liability', 'equity', 'revenue', 'expense']
+      - name: normal_balance
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['debit', 'credit']
+
+  - name: stg_fiscal_periods
+    description: "Staging fiscal calendar accounting periods."
+    columns:
+      - name: id
+        data_tests:
+          - unique
+          - not_null
+      - name: period_name
+        data_tests:
+          - unique
+          - not_null
+
+  - name: stg_journal_entries
+    description: "Staging double-entry General Ledger journal entry vouchers."
+    columns:
+      - name: id
+        data_tests:
+          - unique
+          - not_null
+      - name: entry_no
+        data_tests:
+          - unique
+          - not_null
+      - name: posting_date
+        data_tests:
+          - not_null
+      - name: status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['draft', 'posted', 'reversed']
+
+  - name: stg_journal_entry_lines
+    description: "Staging General Ledger journal entry posting lines."
+    columns:
+      - name: id
+        data_tests:
+          - unique
+          - not_null
+      - name: journal_entry_id
+        data_tests:
+          - not_null
+      - name: account_id
+        data_tests:
+          - not_null
+      - name: debit_amount
+        data_tests:
+          - not_null
+      - name: credit_amount
+        data_tests:
+          - not_null
+
+  - name: stg_currencies
+    description: "Staging ISO-4217 currencies."
+    columns:
+      - name: code
+        data_tests:
+          - unique
+          - not_null
+
+  - name: stg_fx_rates
+    description: "Staging date-effective foreign exchange rates."
+    columns:
+      - name: id
+        data_tests:
+          - unique
+          - not_null
+      - name: rate
+        data_tests:
+          - not_null

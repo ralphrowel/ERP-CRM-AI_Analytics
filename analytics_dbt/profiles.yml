@@ -1,0 +1,26 @@
+erp_analytics:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('DBT_HOST', env_var('ANALYTICS_HOST', '127.0.0.1')) }}"
+      port: "{{ env_var('DBT_PORT', env_var('ANALYTICS_PORT', '5432')) | int }}"
+      user: "{{ env_var('DBT_USER', env_var('ANALYTICS_USER', 'postgres')) }}"
+      password: "{{ env_var('DBT_PASSWORD', env_var('ANALYTICS_PASSWORD', 'postgres_password')) }}"
+      dbname: "{{ env_var('DBT_DB', env_var('ANALYTICS_DB', 'erp_crm')) }}"
+      schema: "{{ env_var('DBT_SCHEMA', 'public') }}"
+      threads: 4
+      keepalives_idle: 0
+      connect_timeout: 10
+      retries: 1
+    test:
+      type: postgres
+      host: "{{ env_var('DBT_HOST', env_var('ANALYTICS_HOST', '127.0.0.1')) }}"
+      port: "{{ env_var('DBT_PORT', env_var('ANALYTICS_PORT', '5432')) | int }}"
+      user: "{{ env_var('DBT_USER', env_var('ANALYTICS_USER', 'postgres')) }}"
+      password: "{{ env_var('DBT_PASSWORD', env_var('ANALYTICS_PASSWORD', 'postgres_password')) }}"
+      dbname: "{{ env_var('DBT_DB', env_var('ANALYTICS_DB', 'erp_crm')) }}"
+      schema: "{{ env_var('DBT_SCHEMA', 'public') }}"
+      threads: 1
+      keepalives_idle: 0
+      connect_timeout: 10

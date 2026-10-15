@@ -1,0 +1,50 @@
+WITH ranked AS (
+    SELECT 
+        id,
+        invoice_no,
+        sales_order_id,
+        customer_id,
+        status,
+        issue_date,
+        due_date,
+        currency_code,
+        currency_code AS currency,
+        subtotal,
+        discount_total,
+        tax_total,
+        grand_total,
+        grand_total AS total_amount,
+        amount_paid,
+        balance_due,
+        created_at,
+        updated_at,
+        _extracted_at,
+        _run_id,
+        _source,
+        ROW_NUMBER() OVER (PARTITION BY id ORDER BY _extracted_at DESC, _raw_id DESC) AS _rn
+    FROM {{ source('raw', 'invoices') }}
+)
+SELECT 
+    id,
+    invoice_no,
+    sales_order_id,
+    customer_id,
+    status,
+    issue_date,
+    due_date,
+    currency,
+    currency_code,
+    subtotal,
+    discount_total,
+    tax_total,
+    grand_total,
+    total_amount,
+    amount_paid,
+    balance_due,
+    created_at,
+    updated_at,
+    _extracted_at,
+    _run_id,
+    _source
+FROM ranked
+WHERE _rn = 1;

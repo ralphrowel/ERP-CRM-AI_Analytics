@@ -1,0 +1,73 @@
+version: 2
+
+sources:
+  - name: raw
+    database: erp_analytics
+    schema: raw
+    description: "Extracted raw operational data loaded by the Python ETL extractor."
+    tables:
+      # Operational Core Tables
+      - name: customers
+        description: "Raw CRM customer records."
+      - name: contacts
+        description: "Raw CRM contacts associated with customers."
+      - name: departments
+        description: "Raw organization departments master."
+      - name: products
+        description: "Raw product catalog items."
+      - name: quotes
+        description: "Raw commercial quotation headers."
+      - name: quote_lines
+        description: "Raw line items for quotations."
+      - name: quote_items
+        description: "Raw quote items."
+      - name: sales_orders
+        description: "Raw commercial sales order headers."
+      - name: sales_order_lines
+        description: "Raw line items for sales orders."
+      - name: sales_order_items
+        description: "Raw sales order items."
+      - name: invoices
+        description: "Raw accounts receivable sales invoice headers."
+      - name: invoice_lines
+        description: "Raw line items for sales invoices."
+      - name: invoice_items
+        description: "Raw invoice line items."
+      - name: payments
+        description: "Raw customer collections and payments."
+      - name: purchase_orders
+        description: "Raw procurement purchase orders."
+      - name: purchase_order_lines
+        description: "Raw line items for purchase orders."
+      - name: purchase_order_items
+        description: "Raw purchase order line items."
+      - name: suppliers
+        description: "Raw purchasing supplier master."
+      - name: tax_rates
+        description: "Raw statutory tax rate definitions."
+      - name: warehouses
+        description: "Raw inventory warehouses master."
+      - name: goods_receipts
+        description: "Raw inventory goods receipt notes."
+      - name: goods_receipt_lines
+        description: "Raw goods receipt line items."
+      - name: goods_receipt_items
+        description: "Raw goods receipt line items."
+      - name: legacy_customers
+        description: "Raw historical customers imported from legacy CRM."
+      - name: legacy_sales
+        description: "Raw historical sales imported from legacy POS/ERP."
+
+      # Phase 3: General Ledger & Multi-Currency Master Data
+      - name: accounts
+        description: "Raw Chart of Accounts master."
+      - name: fiscal_periods
+        description: "Raw accounting fiscal periods."
+      - name: journal_entries
+        description: "Raw double-entry General Ledger journal vouchers."
+      - name: journal_entry_lines
+        description: "Raw General Ledger journal entry posting lines."
+      - name: currencies
+        description: "Raw ISO-4217 currencies registry."
+      - name: fx_rates
+        description: "Raw date-effective foreign exchange rates."
