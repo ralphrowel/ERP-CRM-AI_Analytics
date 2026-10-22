@@ -418,10 +418,19 @@ def test_auto_generate_replenishment_pos_grouping_and_financials(
         )
     )
 
+    test_user = User(
+        email="procurement.tester@example.com",
+        password_hash="mock_hash",
+        full_name="Procurement Tester",
+        is_active=True,
+    )
+    db_session.add(test_user)
+    db_session.flush()
+
     # Execute auto-generation
     result = inv_service.auto_generate_replenishment_pos(
         AutoGeneratePOsPayload(warehouse_id=fulfillment_warehouse.id),
-        current_user_id=1,
+        current_user_id=test_user.id,
     )
 
     # 2 POs created: 1 for Supplier A (2 items), 1 for Supplier B (1 item)
@@ -548,12 +557,13 @@ def test_replenishment_pos_fastapi_endpoints(
     )
 
     auth_user = User(
-        id=1,
         email="procurement.officer@example.com",
         password_hash="mock_hash",
         full_name="Procurement Officer",
         is_active=True,
     )
+    db_session.add(auth_user)
+    db_session.flush()
 
     app.dependency_overrides[get_current_user] = lambda: auth_user
     app.dependency_overrides[get_db] = lambda: db_session

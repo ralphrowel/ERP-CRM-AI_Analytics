@@ -10,6 +10,7 @@ from app.core.money import round_money, round_qty, round_unit_price
 from app.core.numbering import generate_next_number
 from app.core.status_history import record_status_change
 from app.modules.catalog.models import Product
+from app.modules.identity.models import User
 from app.modules.inventory.models import (
     InventoryBalance,
     InventoryTransaction,
@@ -68,6 +69,11 @@ class InventoryService:
     def __init__(self, db: Session, clock: Clock | None = None):
         self.db = db
         self.clock = clock or get_clock()
+
+    def _resolve_user_id(self, user_id: int | None) -> int | None:
+        if user_id is None:
+            return None
+        return self.db.execute(select(User.id).where(User.id == user_id)).scalar_one_or_none()
 
     # ── Warehouse Management ───────────────────────────────────────────
     def list_warehouses(self, active_only: bool = False) -> list[WarehouseOut]:
@@ -1422,13 +1428,14 @@ class InventoryService:
                 )
             )
 
+        resolved_user = self._resolve_user_id(current_user_id)
         transfer = StockTransfer(
             from_warehouse_id=from_wh.id,
             to_warehouse_id=to_wh.id,
             status="draft",
             notes=payload.notes.strip() if payload.notes else None,
-            created_by=current_user_id,
-            updated_by=current_user_id,
+            created_by=resolved_user,
+            updated_by=resolved_user,
             items=items,
         )
         self.db.add(transfer)
@@ -1441,7 +1448,7 @@ class InventoryService:
             from_status=None,
             to_status="draft",
             reason=f"Draft stock transfer created ({from_wh.code} -> {to_wh.code})",
-            changed_by=current_user_id,
+            changed_by=resolved_user,
             clock=self.clock,
         )
         self.db.flush()
@@ -1499,11 +1506,12 @@ class InventoryService:
         if not transfer.transfer_no:
             transfer.transfer_no = generate_next_number(self.db, "stock_transfer", self.clock)
 
+        resolved_user = self._resolve_user_id(current_user_id)
         transfer.status = "approved"
         transfer.approved_at = now
-        transfer.approved_by = current_user_id
+        transfer.approved_by = resolved_user
         transfer.version += 1
-        transfer.updated_by = current_user_id
+        transfer.updated_by = resolved_user
 
         record_status_change(
             self.db,
@@ -1512,7 +1520,7 @@ class InventoryService:
             from_status="draft",
             to_status="approved",
             reason=f"Stock transfer {transfer.transfer_no} approved by supervisor",
-            changed_by=current_user_id,
+            changed_by=resolved_user,
             clock=self.clock,
         )
         self.db.flush()
@@ -1593,11 +1601,12 @@ class InventoryService:
             )
             self.db.add(txn_out)
 
+        resolved_user = self._resolve_user_id(current_user_id)
         transfer.status = "in_transit"
         transfer.dispatched_at = now
-        transfer.dispatched_by = current_user_id
+        transfer.dispatched_by = resolved_user
         transfer.version += 1
-        transfer.updated_by = current_user_id
+        transfer.updated_by = resolved_user
         if payload and payload.notes:
             transfer.notes = (
                 f"{transfer.notes}\nDispatch note: {payload.notes.strip()}"
@@ -1612,7 +1621,7 @@ class InventoryService:
             from_status=from_status,
             to_status="in_transit",
             reason=f"Stock transfer {transfer.transfer_no} dispatched in-transit to {transfer.to_warehouse.name}",
-            changed_by=current_user_id,
+            changed_by=resolved_user,
             clock=self.clock,
         )
         self.db.flush()
@@ -1692,12 +1701,13 @@ class InventoryService:
             )
             self.db.add(txn_in)
 
+        resolved_user = self._resolve_user_id(current_user_id)
         transfer.status = "posted"
         transfer.received_at = now
-        transfer.received_by = current_user_id
+        transfer.received_by = resolved_user
         transfer.posted_at = now
         transfer.version += 1
-        transfer.updated_by = current_user_id
+        transfer.updated_by = resolved_user
         if payload and payload.notes:
             transfer.notes = (
                 f"{transfer.notes}\nReceipt note: {payload.notes.strip()}"
@@ -1712,7 +1722,7 @@ class InventoryService:
             from_status="in_transit",
             to_status="posted",
             reason=f"Stock transfer {transfer.transfer_no} physically received and posted at {transfer.to_warehouse.name}",
-            changed_by=current_user_id,
+            changed_by=resolved_user,
             clock=self.clock,
         )
         self.db.flush()
@@ -1978,6 +1988,7 @@ class InventoryService:
                 f"Reorder policy already exists for product '{prod.name}' in warehouse '{wh.name}'."
             )
 
+        resolved_user = self._resolve_user_id(current_user_id)
         policy = WarehouseReorderPolicy(
             warehouse_id=payload.warehouse_id,
             product_id=payload.product_id,
@@ -1993,8 +2004,8 @@ class InventoryService:
             preferred_supplier_id=payload.preferred_supplier_id,
             lead_time_days=payload.lead_time_days,
             is_active=payload.is_active,
-            created_by=current_user_id,
-            updated_by=current_user_id,
+            created_by=resolved_user,
+            updated_by=resolved_user,
         )
         self.db.add(policy)
         self.db.flush()
@@ -2111,7 +2122,7 @@ class InventoryService:
             policy.is_active = payload.is_active
 
         policy.version += 1
-        policy.updated_by = current_user_id
+        policy.updated_by = self._resolve_user_id(current_user_id)
         self.db.flush()
         return self._map_reorder_policy_out(policy)
 
@@ -2409,6 +2420,7 @@ class InventoryService:
             expected_date = now_date + timedelta(days=max_lead) if max_lead > 0 else None
 
             po_no = generate_next_number(self.db, "purchase_order")
+            creator_id = self._resolve_user_id(current_user_id)
             po = PurchaseOrder(
                 po_no=po_no,
                 supplier_id=sup_id,
@@ -2420,8 +2432,8 @@ class InventoryService:
                 payment_terms_days_snapshot=supplier.payment_terms_days if supplier else 30,
                 supplier_address_snapshot=supplier.address if supplier else None,
                 warehouse_address_snapshot=wh.address if wh else None,
-                created_by=current_user_id,
-                updated_by=current_user_id,
+                created_by=creator_id,
+                updated_by=creator_id,
             )
             self.db.add(po)
             self.db.flush()
@@ -2476,7 +2488,7 @@ class InventoryService:
                 entity_id=po.id,
                 to_status="draft",
                 reason="Auto-generated via replenishment evaluation",
-                changed_by=current_user_id,
+                changed_by=creator_id,
                 clock=self.clock,
             )
             self.db.commit()
