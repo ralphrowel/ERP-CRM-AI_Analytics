@@ -1,6 +1,6 @@
 """V3.2 schema: Reorder policy preferred supplier for automated purchase replenishment
 
-Revision ID: 0022_reorder_policy_preferred_supplier
+Revision ID: 0022_purchase_replenishment
 Revises: 0021_warehouse_replenishment
 Create Date: 2026-10-22 17:30:00
 """
@@ -10,7 +10,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0022_reorder_policy_preferred_supplier"
+revision: str = "0022_purchase_replenishment"
 down_revision: str | None = "0021_warehouse_replenishment"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
