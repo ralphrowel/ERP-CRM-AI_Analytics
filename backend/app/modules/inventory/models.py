@@ -24,6 +24,7 @@ from app.core.database import AuditMixin, Base, VersionMixin
 if TYPE_CHECKING:
     from app.modules.catalog.models import Product
     from app.modules.identity.models import User
+    from app.modules.purchasing.models import Supplier
     from app.modules.sales.models import SalesOrder, SalesOrderItem
 
 
@@ -508,6 +509,7 @@ class WarehouseReorderPolicy(Base, AuditMixin, VersionMixin):
         CheckConstraint("lead_time_days >= 0", name="ck_reorder_policy_lead_time_non_negative"),
         Index("ix_reorder_policies_warehouse", "warehouse_id"),
         Index("ix_reorder_policies_product", "product_id"),
+        Index("ix_reorder_policies_supplier", "preferred_supplier_id"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -526,6 +528,9 @@ class WarehouseReorderPolicy(Base, AuditMixin, VersionMixin):
     source_warehouse_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=True
     )
+    preferred_supplier_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("suppliers.id", ondelete="RESTRICT"), nullable=True
+    )
     lead_time_days: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )
@@ -537,5 +542,8 @@ class WarehouseReorderPolicy(Base, AuditMixin, VersionMixin):
     warehouse: Mapped["Warehouse"] = relationship("Warehouse", foreign_keys=[warehouse_id])
     source_warehouse: Mapped["Warehouse | None"] = relationship(
         "Warehouse", foreign_keys=[source_warehouse_id]
+    )
+    preferred_supplier: Mapped["Supplier | None"] = relationship(
+        "Supplier", foreign_keys=[preferred_supplier_id]
     )
     product: Mapped["Product"] = relationship("Product")

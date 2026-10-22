@@ -184,6 +184,7 @@ All architectural decisions are formally indexed and enforced:
 | **ADR-0019** | Standardized Analytics Transformations with dbt Core | V2.4 | Migrated transformation pipeline from hand-rolled DAG parsing into a standardized `dbt-postgres` project (`analytics_dbt/`). Replaced custom SQL headers with Jinja `source()` and `ref()` dependency resolution, integrated Phase 3 General Ledger dimensions (`dim_account`) and facts (`fact_gl_journal_line`), and enforced automated schema tests (`unique`, `not_null`, `relationships`) alongside custom singular balance tests. |
 | **ADR-0020** | Integrated Financial Intelligence & Conversational Analytics | V2.5 | End-to-end integration of general ledger records from operational `erp_crm` into analytical marts. Automated cross-system GL reconciliation engine (`GLReconciler`) continuously audits debit/credit parity and per-account balance parity. Power BI semantic model extended with `dim_account`, `fact_gl_journal_line`, and enterprise liquidity/solvency DAX measures (`KPI-020` to `KPI-027`). Visiq conversational analyst upgraded with deterministic financial statement tools and guardrailed narrative synthesis. |
 | **ADR-0021** | Multi-Warehouse Reorder Policies & Two-Step In-Transit Transfer Logistics | V3.1 | Fine-grained per-(warehouse, product) inventory reorder policies governing safety stocks, target levels, and sourcing (inter-warehouse transfer vs external PO). Upgraded stock transfers into a 4-state workflow (`draft` -> `approved` -> `in_transit` -> `posted`) with separate dispatch (origin balance deduction and `transfer_out` ledger posting) and receipt (destination balance increment, destination WAC cost absorption, and `transfer_in` ledger posting). Automated evaluation engine computes replenishment suggestions and generates batched draft transfer orders without blocking human approvals. |
+| **ADR-0022** | Automated Purchase Replenishment & Vendor Sourcing Policies | V3.2 | Extended replenishment policies with preferred supplier associations (`preferred_supplier_id`). Automated procurement engine evaluates stock deficits against safety stocks, resolves supplier hierarchy (policy preferred supplier -> catalog preferred supplier -> lowest unit cost), and groups replenishment lines by `(supplier_id, warehouse_id)` into reviewable draft `PurchaseOrder` documents with gapless numbering (`PO-YYYY-XXXXXX`) and exact centavo VAT calculations. |
 
 ---
 
@@ -194,10 +195,12 @@ All architectural decisions are formally indexed and enforced:
 2. **Automated Subledger-to-GL Realized (V2.2)**:
    - Milestone V2.2 completes the real-time subledger-to-GL posting pipeline (AR Invoices, Payments, Credit Notes, AP Bills, AP Disbursements) and provides GAAP/PFRS-compliant Balance Sheet and Income Statement reporting.
 3. **Multi-Warehouse Automated Replenishment Delivered (V3.1)**:
-   - Milestone V3.1 delivers localized warehouse reorder policies, suggestion evaluation, automated replenishment transfer order generation, and 2-step in-transit logistics. Automated PO generation from external vendor sourcing policies remains for Milestone V3.2.
-4. **Polling Outbox Worker**:
+   - Milestone V3.1 delivers localized warehouse reorder policies, suggestion evaluation, automated replenishment transfer order generation, and 2-step in-transit logistics.
+4. **Automated Purchase Replenishment Delivered (V3.2)**:
+   - Milestone V3.2 delivers automated draft purchase order generation from vendor sourcing policies, supplier hierarchy resolution, and batched procurement order grouping.
+5. **Polling Outbox Worker**:
    - Uses row-level lock polling (`SKIP LOCKED`) every 5 seconds. Highly reliable for current throughput, but would benefit from `LISTEN / NOTIFY` or Kafka if event throughput exceeds 1,000 events/second.
-5. **CDC Extraction vs Batch Watermarks**:
+6. **CDC Extraction vs Batch Watermarks**:
    - Extraction uses `updated_at` watermarks with a configurable 10-minute overlap window. Suitable for batch schedules, but sub-second streaming would require Debezium / Postgres logical replication.
 
 ---
@@ -206,6 +209,7 @@ All architectural decisions are formally indexed and enforced:
 
 1. **Change Data Capture (CDC)**: Implement Debezium logical replication streaming directly from PostgreSQL WAL logs into the `raw` analytics schema for sub-second data freshness.
 2. **BIR-Accredited Invoicing & E-Invoicing**: Add BIR 2307 withholding tax certificates and official electronic invoice signature payloads for Philippine tax compliance.
-3. **Advanced ML Predictive Forecasting**: Train Holt-Winters exponential smoothing and Prophet models on `mart.fact_sales_line` to deliver automated demand forecasting and reorder point optimization directly into Visiq.
-4. **Automated Purchase Replenishment (V3.2)**: Implement automated supplier purchase order drafting from replenishment suggestions where `sourcing_type = 'purchase'`.
+3. **Advanced ML Predictive Forecasting (V3.3)**: Train Holt-Winters exponential smoothing and Prophet models on `mart.fact_sales_line` to deliver automated demand forecasting and dynamic safety stock tuning directly into Visiq and replenishment policies.
+4. **Frontend Procurement & Replenishment Workspace**: Interactive web UI dashboards for managing warehouse reorder policies, reviewing replenishment alerts, and approving batched transfer and purchase orders.
+
 

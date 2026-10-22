@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -298,6 +298,7 @@ class WarehouseReorderPolicyCreatePayload(BaseModel):
     reorder_quantity: Decimal | None = Field(None, gt=0)
     replenishment_source: str = Field("transfer", pattern="^(transfer|purchase)$")
     source_warehouse_id: int | None = None
+    preferred_supplier_id: int | None = None
     lead_time_days: int = Field(0, ge=0)
     is_active: bool = True
 
@@ -308,6 +309,7 @@ class WarehouseReorderPolicyUpdatePayload(BaseModel):
     reorder_quantity: Decimal | None = Field(None, gt=0)
     replenishment_source: str | None = Field(None, pattern="^(transfer|purchase)$")
     source_warehouse_id: int | None = None
+    preferred_supplier_id: int | None = None
     lead_time_days: int | None = Field(None, ge=0)
     is_active: bool | None = None
 
@@ -330,6 +332,9 @@ class WarehouseReorderPolicyOut(BaseModel):
     source_warehouse_id: int | None
     source_warehouse_code: str | None
     source_warehouse_name: str | None
+    preferred_supplier_id: int | None = None
+    preferred_supplier_code: str | None = None
+    preferred_supplier_name: str | None = None
     lead_time_days: int
     is_active: bool
     version: int
@@ -359,6 +364,11 @@ class ReplenishmentSuggestionOut(BaseModel):
     source_warehouse_name: str | None
     source_qty_available: Decimal | None
     can_fulfill_transfer: bool
+    preferred_supplier_id: int | None = None
+    preferred_supplier_code: str | None = None
+    preferred_supplier_name: str | None = None
+    estimated_unit_cost: Decimal | None = None
+    unfulfillable_reason: str | None = None
     urgency: str
 
 
@@ -371,6 +381,36 @@ class AutoGenerateTransfersResultOut(BaseModel):
     created_transfers_count: int
     transfer_ids: list[int]
     transfers: list[StockTransferOut]
+    unfulfilled_suggestions_count: int
+    unfulfilled_suggestions: list[ReplenishmentSuggestionOut]
+
+
+class AutoGeneratePOsPayload(BaseModel):
+    warehouse_id: int | None = None
+    product_ids: list[int] | None = None
+    supplier_id: int | None = None
+
+
+class GeneratedPOOut(BaseModel):
+    id: int
+    po_no: str
+    supplier_id: int
+    supplier_name: str
+    warehouse_id: int
+    warehouse_name: str
+    status: str
+    order_date: date
+    expected_date: date | None
+    subtotal: Decimal
+    tax_total: Decimal
+    grand_total: Decimal
+    items_count: int
+
+
+class AutoGeneratePOsResultOut(BaseModel):
+    created_pos_count: int
+    po_ids: list[int]
+    purchase_orders: list[GeneratedPOOut]
     unfulfilled_suggestions_count: int
     unfulfilled_suggestions: list[ReplenishmentSuggestionOut]
 

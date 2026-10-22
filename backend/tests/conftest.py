@@ -112,6 +112,21 @@ def _seed_document_sequences(session: Session) -> None:
         DocumentSequence(
             doc_type="stock_transfer", prefix="TRF", include_year=True, padding=6, next_value=1
         ),
+        DocumentSequence(
+            doc_type="purchase_order", prefix="PO", include_year=True, padding=6, next_value=1
+        ),
+        DocumentSequence(
+            doc_type="goods_receipt", prefix="GR", include_year=True, padding=6, next_value=1
+        ),
+        DocumentSequence(
+            doc_type="supplier_invoice", prefix="BILL", include_year=True, padding=6, next_value=1
+        ),
+        DocumentSequence(
+            doc_type="supplier_payment", prefix="SPAY", include_year=True, padding=6, next_value=1
+        ),
+        DocumentSequence(
+            doc_type="supplier", prefix="SUP", include_year=False, padding=5, next_value=1
+        ),
     ]
     for s in defaults:
         if s.doc_type not in existing:
