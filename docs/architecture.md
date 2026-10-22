@@ -185,6 +185,7 @@ All architectural decisions are formally indexed and enforced:
 | **ADR-0020** | Integrated Financial Intelligence & Conversational Analytics | V2.5 | End-to-end integration of general ledger records from operational `erp_crm` into analytical marts. Automated cross-system GL reconciliation engine (`GLReconciler`) continuously audits debit/credit parity and per-account balance parity. Power BI semantic model extended with `dim_account`, `fact_gl_journal_line`, and enterprise liquidity/solvency DAX measures (`KPI-020` to `KPI-027`). Visiq conversational analyst upgraded with deterministic financial statement tools and guardrailed narrative synthesis. |
 | **ADR-0021** | Multi-Warehouse Reorder Policies & Two-Step In-Transit Transfer Logistics | V3.1 | Fine-grained per-(warehouse, product) inventory reorder policies governing safety stocks, target levels, and sourcing (inter-warehouse transfer vs external PO). Upgraded stock transfers into a 4-state workflow (`draft` -> `approved` -> `in_transit` -> `posted`) with separate dispatch (origin balance deduction and `transfer_out` ledger posting) and receipt (destination balance increment, destination WAC cost absorption, and `transfer_in` ledger posting). Automated evaluation engine computes replenishment suggestions and generates batched draft transfer orders without blocking human approvals. |
 | **ADR-0022** | Automated Purchase Replenishment & Vendor Sourcing Policies | V3.2 | Extended replenishment policies with preferred supplier associations (`preferred_supplier_id`). Automated procurement engine evaluates stock deficits against safety stocks, resolves supplier hierarchy (policy preferred supplier -> catalog preferred supplier -> lowest unit cost), and groups replenishment lines by `(supplier_id, warehouse_id)` into reviewable draft `PurchaseOrder` documents with gapless numbering (`PO-YYYY-XXXXXX`) and exact centavo VAT calculations. |
+| **ADR-0023** | ML Predictive Demand Forecasting & Dynamic Safety Stock Tuning | V3.3 | Pure-Python deterministic statistical demand forecasting algorithms (Holt-Winters Triple Exponential Smoothing, Holt Linear, Croston's Method for intermittent demand, and Moving Averages) evaluated via backtest metrics (MAE, RMSE, MAPE). Statistical King/Silver dynamic safety stock and Reorder Point (ROP) optimization absorbs historical demand variance and supplier lead-time uncertainty at target service levels (e.g. 95%, 98%, 99%). Visiq conversational analyst integrated with `forecast_demand` tool and 3-trace reactive Plotly visualization (historical actuals, 95% confidence ribbon, and forecast trajectory). |
 
 ---
 
@@ -198,18 +199,19 @@ All architectural decisions are formally indexed and enforced:
    - Milestone V3.1 delivers localized warehouse reorder policies, suggestion evaluation, automated replenishment transfer order generation, and 2-step in-transit logistics.
 4. **Automated Purchase Replenishment Delivered (V3.2)**:
    - Milestone V3.2 delivers automated draft purchase order generation from vendor sourcing policies, supplier hierarchy resolution, and batched procurement order grouping.
-5. **Polling Outbox Worker**:
+5. **Predictive Demand Forecasting & Dynamic Safety Stock Tuning Delivered (V3.3)**:
+   - Milestone V3.3 delivers pure-Python Holt-Winters, Holt linear, and Croston forecasting, King/Silver dynamic safety stock optimization, one-click policy tuning application, and Visiq AI conversational forecasting.
+6. **Polling Outbox Worker**:
    - Uses row-level lock polling (`SKIP LOCKED`) every 5 seconds. Highly reliable for current throughput, but would benefit from `LISTEN / NOTIFY` or Kafka if event throughput exceeds 1,000 events/second.
-6. **CDC Extraction vs Batch Watermarks**:
+7. **CDC Extraction vs Batch Watermarks**:
    - Extraction uses `updated_at` watermarks with a configurable 10-minute overlap window. Suitable for batch schedules, but sub-second streaming would require Debezium / Postgres logical replication.
 
 ---
 
 ## 6. What I'd Do Next (Phase 3 Roadmap)
 
-1. **Change Data Capture (CDC)**: Implement Debezium logical replication streaming directly from PostgreSQL WAL logs into the `raw` analytics schema for sub-second data freshness.
-2. **BIR-Accredited Invoicing & E-Invoicing**: Add BIR 2307 withholding tax certificates and official electronic invoice signature payloads for Philippine tax compliance.
-3. **Advanced ML Predictive Forecasting (V3.3)**: Train Holt-Winters exponential smoothing and Prophet models on `mart.fact_sales_line` to deliver automated demand forecasting and dynamic safety stock tuning directly into Visiq and replenishment policies.
-4. **Frontend Procurement & Replenishment Workspace**: Interactive web UI dashboards for managing warehouse reorder policies, reviewing replenishment alerts, and approving batched transfer and purchase orders.
+1. **Frontend Procurement & Replenishment Workspace (V3.4)**: Interactive web UI dashboards for managing warehouse reorder policies, reviewing replenishment alerts, and approving batched transfer and purchase orders.
+2. **BIR-Accredited Invoicing & E-Invoicing (V3.5)**: Add BIR 2307 withholding tax certificates and official electronic invoice signature payloads for Philippine tax compliance.
+3. **Change Data Capture (CDC) (V3.6)**: Implement Debezium logical replication streaming directly from PostgreSQL WAL logs into the `raw` analytics schema for sub-second data freshness.
 
 

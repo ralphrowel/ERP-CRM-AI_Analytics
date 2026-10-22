@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -301,6 +302,7 @@ class WarehouseReorderPolicyCreatePayload(BaseModel):
     preferred_supplier_id: int | None = None
     lead_time_days: int = Field(0, ge=0)
     is_active: bool = True
+    service_level: Decimal | None = Field(default=Decimal("0.9500"), ge=0.50, le=0.9999)
 
 
 class WarehouseReorderPolicyUpdatePayload(BaseModel):
@@ -312,6 +314,7 @@ class WarehouseReorderPolicyUpdatePayload(BaseModel):
     preferred_supplier_id: int | None = None
     lead_time_days: int | None = Field(None, ge=0)
     is_active: bool | None = None
+    service_level: Decimal | None = Field(None, ge=0.50, le=0.9999)
 
 
 class WarehouseReorderPolicyOut(BaseModel):
@@ -337,6 +340,10 @@ class WarehouseReorderPolicyOut(BaseModel):
     preferred_supplier_name: str | None = None
     lead_time_days: int
     is_active: bool
+    service_level: Decimal = Decimal("0.9500")
+    safety_stock: Decimal | None = None
+    last_tuned_at: datetime | None = None
+    tuning_method: str | None = None
     version: int
     created_at: datetime
     updated_at: datetime
@@ -421,3 +428,74 @@ class StockTransferDispatchPayload(BaseModel):
 
 class StockTransferReceivePayload(BaseModel):
     notes: str | None = None
+
+
+# ── Demand Forecasting & Dynamic Policy Tuning Schemas ─────────────
+class ForecastPointOut(BaseModel):
+    date: str
+    forecast: Decimal
+    lower_bound: Decimal
+    upper_bound: Decimal
+
+
+class HistoricalPointOut(BaseModel):
+    date: str
+    actual: Decimal
+    fitted: Decimal
+
+
+class ModelEvaluationOut(BaseModel):
+    mae: Decimal
+    rmse: Decimal
+    mape: Decimal
+
+
+class DemandForecastOut(BaseModel):
+    warehouse_id: int
+    warehouse_code: str
+    product_id: int
+    product_sku: str
+    product_name: str
+    model_name: str
+    parameters: dict[str, Any]
+    evaluation: ModelEvaluationOut
+    historical: list[HistoricalPointOut]
+    forecast: list[ForecastPointOut]
+    total_forecast_demand: Decimal
+    avg_daily_demand: Decimal
+    demand_std_dev: Decimal
+    intermittent_ratio: Decimal
+    diagnostics: dict[str, Any] = {}
+
+
+class PolicyTuningRecommendationOut(BaseModel):
+    policy_id: int
+    warehouse_id: int
+    warehouse_code: str
+    product_id: int
+    product_sku: str
+    product_name: str
+    current_min_qty: Decimal
+    current_max_qty: Decimal
+    current_lead_time_days: int
+    current_service_level: Decimal
+    recommended_safety_stock: Decimal
+    recommended_min_qty: Decimal
+    recommended_max_qty: Decimal
+    recommended_reorder_qty: Decimal
+    avg_daily_demand: Decimal
+    demand_std_dev: Decimal
+    lead_time_std_dev: Decimal
+    z_score: float
+    forecast_model: str
+    risk_assessment: str
+    variance_reason: str
+
+
+class ApplyPolicyTuningPayload(BaseModel):
+    service_level: Decimal | None = Field(None, ge=0.50, le=0.9999)
+    recommended_safety_stock: Decimal | None = Field(None, ge=0)
+    recommended_min_qty: Decimal | None = Field(None, ge=0)
+    recommended_max_qty: Decimal | None = Field(None, ge=0)
+    recommended_reorder_qty: Decimal | None = Field(None, gt=0)
+    tuning_method: str | None = None
