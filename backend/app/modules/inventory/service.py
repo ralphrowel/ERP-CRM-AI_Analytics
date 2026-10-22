@@ -20,13 +20,17 @@ from app.modules.inventory.models import (
     StockTransfer,
     StockTransferItem,
     Warehouse,
+    WarehouseReorderPolicy,
 )
 from app.modules.inventory.schemas import (
+    AutoGenerateTransfersPayload,
+    AutoGenerateTransfersResultOut,
     InventoryBalanceOut,
     InventoryReconciliationItem,
     InventoryReconciliationOut,
     InventoryTransactionOut,
     OpeningBalancesCreatePayload,
+    ReplenishmentSuggestionOut,
     ShipmentCreatePayload,
     ShipmentItemOut,
     ShipmentOut,
@@ -35,10 +39,16 @@ from app.modules.inventory.schemas import (
     StockAdjustmentItemOut,
     StockAdjustmentOut,
     StockTransferCreatePayload,
+    StockTransferDispatchPayload,
+    StockTransferItemCreatePayload,
     StockTransferItemOut,
     StockTransferOut,
+    StockTransferReceivePayload,
     WarehouseCreatePayload,
     WarehouseOut,
+    WarehouseReorderPolicyCreatePayload,
+    WarehouseReorderPolicyOut,
+    WarehouseReorderPolicyUpdatePayload,
     WarehouseUpdatePayload,
 )
 from app.modules.sales.models import Invoice, SalesOrder, SalesOrderItem
@@ -1325,6 +1335,12 @@ class InventoryService:
             to_warehouse_name=t.to_warehouse.name if t.to_warehouse else "",
             status=t.status,
             notes=t.notes,
+            approved_at=t.approved_at,
+            approved_by=t.approved_by,
+            dispatched_at=t.dispatched_at,
+            dispatched_by=t.dispatched_by,
+            received_at=t.received_at,
+            received_by=t.received_by,
             posted_at=t.posted_at,
             version=t.version,
             created_at=t.created_at,
@@ -1459,14 +1475,247 @@ class InventoryService:
         transfers = self.db.execute(stmt).unique().scalars().all()
         return [self._map_transfer_out(t) for t in transfers]
 
-    def post_stock_transfer(
+    def approve_stock_transfer(
         self, transfer_id: int, current_user_id: int | None = None
     ) -> StockTransferOut:
         transfer = self.get_stock_transfer(transfer_id)
         if transfer.status != "draft":
             raise BusinessRuleError(
                 code="INVALID_TRANSITION",
-                detail=f"Only draft transfers can be posted. Current status: '{transfer.status}'.",
+                detail=f"Only draft transfers can be approved. Current status: '{transfer.status}'.",
+            )
+
+        now = self.clock.now()
+        if not transfer.transfer_no:
+            transfer.transfer_no = generate_next_number(self.db, "stock_transfer", self.clock)
+
+        transfer.status = "approved"
+        transfer.approved_at = now
+        transfer.approved_by = current_user_id
+        transfer.version += 1
+        transfer.updated_by = current_user_id
+
+        record_status_change(
+            self.db,
+            entity_type="stock_transfer",
+            entity_id=transfer.id,
+            from_status="draft",
+            to_status="approved",
+            reason=f"Stock transfer {transfer.transfer_no} approved by supervisor",
+            changed_by=current_user_id,
+            clock=self.clock,
+        )
+        self.db.flush()
+        return self._map_transfer_out(transfer)
+
+    def dispatch_stock_transfer(
+        self,
+        transfer_id: int,
+        payload: StockTransferDispatchPayload | None = None,
+        current_user_id: int | None = None,
+    ) -> StockTransferOut:
+        transfer = self.get_stock_transfer(transfer_id)
+        if transfer.status not in ("draft", "approved"):
+            raise BusinessRuleError(
+                code="INVALID_TRANSITION",
+                detail=f"Only draft or approved transfers can be dispatched. Current status: '{transfer.status}'.",
+            )
+
+        now = self.clock.now()
+        from_status = transfer.status
+
+        if not transfer.transfer_no:
+            transfer.transfer_no = generate_next_number(self.db, "stock_transfer", self.clock)
+
+        # Lock source warehouse balances strictly ascending
+        prod_ids = sorted({it.product_id for it in transfer.items})
+        for pid in prod_ids:
+            stmt = (
+                select(InventoryBalance)
+                .where(
+                    InventoryBalance.product_id == pid,
+                    InventoryBalance.warehouse_id == transfer.from_warehouse_id,
+                )
+                .with_for_update()
+            )
+            self.db.execute(stmt)
+
+        for item in transfer.items:
+            stmt_bal = select(InventoryBalance).where(
+                InventoryBalance.product_id == item.product_id,
+                InventoryBalance.warehouse_id == transfer.from_warehouse_id,
+            )
+            from_bal = self.db.execute(stmt_bal).scalar_one_or_none()
+            avail = (from_bal.qty_on_hand - from_bal.qty_reserved) if from_bal else Decimal("0.000")
+            prod_name = item.product.name if item.product else f"ID {item.product_id}"
+
+            if not from_bal or avail < item.quantity:
+                raise BusinessRuleError(
+                    code="INSUFFICIENT_STOCK",
+                    detail=(
+                        f"Insufficient available stock for product '{prod_name}' in source warehouse "
+                        f"'{transfer.from_warehouse.name}'. Required: {item.quantity}, Available: {avail}."
+                    ),
+                )
+
+            source_unit_cost = from_bal.avg_unit_cost
+            item.unit_cost = source_unit_cost
+
+            # Deduct from source warehouse
+            from_bal.qty_on_hand -= item.quantity
+            from_bal.updated_at = now
+
+            txn_out = InventoryTransaction(
+                product_id=item.product_id,
+                warehouse_id=transfer.from_warehouse_id,
+                txn_type="transfer_out",
+                quantity=-item.quantity,
+                unit_cost=source_unit_cost,
+                total_cost=-round_money(item.quantity * source_unit_cost),
+                qty_on_hand_after=from_bal.qty_on_hand,
+                avg_cost_after=from_bal.avg_unit_cost,
+                source_type="stock_transfer",
+                source_id=transfer.id,
+                source_line_id=item.id,
+                occurred_at=now,
+                posted_by=current_user_id,
+                created_at=now,
+            )
+            self.db.add(txn_out)
+
+        transfer.status = "in_transit"
+        transfer.dispatched_at = now
+        transfer.dispatched_by = current_user_id
+        transfer.version += 1
+        transfer.updated_by = current_user_id
+        if payload and payload.notes:
+            transfer.notes = (
+                f"{transfer.notes}\nDispatch note: {payload.notes.strip()}"
+                if transfer.notes
+                else f"Dispatch note: {payload.notes.strip()}"
+            )
+
+        record_status_change(
+            self.db,
+            entity_type="stock_transfer",
+            entity_id=transfer.id,
+            from_status=from_status,
+            to_status="in_transit",
+            reason=f"Stock transfer {transfer.transfer_no} dispatched in-transit to {transfer.to_warehouse.name}",
+            changed_by=current_user_id,
+            clock=self.clock,
+        )
+        self.db.flush()
+        return self._map_transfer_out(transfer)
+
+    def receive_stock_transfer(
+        self,
+        transfer_id: int,
+        payload: StockTransferReceivePayload | None = None,
+        current_user_id: int | None = None,
+    ) -> StockTransferOut:
+        transfer = self.get_stock_transfer(transfer_id)
+        if transfer.status != "in_transit":
+            raise BusinessRuleError(
+                code="INVALID_TRANSITION",
+                detail=f"Only in-transit transfers can be received. Current status: '{transfer.status}'.",
+            )
+
+        now = self.clock.now()
+
+        # Lock destination warehouse balances strictly ascending
+        prod_ids = sorted({it.product_id for it in transfer.items})
+        for pid in prod_ids:
+            stmt = (
+                select(InventoryBalance)
+                .where(
+                    InventoryBalance.product_id == pid,
+                    InventoryBalance.warehouse_id == transfer.to_warehouse_id,
+                )
+                .with_for_update()
+            )
+            self.db.execute(stmt)
+
+        for item in transfer.items:
+            unit_cost = item.unit_cost if item.unit_cost is not None else Decimal("0.0000")
+
+            stmt_bal = select(InventoryBalance).where(
+                InventoryBalance.product_id == item.product_id,
+                InventoryBalance.warehouse_id == transfer.to_warehouse_id,
+            )
+            to_bal = self.db.execute(stmt_bal).scalar_one_or_none()
+            if to_bal:
+                new_avg = round_unit_price(
+                    (to_bal.qty_on_hand * to_bal.avg_unit_cost + item.quantity * unit_cost)
+                    / (to_bal.qty_on_hand + item.quantity)
+                )
+                to_bal.qty_on_hand += item.quantity
+                to_bal.avg_unit_cost = new_avg
+                to_bal.updated_at = now
+            else:
+                new_avg = unit_cost
+                to_bal = InventoryBalance(
+                    product_id=item.product_id,
+                    warehouse_id=transfer.to_warehouse_id,
+                    qty_on_hand=item.quantity,
+                    qty_reserved=Decimal("0.000"),
+                    avg_unit_cost=new_avg,
+                    updated_at=now,
+                )
+                self.db.add(to_bal)
+
+            txn_in = InventoryTransaction(
+                product_id=item.product_id,
+                warehouse_id=transfer.to_warehouse_id,
+                txn_type="transfer_in",
+                quantity=item.quantity,
+                unit_cost=unit_cost,
+                total_cost=round_money(item.quantity * unit_cost),
+                qty_on_hand_after=to_bal.qty_on_hand,
+                avg_cost_after=to_bal.avg_unit_cost,
+                source_type="stock_transfer",
+                source_id=transfer.id,
+                source_line_id=item.id,
+                occurred_at=now,
+                posted_by=current_user_id,
+                created_at=now,
+            )
+            self.db.add(txn_in)
+
+        transfer.status = "posted"
+        transfer.received_at = now
+        transfer.received_by = current_user_id
+        transfer.posted_at = now
+        transfer.version += 1
+        transfer.updated_by = current_user_id
+        if payload and payload.notes:
+            transfer.notes = (
+                f"{transfer.notes}\nReceipt note: {payload.notes.strip()}"
+                if transfer.notes
+                else f"Receipt note: {payload.notes.strip()}"
+            )
+
+        record_status_change(
+            self.db,
+            entity_type="stock_transfer",
+            entity_id=transfer.id,
+            from_status="in_transit",
+            to_status="posted",
+            reason=f"Stock transfer {transfer.transfer_no} physically received and posted at {transfer.to_warehouse.name}",
+            changed_by=current_user_id,
+            clock=self.clock,
+        )
+        self.db.flush()
+        return self._map_transfer_out(transfer)
+
+    def post_stock_transfer(
+        self, transfer_id: int, current_user_id: int | None = None
+    ) -> StockTransferOut:
+        transfer = self.get_stock_transfer(transfer_id)
+        if transfer.status not in ("draft", "approved"):
+            raise BusinessRuleError(
+                code="INVALID_TRANSITION",
+                detail=f"Only draft or approved transfers can be directly posted. Current status: '{transfer.status}'.",
             )
 
         now = self.clock.now()
@@ -1508,7 +1757,6 @@ class InventoryService:
                     ),
                 )
 
-            # Costing: transfer_out at source avg -> transfer_in at same unit cost at destination
             source_unit_cost = from_bal.avg_unit_cost
             item.unit_cost = source_unit_cost
 
@@ -1520,7 +1768,7 @@ class InventoryService:
                 product_id=item.product_id,
                 warehouse_id=transfer.from_warehouse_id,
                 txn_type="transfer_out",
-                quantity=-item.quantity,  # Negative for issue/out
+                quantity=-item.quantity,
                 unit_cost=source_unit_cost,
                 total_cost=-round_money(item.quantity * source_unit_cost),
                 qty_on_hand_after=from_bal.qty_on_hand,
@@ -1575,8 +1823,10 @@ class InventoryService:
             )
             self.db.add(txn_in)
 
-        transfer_no = generate_next_number(self.db, "stock_transfer", self.clock)
-        transfer.transfer_no = transfer_no
+        if not transfer.transfer_no:
+            transfer.transfer_no = generate_next_number(self.db, "stock_transfer", self.clock)
+        transfer_no = transfer.transfer_no
+        from_status = transfer.status
         transfer.status = "posted"
         transfer.posted_at = now
         transfer.version += 1
@@ -1586,7 +1836,7 @@ class InventoryService:
             self.db,
             entity_type="stock_transfer",
             entity_id=transfer.id,
-            from_status="draft",
+            from_status=from_status,
             to_status="posted",
             reason=f"Stock transfer {transfer_no} officially posted and executed",
             changed_by=current_user_id,
@@ -1599,10 +1849,10 @@ class InventoryService:
         self, transfer_id: int, current_user_id: int | None = None
     ) -> StockTransferOut:
         transfer = self.get_stock_transfer(transfer_id)
-        if transfer.status != "draft":
+        if transfer.status not in ("draft", "approved"):
             raise BusinessRuleError(
                 code="INVALID_TRANSITION",
-                detail=f"Only draft transfers can be cancelled. Current status: '{transfer.status}'.",
+                detail=f"Only draft or approved transfers can be cancelled. Current status: '{transfer.status}'.",
             )
 
         from_status = transfer.status
@@ -1622,3 +1872,366 @@ class InventoryService:
         )
         self.db.flush()
         return self._map_transfer_out(transfer)
+
+    # ── Warehouse Reorder Policies & Replenishment ──────────────────────
+    def _map_reorder_policy_out(self, p: WarehouseReorderPolicy) -> WarehouseReorderPolicyOut:
+        return WarehouseReorderPolicyOut(
+            id=p.id,
+            warehouse_id=p.warehouse_id,
+            warehouse_code=p.warehouse.code if p.warehouse else "",
+            warehouse_name=p.warehouse.name if p.warehouse else "",
+            product_id=p.product_id,
+            product_sku=p.product.sku if p.product else "",
+            product_name=p.product.name if p.product else "",
+            product_uom=p.product.uom if p.product else "",
+            min_qty=p.min_qty,
+            max_qty=p.max_qty,
+            reorder_quantity=p.reorder_quantity,
+            replenishment_source=p.replenishment_source,
+            source_warehouse_id=p.source_warehouse_id,
+            source_warehouse_code=p.source_warehouse.code if p.source_warehouse else None,
+            source_warehouse_name=p.source_warehouse.name if p.source_warehouse else None,
+            lead_time_days=p.lead_time_days,
+            is_active=p.is_active,
+            version=p.version,
+            created_at=p.created_at,
+            updated_at=p.updated_at,
+        )
+
+    def create_reorder_policy(
+        self, payload: WarehouseReorderPolicyCreatePayload, current_user_id: int | None = None
+    ) -> WarehouseReorderPolicyOut:
+        wh = self.get_warehouse(payload.warehouse_id)
+        if not wh.is_active:
+            raise BusinessRuleError(
+                code="WAREHOUSE_INACTIVE",
+                detail=f"Target warehouse '{wh.name}' is inactive.",
+            )
+
+        prod = self.db.get(Product, payload.product_id)
+        if not prod:
+            raise NotFoundError(f"Product with ID {payload.product_id} not found.")
+        if prod.product_type != "stock":
+            raise BusinessRuleError(
+                code="INVALID_PRODUCT_TYPE",
+                detail=f"Product '{prod.name}' is not a stock product.",
+            )
+
+        if payload.max_qty < payload.min_qty:
+            raise BusinessRuleError(
+                code="INVALID_QUANTITY_RANGE",
+                detail="Max quantity must be greater than or equal to min quantity.",
+            )
+
+        if payload.replenishment_source == "transfer":
+            if not payload.source_warehouse_id:
+                raise BusinessRuleError(
+                    code="SOURCE_WAREHOUSE_REQUIRED",
+                    detail="Source warehouse is required for transfer replenishment source.",
+                )
+            if payload.source_warehouse_id == payload.warehouse_id:
+                raise BusinessRuleError(
+                    code="IDENTICAL_WAREHOUSES",
+                    detail="Source warehouse must be different from target warehouse.",
+                )
+            src_wh = self.get_warehouse(payload.source_warehouse_id)
+            if not src_wh.is_active:
+                raise BusinessRuleError(
+                    code="WAREHOUSE_INACTIVE",
+                    detail=f"Source warehouse '{src_wh.name}' is inactive.",
+                )
+
+        # Check unique constraint
+        stmt_exist = select(WarehouseReorderPolicy).where(
+            WarehouseReorderPolicy.warehouse_id == payload.warehouse_id,
+            WarehouseReorderPolicy.product_id == payload.product_id,
+        )
+        if self.db.execute(stmt_exist).scalar_one_or_none():
+            raise ConflictError(
+                f"Reorder policy already exists for product '{prod.name}' in warehouse '{wh.name}'."
+            )
+
+        policy = WarehouseReorderPolicy(
+            warehouse_id=payload.warehouse_id,
+            product_id=payload.product_id,
+            min_qty=round_qty(payload.min_qty),
+            max_qty=round_qty(payload.max_qty),
+            reorder_quantity=round_qty(payload.reorder_quantity)
+            if payload.reorder_quantity
+            else None,
+            replenishment_source=payload.replenishment_source,
+            source_warehouse_id=payload.source_warehouse_id
+            if payload.replenishment_source == "transfer"
+            else None,
+            lead_time_days=payload.lead_time_days,
+            is_active=payload.is_active,
+            created_by=current_user_id,
+            updated_by=current_user_id,
+        )
+        self.db.add(policy)
+        self.db.flush()
+        return self._map_reorder_policy_out(self.get_reorder_policy(policy.id))
+
+    def get_reorder_policy(self, policy_id: int) -> WarehouseReorderPolicy:
+        stmt = (
+            select(WarehouseReorderPolicy)
+            .options(
+                joinedload(WarehouseReorderPolicy.warehouse),
+                joinedload(WarehouseReorderPolicy.source_warehouse),
+                joinedload(WarehouseReorderPolicy.product),
+            )
+            .where(WarehouseReorderPolicy.id == policy_id)
+        )
+        policy = self.db.execute(stmt).unique().scalar_one_or_none()
+        if not policy:
+            raise NotFoundError(f"Warehouse reorder policy with ID {policy_id} not found.")
+        return policy
+
+    def list_reorder_policies(
+        self,
+        warehouse_id: int | None = None,
+        product_id: int | None = None,
+        is_active: bool | None = None,
+    ) -> list[WarehouseReorderPolicyOut]:
+        stmt = (
+            select(WarehouseReorderPolicy)
+            .options(
+                joinedload(WarehouseReorderPolicy.warehouse),
+                joinedload(WarehouseReorderPolicy.source_warehouse),
+                joinedload(WarehouseReorderPolicy.product),
+            )
+            .order_by(
+                WarehouseReorderPolicy.warehouse_id.asc(), WarehouseReorderPolicy.product_id.asc()
+            )
+        )
+        if warehouse_id is not None:
+            stmt = stmt.where(WarehouseReorderPolicy.warehouse_id == warehouse_id)
+        if product_id is not None:
+            stmt = stmt.where(WarehouseReorderPolicy.product_id == product_id)
+        if is_active is not None:
+            stmt = stmt.where(WarehouseReorderPolicy.is_active.is_(is_active))
+
+        policies = self.db.execute(stmt).unique().scalars().all()
+        return [self._map_reorder_policy_out(p) for p in policies]
+
+    def update_reorder_policy(
+        self,
+        policy_id: int,
+        payload: WarehouseReorderPolicyUpdatePayload,
+        current_user_id: int | None = None,
+    ) -> WarehouseReorderPolicyOut:
+        policy = self.get_reorder_policy(policy_id)
+
+        if payload.min_qty is not None:
+            policy.min_qty = round_qty(payload.min_qty)
+        if payload.max_qty is not None:
+            policy.max_qty = round_qty(payload.max_qty)
+
+        if policy.max_qty < policy.min_qty:
+            raise BusinessRuleError(
+                code="INVALID_QUANTITY_RANGE",
+                detail="Max quantity must be greater than or equal to min quantity.",
+            )
+
+        if payload.reorder_quantity is not None:
+            policy.reorder_quantity = round_qty(payload.reorder_quantity)
+
+        if payload.replenishment_source is not None:
+            policy.replenishment_source = payload.replenishment_source
+
+        if payload.source_warehouse_id is not None:
+            if payload.source_warehouse_id == policy.warehouse_id:
+                raise BusinessRuleError(
+                    code="IDENTICAL_WAREHOUSES",
+                    detail="Source warehouse must be different from target warehouse.",
+                )
+            src_wh = self.get_warehouse(payload.source_warehouse_id)
+            if not src_wh.is_active:
+                raise BusinessRuleError(
+                    code="WAREHOUSE_INACTIVE",
+                    detail=f"Source warehouse '{src_wh.name}' is inactive.",
+                )
+            policy.source_warehouse_id = payload.source_warehouse_id
+
+        if policy.replenishment_source == "transfer" and not policy.source_warehouse_id:
+            raise BusinessRuleError(
+                code="SOURCE_WAREHOUSE_REQUIRED",
+                detail="Source warehouse is required for transfer replenishment source.",
+            )
+
+        if payload.lead_time_days is not None:
+            policy.lead_time_days = payload.lead_time_days
+        if payload.is_active is not None:
+            policy.is_active = payload.is_active
+
+        policy.version += 1
+        policy.updated_by = current_user_id
+        self.db.flush()
+        return self._map_reorder_policy_out(policy)
+
+    def delete_reorder_policy(self, policy_id: int) -> None:
+        policy = self.get_reorder_policy(policy_id)
+        self.db.delete(policy)
+        self.db.flush()
+
+    def evaluate_replenishment_suggestions(
+        self, warehouse_id: int | None = None, urgency: str | None = None
+    ) -> list[ReplenishmentSuggestionOut]:
+        stmt = (
+            select(WarehouseReorderPolicy)
+            .options(
+                joinedload(WarehouseReorderPolicy.warehouse),
+                joinedload(WarehouseReorderPolicy.source_warehouse),
+                joinedload(WarehouseReorderPolicy.product),
+            )
+            .where(WarehouseReorderPolicy.is_active.is_(True))
+        )
+        if warehouse_id is not None:
+            stmt = stmt.where(WarehouseReorderPolicy.warehouse_id == warehouse_id)
+
+        policies = self.db.execute(stmt).unique().scalars().all()
+        if not policies:
+            return []
+
+        suggestions: list[ReplenishmentSuggestionOut] = []
+
+        product_wh_pairs = set()
+        for p in policies:
+            product_wh_pairs.add((p.product_id, p.warehouse_id))
+            if p.source_warehouse_id:
+                product_wh_pairs.add((p.product_id, p.source_warehouse_id))
+
+        balances_map: dict[tuple[int, int], InventoryBalance] = {}
+        for pid, wid in product_wh_pairs:
+            stmt_b = select(InventoryBalance).where(
+                InventoryBalance.product_id == pid,
+                InventoryBalance.warehouse_id == wid,
+            )
+            b = self.db.execute(stmt_b).scalar_one_or_none()
+            if b:
+                balances_map[(pid, wid)] = b
+
+        for p in policies:
+            bal = balances_map.get((p.product_id, p.warehouse_id))
+            qty_on_hand = bal.qty_on_hand if bal else Decimal("0.000")
+            qty_reserved = bal.qty_reserved if bal else Decimal("0.000")
+            qty_available = max(Decimal("0.000"), qty_on_hand - qty_reserved)
+
+            if qty_available <= p.min_qty:
+                deficit_qty = max(Decimal("0.000"), p.max_qty - qty_available)
+                if p.reorder_quantity and p.reorder_quantity > 0:
+                    suggested_qty = p.reorder_quantity
+                else:
+                    suggested_qty = deficit_qty
+
+                # Calculate urgency
+                if qty_available <= Decimal("0.000"):
+                    calc_urgency = "CRITICAL"
+                elif qty_available < (p.min_qty * Decimal("0.5")):
+                    calc_urgency = "HIGH"
+                else:
+                    calc_urgency = "MEDIUM"
+
+                if urgency and calc_urgency != urgency.upper():
+                    continue
+
+                source_avail: Decimal | None = None
+                can_fulfill = False
+                if p.replenishment_source == "transfer" and p.source_warehouse_id:
+                    src_b = balances_map.get((p.product_id, p.source_warehouse_id))
+                    src_on_hand = src_b.qty_on_hand if src_b else Decimal("0.000")
+                    src_reserved = src_b.qty_reserved if src_b else Decimal("0.000")
+                    source_avail = max(Decimal("0.000"), src_on_hand - src_reserved)
+                    can_fulfill = source_avail >= suggested_qty
+
+                suggestions.append(
+                    ReplenishmentSuggestionOut(
+                        warehouse_id=p.warehouse_id,
+                        warehouse_code=p.warehouse.code if p.warehouse else "",
+                        warehouse_name=p.warehouse.name if p.warehouse else "",
+                        product_id=p.product_id,
+                        product_sku=p.product.sku if p.product else "",
+                        product_name=p.product.name if p.product else "",
+                        product_uom=p.product.uom if p.product else "",
+                        qty_on_hand=qty_on_hand,
+                        qty_reserved=qty_reserved,
+                        qty_available=qty_available,
+                        min_qty=p.min_qty,
+                        max_qty=p.max_qty,
+                        deficit_qty=deficit_qty,
+                        suggested_qty=suggested_qty,
+                        replenishment_source=p.replenishment_source,
+                        source_warehouse_id=p.source_warehouse_id,
+                        source_warehouse_code=p.source_warehouse.code
+                        if p.source_warehouse
+                        else None,
+                        source_warehouse_name=p.source_warehouse.name
+                        if p.source_warehouse
+                        else None,
+                        source_qty_available=source_avail,
+                        can_fulfill_transfer=can_fulfill,
+                        urgency=calc_urgency,
+                    )
+                )
+
+        urgency_ranks = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2}
+        suggestions.sort(
+            key=lambda s: (urgency_ranks.get(s.urgency, 3), s.warehouse_name, s.product_name)
+        )
+        return suggestions
+
+    def auto_generate_replenishment_transfers(
+        self, payload: AutoGenerateTransfersPayload, current_user_id: int | None = None
+    ) -> AutoGenerateTransfersResultOut:
+        all_suggestions = self.evaluate_replenishment_suggestions(warehouse_id=payload.warehouse_id)
+
+        transferrable: list[ReplenishmentSuggestionOut] = []
+        unfulfilled: list[ReplenishmentSuggestionOut] = []
+
+        for s in all_suggestions:
+            if payload.product_ids and s.product_id not in payload.product_ids:
+                continue
+            if (
+                s.replenishment_source == "transfer"
+                and s.can_fulfill_transfer
+                and s.source_warehouse_id
+            ):
+                transferrable.append(s)
+            else:
+                unfulfilled.append(s)
+
+        # Group by (from_warehouse_id, to_warehouse_id)
+        grouped: dict[tuple[int, int], list[ReplenishmentSuggestionOut]] = {}
+        for s in transferrable:
+            key = (s.source_warehouse_id, s.warehouse_id)  # type: ignore[index]
+            grouped.setdefault(key, []).append(s)
+
+        created_transfers: list[StockTransferOut] = []
+        for (from_wh_id, to_wh_id), items in grouped.items():
+            transfer_payload = StockTransferCreatePayload(
+                from_warehouse_id=from_wh_id,
+                to_warehouse_id=to_wh_id,
+                notes="Automated replenishment transfer order",
+                items=[
+                    StockTransferItemCreatePayload(
+                        product_id=it.product_id,
+                        quantity=it.suggested_qty,
+                    )
+                    for it in items
+                ],
+            )
+            created_transfer = self.create_stock_transfer(
+                transfer_payload, current_user_id=current_user_id
+            )
+            approved_transfer = self.approve_stock_transfer(
+                created_transfer.id, current_user_id=current_user_id
+            )
+            created_transfers.append(approved_transfer)
+
+        return AutoGenerateTransfersResultOut(
+            created_transfers_count=len(created_transfers),
+            transfer_ids=[t.id for t in created_transfers],
+            transfers=created_transfers,
+            unfulfilled_suggestions_count=len(unfulfilled),
+            unfulfilled_suggestions=unfulfilled,
+        )

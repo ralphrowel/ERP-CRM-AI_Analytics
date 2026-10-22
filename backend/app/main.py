@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Response, status
@@ -32,13 +33,14 @@ from app.modules.sales.router import router as sales_router
 from app.modules.visiq.router import router as visiq_router
 from app.modules.workflow.router import router as workflow_router
 
+logger = logging.getLogger(__name__)
+
 # Initialize structured logging and audit session listener
 setup_logging(settings.LOG_LEVEL)
 register_audit_listener(Session)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
+def _bootstrap_startup_db() -> None:
     # Startup: Bootstrap superuser, default settings, and initial document sequences
     with SessionLocal() as db:
         identity_svc = IdentityService(db)
@@ -178,6 +180,14 @@ async def lifespan(app: FastAPI):
             )
 
         db.commit()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        _bootstrap_startup_db()
+    except Exception as exc:
+        logger.warning("Could not connect to database during startup lifespan: %s", exc)
 
     yield
     # Shutdown logic if any

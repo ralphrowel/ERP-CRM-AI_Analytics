@@ -276,8 +276,108 @@ class StockTransferOut(BaseModel):
     to_warehouse_name: str
     status: str
     notes: str | None
+    approved_at: datetime | None = None
+    approved_by: int | None = None
+    dispatched_at: datetime | None = None
+    dispatched_by: int | None = None
+    received_at: datetime | None = None
+    received_by: int | None = None
     posted_at: datetime | None
     version: int
     created_at: datetime
     created_by: int | None
     items: list[StockTransferItemOut]
+
+
+# ── Warehouse Reorder Policy Schemas ───────────────────────────────
+class WarehouseReorderPolicyCreatePayload(BaseModel):
+    warehouse_id: int
+    product_id: int
+    min_qty: Decimal = Field(..., ge=0)
+    max_qty: Decimal = Field(..., ge=0)
+    reorder_quantity: Decimal | None = Field(None, gt=0)
+    replenishment_source: str = Field("transfer", pattern="^(transfer|purchase)$")
+    source_warehouse_id: int | None = None
+    lead_time_days: int = Field(0, ge=0)
+    is_active: bool = True
+
+
+class WarehouseReorderPolicyUpdatePayload(BaseModel):
+    min_qty: Decimal | None = Field(None, ge=0)
+    max_qty: Decimal | None = Field(None, ge=0)
+    reorder_quantity: Decimal | None = Field(None, gt=0)
+    replenishment_source: str | None = Field(None, pattern="^(transfer|purchase)$")
+    source_warehouse_id: int | None = None
+    lead_time_days: int | None = Field(None, ge=0)
+    is_active: bool | None = None
+
+
+class WarehouseReorderPolicyOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    warehouse_id: int
+    warehouse_code: str
+    warehouse_name: str
+    product_id: int
+    product_sku: str
+    product_name: str
+    product_uom: str
+    min_qty: Decimal
+    max_qty: Decimal
+    reorder_quantity: Decimal | None
+    replenishment_source: str
+    source_warehouse_id: int | None
+    source_warehouse_code: str | None
+    source_warehouse_name: str | None
+    lead_time_days: int
+    is_active: bool
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+# ── Replenishment Suggestion Schemas ───────────────────────────────
+class ReplenishmentSuggestionOut(BaseModel):
+    warehouse_id: int
+    warehouse_code: str
+    warehouse_name: str
+    product_id: int
+    product_sku: str
+    product_name: str
+    product_uom: str
+    qty_on_hand: Decimal
+    qty_reserved: Decimal
+    qty_available: Decimal
+    min_qty: Decimal
+    max_qty: Decimal
+    deficit_qty: Decimal
+    suggested_qty: Decimal
+    replenishment_source: str
+    source_warehouse_id: int | None
+    source_warehouse_code: str | None
+    source_warehouse_name: str | None
+    source_qty_available: Decimal | None
+    can_fulfill_transfer: bool
+    urgency: str
+
+
+class AutoGenerateTransfersPayload(BaseModel):
+    warehouse_id: int | None = None
+    product_ids: list[int] | None = None
+
+
+class AutoGenerateTransfersResultOut(BaseModel):
+    created_transfers_count: int
+    transfer_ids: list[int]
+    transfers: list[StockTransferOut]
+    unfulfilled_suggestions_count: int
+    unfulfilled_suggestions: list[ReplenishmentSuggestionOut]
+
+
+class StockTransferDispatchPayload(BaseModel):
+    notes: str | None = None
+
+
+class StockTransferReceivePayload(BaseModel):
+    notes: str | None = None
