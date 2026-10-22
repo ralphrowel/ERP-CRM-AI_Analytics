@@ -77,6 +77,9 @@ class AnalyticsSettings(BaseSettings):
         "journal_entries",
         "journal_entry_lines",
         "fx_rates",
+        "stock_transfers",
+        "stock_transfer_items",
+        "warehouse_reorder_policies",
     ]
 
     # Paths to Legacy Datasets

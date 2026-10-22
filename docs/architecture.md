@@ -183,6 +183,7 @@ All architectural decisions are formally indexed and enforced:
 | **ADR-0018** | Multi-Currency Operations and Realized FX Settlement Engine | V2.3 | Commercial documents support foreign currencies with date-effective exchange rates (direct or reciprocal) converted to base PHP. Subledger settlements automatically compute and post Realized FX Gain (`4300`) or Realized FX Loss (`5300`) vouchers, maintaining exact double-entry equilibrium and flowing directly into Income Statement and folded Balance Sheet equity. |
 | **ADR-0019** | Standardized Analytics Transformations with dbt Core | V2.4 | Migrated transformation pipeline from hand-rolled DAG parsing into a standardized `dbt-postgres` project (`analytics_dbt/`). Replaced custom SQL headers with Jinja `source()` and `ref()` dependency resolution, integrated Phase 3 General Ledger dimensions (`dim_account`) and facts (`fact_gl_journal_line`), and enforced automated schema tests (`unique`, `not_null`, `relationships`) alongside custom singular balance tests. |
 | **ADR-0020** | Integrated Financial Intelligence & Conversational Analytics | V2.5 | End-to-end integration of general ledger records from operational `erp_crm` into analytical marts. Automated cross-system GL reconciliation engine (`GLReconciler`) continuously audits debit/credit parity and per-account balance parity. Power BI semantic model extended with `dim_account`, `fact_gl_journal_line`, and enterprise liquidity/solvency DAX measures (`KPI-020` to `KPI-027`). Visiq conversational analyst upgraded with deterministic financial statement tools and guardrailed narrative synthesis. |
+| **ADR-0021** | Multi-Warehouse Reorder Policies & Two-Step In-Transit Transfer Logistics | V3.1 | Fine-grained per-(warehouse, product) inventory reorder policies governing safety stocks, target levels, and sourcing (inter-warehouse transfer vs external PO). Upgraded stock transfers into a 4-state workflow (`draft` -> `approved` -> `in_transit` -> `posted`) with separate dispatch (origin balance deduction and `transfer_out` ledger posting) and receipt (destination balance increment, destination WAC cost absorption, and `transfer_in` ledger posting). Automated evaluation engine computes replenishment suggestions and generates batched draft transfer orders without blocking human approvals. |
 
 ---
 
@@ -192,9 +193,11 @@ All architectural decisions are formally indexed and enforced:
    - Milestone V2.3 delivered full ISO-4217 currency registry, date-effective exchange rate resolution, automated foreign invoice GL conversion, and realized FX gain/loss settlement posting. Period-end unrealized mark-to-market revaluations and multi-tenant consolidation remain future enhancements.
 2. **Automated Subledger-to-GL Realized (V2.2)**:
    - Milestone V2.2 completes the real-time subledger-to-GL posting pipeline (AR Invoices, Payments, Credit Notes, AP Bills, AP Disbursements) and provides GAAP/PFRS-compliant Balance Sheet and Income Statement reporting.
-3. **Polling Outbox Worker**:
+3. **Multi-Warehouse Automated Replenishment Delivered (V3.1)**:
+   - Milestone V3.1 delivers localized warehouse reorder policies, suggestion evaluation, automated replenishment transfer order generation, and 2-step in-transit logistics. Automated PO generation from external vendor sourcing policies remains for Milestone V3.2.
+4. **Polling Outbox Worker**:
    - Uses row-level lock polling (`SKIP LOCKED`) every 5 seconds. Highly reliable for current throughput, but would benefit from `LISTEN / NOTIFY` or Kafka if event throughput exceeds 1,000 events/second.
-4. **CDC Extraction vs Batch Watermarks**:
+5. **CDC Extraction vs Batch Watermarks**:
    - Extraction uses `updated_at` watermarks with a configurable 10-minute overlap window. Suitable for batch schedules, but sub-second streaming would require Debezium / Postgres logical replication.
 
 ---
@@ -204,4 +207,5 @@ All architectural decisions are formally indexed and enforced:
 1. **Change Data Capture (CDC)**: Implement Debezium logical replication streaming directly from PostgreSQL WAL logs into the `raw` analytics schema for sub-second data freshness.
 2. **BIR-Accredited Invoicing & E-Invoicing**: Add BIR 2307 withholding tax certificates and official electronic invoice signature payloads for Philippine tax compliance.
 3. **Advanced ML Predictive Forecasting**: Train Holt-Winters exponential smoothing and Prophet models on `mart.fact_sales_line` to deliver automated demand forecasting and reorder point optimization directly into Visiq.
-4. **Multi-Warehouse Automated Replenishment**: Implement automated inter-warehouse transfer orders based on localized low-stock alerts and safety stock triggers.
+4. **Automated Purchase Replenishment (V3.2)**: Implement automated supplier purchase order drafting from replenishment suggestions where `sourcing_type = 'purchase'`.
+

@@ -7,19 +7,27 @@ from app.core.database import get_db
 from app.modules.identity.dependencies import get_current_user
 from app.modules.identity.models import User
 from app.modules.inventory.schemas import (
+    AutoGenerateTransfersPayload,
+    AutoGenerateTransfersResultOut,
     InventoryBalanceOut,
     InventoryReconciliationOut,
     InventoryTransactionOut,
     OpeningBalancesCreatePayload,
+    ReplenishmentSuggestionOut,
     ShipmentCreatePayload,
     ShipmentOut,
     ShipmentPostPayload,
     StockAdjustmentCreatePayload,
     StockAdjustmentOut,
     StockTransferCreatePayload,
+    StockTransferDispatchPayload,
     StockTransferOut,
+    StockTransferReceivePayload,
     WarehouseCreatePayload,
     WarehouseOut,
+    WarehouseReorderPolicyCreatePayload,
+    WarehouseReorderPolicyOut,
+    WarehouseReorderPolicyUpdatePayload,
     WarehouseUpdatePayload,
 )
 from app.modules.inventory.service import InventoryService
@@ -292,6 +300,50 @@ def get_stock_transfer(
     return service._map_transfer_out(service.get_stock_transfer(transfer_id))
 
 
+@router.post("/stock-transfers/{transfer_id}/approve", response_model=StockTransferOut)
+def approve_stock_transfer(
+    transfer_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> StockTransferOut:
+    service = InventoryService(db)
+    result = service.approve_stock_transfer(
+        transfer_id=transfer_id, current_user_id=current_user.id
+    )
+    db.commit()
+    return result
+
+
+@router.post("/stock-transfers/{transfer_id}/dispatch", response_model=StockTransferOut)
+def dispatch_stock_transfer(
+    transfer_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    payload: StockTransferDispatchPayload | None = None,
+) -> StockTransferOut:
+    service = InventoryService(db)
+    result = service.dispatch_stock_transfer(
+        transfer_id=transfer_id, payload=payload, current_user_id=current_user.id
+    )
+    db.commit()
+    return result
+
+
+@router.post("/stock-transfers/{transfer_id}/receive", response_model=StockTransferOut)
+def receive_stock_transfer(
+    transfer_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    payload: StockTransferReceivePayload | None = None,
+) -> StockTransferOut:
+    service = InventoryService(db)
+    result = service.receive_stock_transfer(
+        transfer_id=transfer_id, payload=payload, current_user_id=current_user.id
+    )
+    db.commit()
+    return result
+
+
 @router.post("/stock-transfers/{transfer_id}/post", response_model=StockTransferOut)
 def post_stock_transfer(
     transfer_id: int,
@@ -312,5 +364,105 @@ def cancel_stock_transfer(
 ) -> StockTransferOut:
     service = InventoryService(db)
     result = service.cancel_stock_transfer(transfer_id=transfer_id, current_user_id=current_user.id)
+    db.commit()
+    return result
+
+
+# ── Warehouse Reorder Policies Endpoints ────────────────────────────
+@router.post(
+    "/inventory/reorder-policies",
+    response_model=WarehouseReorderPolicyOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_reorder_policy(
+    payload: WarehouseReorderPolicyCreatePayload,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> WarehouseReorderPolicyOut:
+    service = InventoryService(db)
+    result = service.create_reorder_policy(payload=payload, current_user_id=current_user.id)
+    db.commit()
+    return result
+
+
+@router.get("/inventory/reorder-policies", response_model=list[WarehouseReorderPolicyOut])
+def list_reorder_policies(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    warehouse_id: int | None = Query(None, description="Filter by warehouse ID"),
+    product_id: int | None = Query(None, description="Filter by product ID"),
+    is_active: bool | None = Query(None, description="Filter by active status"),
+) -> list[WarehouseReorderPolicyOut]:
+    service = InventoryService(db)
+    return service.list_reorder_policies(
+        warehouse_id=warehouse_id, product_id=product_id, is_active=is_active
+    )
+
+
+@router.get("/inventory/reorder-policies/{policy_id}", response_model=WarehouseReorderPolicyOut)
+def get_reorder_policy(
+    policy_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> WarehouseReorderPolicyOut:
+    service = InventoryService(db)
+    return service._map_reorder_policy_out(service.get_reorder_policy(policy_id))
+
+
+@router.put("/inventory/reorder-policies/{policy_id}", response_model=WarehouseReorderPolicyOut)
+def update_reorder_policy(
+    policy_id: int,
+    payload: WarehouseReorderPolicyUpdatePayload,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> WarehouseReorderPolicyOut:
+    service = InventoryService(db)
+    result = service.update_reorder_policy(
+        policy_id=policy_id, payload=payload, current_user_id=current_user.id
+    )
+    db.commit()
+    return result
+
+
+@router.delete("/inventory/reorder-policies/{policy_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_reorder_policy(
+    policy_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> None:
+    service = InventoryService(db)
+    service.delete_reorder_policy(policy_id)
+    db.commit()
+
+
+# ── Replenishment Suggestions & Auto-Generation Endpoints ───────────
+@router.get(
+    "/inventory/replenishment/suggestions",
+    response_model=list[ReplenishmentSuggestionOut],
+)
+def get_replenishment_suggestions(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    warehouse_id: int | None = Query(None, description="Filter by target warehouse ID"),
+    urgency: str | None = Query(None, description="Filter by urgency: CRITICAL, HIGH, MEDIUM"),
+) -> list[ReplenishmentSuggestionOut]:
+    service = InventoryService(db)
+    return service.evaluate_replenishment_suggestions(warehouse_id=warehouse_id, urgency=urgency)
+
+
+@router.post(
+    "/inventory/replenishment/auto-generate",
+    response_model=AutoGenerateTransfersResultOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def auto_generate_replenishment_transfers(
+    payload: AutoGenerateTransfersPayload,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> AutoGenerateTransfersResultOut:
+    service = InventoryService(db)
+    result = service.auto_generate_replenishment_transfers(
+        payload=payload, current_user_id=current_user.id
+    )
     db.commit()
     return result

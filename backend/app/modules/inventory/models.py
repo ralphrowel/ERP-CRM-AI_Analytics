@@ -9,10 +9,13 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     Numeric,
     String,
     Text,
+    UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -32,6 +35,7 @@ class Warehouse(Base, AuditMixin, VersionMixin):
             "is_default",
             unique=True,
             postgresql_where=func.coalesce("is_default", False),
+            sqlite_where=text("is_default = 1"),
         ),
     )
 
@@ -388,7 +392,7 @@ class StockTransfer(Base, AuditMixin, VersionMixin):
     __tablename__ = "stock_transfers"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('draft', 'posted', 'cancelled')",
+            "status IN ('draft', 'approved', 'in_transit', 'posted', 'cancelled')",
             name="ck_stock_transfers_status",
         ),
         CheckConstraint(
@@ -396,12 +400,8 @@ class StockTransfer(Base, AuditMixin, VersionMixin):
             name="ck_stock_transfers_different_warehouses",
         ),
         CheckConstraint(
-            "status <> 'posted' OR transfer_no IS NOT NULL",
-            name="ck_stock_transfers_posted_has_no",
-        ),
-        CheckConstraint(
-            "status <> 'posted' OR posted_at IS NOT NULL",
-            name="ck_stock_transfers_posted_has_posted_at",
+            "status NOT IN ('in_transit', 'posted') OR transfer_no IS NOT NULL",
+            name="ck_stock_transfers_executed_has_no",
         ),
         Index("ix_stock_transfers_from_warehouse", "from_warehouse_id"),
         Index("ix_stock_transfers_to_warehouse", "to_warehouse_id"),
@@ -420,6 +420,18 @@ class StockTransfer(Base, AuditMixin, VersionMixin):
         String(20), server_default="draft", default="draft", nullable=False
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    approved_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    dispatched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    dispatched_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    received_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
@@ -462,4 +474,68 @@ class StockTransferItem(Base):
 
     # Relationships
     stock_transfer: Mapped["StockTransfer"] = relationship("StockTransfer", back_populates="items")
+    product: Mapped["Product"] = relationship("Product")
+
+
+class WarehouseReorderPolicy(Base, AuditMixin, VersionMixin):
+    """
+    Granular inventory replenishment policy per (warehouse, product).
+    Defines safety stock thresholds, replenishment source (transfer vs purchase),
+    and target inventory replenishment targets.
+    """
+
+    __tablename__ = "warehouse_reorder_policies"
+    __table_args__ = (
+        UniqueConstraint("warehouse_id", "product_id", name="uq_reorder_policies_wh_prod"),
+        CheckConstraint("min_qty >= 0", name="ck_reorder_policy_min_non_negative"),
+        CheckConstraint("max_qty >= min_qty", name="ck_reorder_policy_max_gte_min"),
+        CheckConstraint(
+            "reorder_quantity IS NULL OR reorder_quantity > 0",
+            name="ck_reorder_policy_reorder_qty_positive",
+        ),
+        CheckConstraint(
+            "replenishment_source IN ('transfer', 'purchase')",
+            name="ck_reorder_policy_source",
+        ),
+        CheckConstraint(
+            "replenishment_source <> 'transfer' OR source_warehouse_id IS NOT NULL",
+            name="ck_reorder_policy_transfer_source_required",
+        ),
+        CheckConstraint(
+            "source_warehouse_id IS NULL OR source_warehouse_id <> warehouse_id",
+            name="ck_reorder_policy_distinct_source_wh",
+        ),
+        CheckConstraint("lead_time_days >= 0", name="ck_reorder_policy_lead_time_non_negative"),
+        Index("ix_reorder_policies_warehouse", "warehouse_id"),
+        Index("ix_reorder_policies_product", "product_id"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    warehouse_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("warehouses.id", ondelete="CASCADE"), nullable=False
+    )
+    product_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("products.id", ondelete="CASCADE"), nullable=False
+    )
+    min_qty: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    max_qty: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    reorder_quantity: Mapped[Decimal | None] = mapped_column(Numeric(14, 3), nullable=True)
+    replenishment_source: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="transfer", server_default="transfer"
+    )
+    source_warehouse_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=True
+    )
+    lead_time_days: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+
+    # Relationships
+    warehouse: Mapped["Warehouse"] = relationship("Warehouse", foreign_keys=[warehouse_id])
+    source_warehouse: Mapped["Warehouse | None"] = relationship(
+        "Warehouse", foreign_keys=[source_warehouse_id]
+    )
     product: Mapped["Product"] = relationship("Product")
