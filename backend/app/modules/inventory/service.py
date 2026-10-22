@@ -1,3 +1,4 @@
+from datetime import timedelta
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -9,6 +10,7 @@ from app.core.money import round_money, round_qty, round_unit_price
 from app.core.numbering import generate_next_number
 from app.core.status_history import record_status_change
 from app.modules.catalog.models import Product
+from app.modules.identity.models import User
 from app.modules.inventory.models import (
     InventoryBalance,
     InventoryTransaction,
@@ -23,8 +25,11 @@ from app.modules.inventory.models import (
     WarehouseReorderPolicy,
 )
 from app.modules.inventory.schemas import (
+    AutoGeneratePOsPayload,
+    AutoGeneratePOsResultOut,
     AutoGenerateTransfersPayload,
     AutoGenerateTransfersResultOut,
+    GeneratedPOOut,
     InventoryBalanceOut,
     InventoryReconciliationItem,
     InventoryReconciliationOut,
@@ -51,13 +56,24 @@ from app.modules.inventory.schemas import (
     WarehouseReorderPolicyUpdatePayload,
     WarehouseUpdatePayload,
 )
-from app.modules.sales.models import Invoice, SalesOrder, SalesOrderItem
+from app.modules.purchasing.models import (
+    PurchaseOrder,
+    PurchaseOrderItem,
+    Supplier,
+    SupplierProduct,
+)
+from app.modules.sales.models import Invoice, SalesOrder, SalesOrderItem, TaxRate
 
 
 class InventoryService:
     def __init__(self, db: Session, clock: Clock | None = None):
         self.db = db
         self.clock = clock or get_clock()
+
+    def _resolve_user_id(self, user_id: int | None) -> int | None:
+        if user_id is None:
+            return None
+        return self.db.execute(select(User.id).where(User.id == user_id)).scalar_one_or_none()
 
     # ── Warehouse Management ───────────────────────────────────────────
     def list_warehouses(self, active_only: bool = False) -> list[WarehouseOut]:
@@ -1412,13 +1428,14 @@ class InventoryService:
                 )
             )
 
+        resolved_user = self._resolve_user_id(current_user_id)
         transfer = StockTransfer(
             from_warehouse_id=from_wh.id,
             to_warehouse_id=to_wh.id,
             status="draft",
             notes=payload.notes.strip() if payload.notes else None,
-            created_by=current_user_id,
-            updated_by=current_user_id,
+            created_by=resolved_user,
+            updated_by=resolved_user,
             items=items,
         )
         self.db.add(transfer)
@@ -1431,7 +1448,7 @@ class InventoryService:
             from_status=None,
             to_status="draft",
             reason=f"Draft stock transfer created ({from_wh.code} -> {to_wh.code})",
-            changed_by=current_user_id,
+            changed_by=resolved_user,
             clock=self.clock,
         )
         self.db.flush()
@@ -1489,11 +1506,12 @@ class InventoryService:
         if not transfer.transfer_no:
             transfer.transfer_no = generate_next_number(self.db, "stock_transfer", self.clock)
 
+        resolved_user = self._resolve_user_id(current_user_id)
         transfer.status = "approved"
         transfer.approved_at = now
-        transfer.approved_by = current_user_id
+        transfer.approved_by = resolved_user
         transfer.version += 1
-        transfer.updated_by = current_user_id
+        transfer.updated_by = resolved_user
 
         record_status_change(
             self.db,
@@ -1502,7 +1520,7 @@ class InventoryService:
             from_status="draft",
             to_status="approved",
             reason=f"Stock transfer {transfer.transfer_no} approved by supervisor",
-            changed_by=current_user_id,
+            changed_by=resolved_user,
             clock=self.clock,
         )
         self.db.flush()
@@ -1583,11 +1601,12 @@ class InventoryService:
             )
             self.db.add(txn_out)
 
+        resolved_user = self._resolve_user_id(current_user_id)
         transfer.status = "in_transit"
         transfer.dispatched_at = now
-        transfer.dispatched_by = current_user_id
+        transfer.dispatched_by = resolved_user
         transfer.version += 1
-        transfer.updated_by = current_user_id
+        transfer.updated_by = resolved_user
         if payload and payload.notes:
             transfer.notes = (
                 f"{transfer.notes}\nDispatch note: {payload.notes.strip()}"
@@ -1602,7 +1621,7 @@ class InventoryService:
             from_status=from_status,
             to_status="in_transit",
             reason=f"Stock transfer {transfer.transfer_no} dispatched in-transit to {transfer.to_warehouse.name}",
-            changed_by=current_user_id,
+            changed_by=resolved_user,
             clock=self.clock,
         )
         self.db.flush()
@@ -1682,12 +1701,13 @@ class InventoryService:
             )
             self.db.add(txn_in)
 
+        resolved_user = self._resolve_user_id(current_user_id)
         transfer.status = "posted"
         transfer.received_at = now
-        transfer.received_by = current_user_id
+        transfer.received_by = resolved_user
         transfer.posted_at = now
         transfer.version += 1
-        transfer.updated_by = current_user_id
+        transfer.updated_by = resolved_user
         if payload and payload.notes:
             transfer.notes = (
                 f"{transfer.notes}\nReceipt note: {payload.notes.strip()}"
@@ -1702,7 +1722,7 @@ class InventoryService:
             from_status="in_transit",
             to_status="posted",
             reason=f"Stock transfer {transfer.transfer_no} physically received and posted at {transfer.to_warehouse.name}",
-            changed_by=current_user_id,
+            changed_by=resolved_user,
             clock=self.clock,
         )
         self.db.flush()
@@ -1891,6 +1911,13 @@ class InventoryService:
             source_warehouse_id=p.source_warehouse_id,
             source_warehouse_code=p.source_warehouse.code if p.source_warehouse else None,
             source_warehouse_name=p.source_warehouse.name if p.source_warehouse else None,
+            preferred_supplier_id=p.preferred_supplier_id,
+            preferred_supplier_code=p.preferred_supplier.supplier_no
+            if (p.preferred_supplier_id and p.preferred_supplier)
+            else None,
+            preferred_supplier_name=p.preferred_supplier.name
+            if (p.preferred_supplier_id and p.preferred_supplier)
+            else None,
             lead_time_days=p.lead_time_days,
             is_active=p.is_active,
             version=p.version,
@@ -1941,6 +1968,16 @@ class InventoryService:
                     detail=f"Source warehouse '{src_wh.name}' is inactive.",
                 )
 
+        if payload.preferred_supplier_id:
+            supplier = self.db.get(Supplier, payload.preferred_supplier_id)
+            if not supplier:
+                raise NotFoundError(f"Supplier with ID {payload.preferred_supplier_id} not found.")
+            if not supplier.is_active:
+                raise BusinessRuleError(
+                    code="SUPPLIER_INACTIVE",
+                    detail=f"Supplier '{supplier.name}' is inactive.",
+                )
+
         # Check unique constraint
         stmt_exist = select(WarehouseReorderPolicy).where(
             WarehouseReorderPolicy.warehouse_id == payload.warehouse_id,
@@ -1951,6 +1988,7 @@ class InventoryService:
                 f"Reorder policy already exists for product '{prod.name}' in warehouse '{wh.name}'."
             )
 
+        resolved_user = self._resolve_user_id(current_user_id)
         policy = WarehouseReorderPolicy(
             warehouse_id=payload.warehouse_id,
             product_id=payload.product_id,
@@ -1963,10 +2001,11 @@ class InventoryService:
             source_warehouse_id=payload.source_warehouse_id
             if payload.replenishment_source == "transfer"
             else None,
+            preferred_supplier_id=payload.preferred_supplier_id,
             lead_time_days=payload.lead_time_days,
             is_active=payload.is_active,
-            created_by=current_user_id,
-            updated_by=current_user_id,
+            created_by=resolved_user,
+            updated_by=resolved_user,
         )
         self.db.add(policy)
         self.db.flush()
@@ -1978,6 +2017,7 @@ class InventoryService:
             .options(
                 joinedload(WarehouseReorderPolicy.warehouse),
                 joinedload(WarehouseReorderPolicy.source_warehouse),
+                joinedload(WarehouseReorderPolicy.preferred_supplier),
                 joinedload(WarehouseReorderPolicy.product),
             )
             .where(WarehouseReorderPolicy.id == policy_id)
@@ -1998,6 +2038,7 @@ class InventoryService:
             .options(
                 joinedload(WarehouseReorderPolicy.warehouse),
                 joinedload(WarehouseReorderPolicy.source_warehouse),
+                joinedload(WarehouseReorderPolicy.preferred_supplier),
                 joinedload(WarehouseReorderPolicy.product),
             )
             .order_by(
@@ -2059,13 +2100,29 @@ class InventoryService:
                 detail="Source warehouse is required for transfer replenishment source.",
             )
 
+        if payload.preferred_supplier_id is not None:
+            if payload.preferred_supplier_id > 0:
+                supplier = self.db.get(Supplier, payload.preferred_supplier_id)
+                if not supplier:
+                    raise NotFoundError(
+                        f"Supplier with ID {payload.preferred_supplier_id} not found."
+                    )
+                if not supplier.is_active:
+                    raise BusinessRuleError(
+                        code="SUPPLIER_INACTIVE",
+                        detail=f"Supplier '{supplier.name}' is inactive.",
+                    )
+                policy.preferred_supplier_id = payload.preferred_supplier_id
+            else:
+                policy.preferred_supplier_id = None
+
         if payload.lead_time_days is not None:
             policy.lead_time_days = payload.lead_time_days
         if payload.is_active is not None:
             policy.is_active = payload.is_active
 
         policy.version += 1
-        policy.updated_by = current_user_id
+        policy.updated_by = self._resolve_user_id(current_user_id)
         self.db.flush()
         return self._map_reorder_policy_out(policy)
 
@@ -2082,6 +2139,7 @@ class InventoryService:
             .options(
                 joinedload(WarehouseReorderPolicy.warehouse),
                 joinedload(WarehouseReorderPolicy.source_warehouse),
+                joinedload(WarehouseReorderPolicy.preferred_supplier),
                 joinedload(WarehouseReorderPolicy.product),
             )
             .where(WarehouseReorderPolicy.is_active.is_(True))
@@ -2144,6 +2202,61 @@ class InventoryService:
                     source_avail = max(Decimal("0.000"), src_on_hand - src_reserved)
                     can_fulfill = source_avail >= suggested_qty
 
+                preferred_sup_id: int | None = None
+                preferred_sup_code: str | None = None
+                preferred_sup_name: str | None = None
+                est_cost: Decimal | None = None
+                unfulfillable_reason: str | None = None
+
+                if p.replenishment_source == "purchase":
+                    # 1. Check policy preferred supplier
+                    if p.preferred_supplier and p.preferred_supplier.is_active:
+                        preferred_sup_id = p.preferred_supplier.id
+                        preferred_sup_code = p.preferred_supplier.supplier_no
+                        preferred_sup_name = p.preferred_supplier.name
+                        sp = self.db.execute(
+                            select(SupplierProduct).where(
+                                SupplierProduct.supplier_id == p.preferred_supplier_id,
+                                SupplierProduct.product_id == p.product_id,
+                            )
+                        ).scalar_one_or_none()
+                        if sp and sp.last_unit_cost:
+                            est_cost = sp.last_unit_cost
+                    else:
+                        # 2. Look up preferred or active supplier from supplier_products
+                        sp = (
+                            self.db.execute(
+                                select(SupplierProduct)
+                                .join(Supplier, SupplierProduct.supplier_id == Supplier.id)
+                                .where(
+                                    SupplierProduct.product_id == p.product_id,
+                                    Supplier.is_active.is_(True),
+                                )
+                                .order_by(
+                                    SupplierProduct.is_preferred.desc(),
+                                    SupplierProduct.last_unit_cost.asc().nulls_last(),
+                                )
+                            )
+                            .scalars()
+                            .first()
+                        )
+                        if sp:
+                            sup = self.db.get(Supplier, sp.supplier_id)
+                            if sup and sup.is_active:
+                                preferred_sup_id = sup.id
+                                preferred_sup_code = sup.supplier_no
+                                preferred_sup_name = sup.name
+                                est_cost = sp.last_unit_cost
+
+                    if not preferred_sup_id:
+                        unfulfillable_reason = "NO_SUPPLIER_FOR_PRODUCT"
+                    elif not est_cost:
+                        est_cost = (
+                            p.product.list_price
+                            if p.product and p.product.list_price
+                            else Decimal("0.0000")
+                        )
+
                 suggestions.append(
                     ReplenishmentSuggestionOut(
                         warehouse_id=p.warehouse_id,
@@ -2170,6 +2283,11 @@ class InventoryService:
                         else None,
                         source_qty_available=source_avail,
                         can_fulfill_transfer=can_fulfill,
+                        preferred_supplier_id=preferred_sup_id,
+                        preferred_supplier_code=preferred_sup_code,
+                        preferred_supplier_name=preferred_sup_name,
+                        estimated_unit_cost=est_cost,
+                        unfulfillable_reason=unfulfillable_reason,
                         urgency=calc_urgency,
                     )
                 )
@@ -2232,6 +2350,171 @@ class InventoryService:
             created_transfers_count=len(created_transfers),
             transfer_ids=[t.id for t in created_transfers],
             transfers=created_transfers,
+            unfulfilled_suggestions_count=len(unfulfilled),
+            unfulfilled_suggestions=unfulfilled,
+        )
+
+    def auto_generate_replenishment_pos(
+        self, payload: AutoGeneratePOsPayload, current_user_id: int | None = None
+    ) -> AutoGeneratePOsResultOut:
+        all_suggestions = self.evaluate_replenishment_suggestions(warehouse_id=payload.warehouse_id)
+
+        purchasable: list[ReplenishmentSuggestionOut] = []
+        unfulfilled: list[ReplenishmentSuggestionOut] = []
+
+        for s in all_suggestions:
+            if payload.product_ids and s.product_id not in payload.product_ids:
+                continue
+            if payload.supplier_id and s.preferred_supplier_id != payload.supplier_id:
+                continue
+
+            if (
+                s.replenishment_source == "purchase"
+                and s.preferred_supplier_id is not None
+                and not s.unfulfillable_reason
+                and s.suggested_qty > Decimal("0.000")
+            ):
+                purchasable.append(s)
+            else:
+                if s.replenishment_source == "purchase":
+                    unfulfilled.append(s)
+
+        # Group by (preferred_supplier_id, warehouse_id)
+        grouped: dict[tuple[int, int], list[ReplenishmentSuggestionOut]] = {}
+        for s in purchasable:
+            key = (s.preferred_supplier_id, s.warehouse_id)  # type: ignore[index]
+            grouped.setdefault(key, []).append(s)
+
+        # Query default active tax rate (12% VAT default)
+        default_tax_rate = self.db.execute(
+            select(TaxRate).where(TaxRate.is_default == True, TaxRate.is_active == True)  # noqa: E712
+        ).scalar_one_or_none()
+        if not default_tax_rate:
+            default_tax_rate = (
+                self.db.execute(
+                    select(TaxRate).where(TaxRate.is_active == True)  # noqa: E712
+                )
+                .scalars()
+                .first()
+            )
+
+        created_pos: list[GeneratedPOOut] = []
+        now_date = self.clock.now().date()
+
+        for (sup_id, wh_id), items in grouped.items():
+            supplier = self.db.get(Supplier, sup_id)
+            wh = self.get_warehouse(wh_id)
+
+            # Determine lead time from policies
+            policies = (
+                self.db.execute(
+                    select(WarehouseReorderPolicy).where(
+                        WarehouseReorderPolicy.warehouse_id == wh_id,
+                        WarehouseReorderPolicy.product_id.in_([it.product_id for it in items]),
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            max_lead = max((p.lead_time_days for p in policies), default=0)
+            expected_date = now_date + timedelta(days=max_lead) if max_lead > 0 else None
+
+            po_no = generate_next_number(self.db, "purchase_order")
+            creator_id = self._resolve_user_id(current_user_id)
+            po = PurchaseOrder(
+                po_no=po_no,
+                supplier_id=sup_id,
+                warehouse_id=wh_id,
+                status="draft",
+                order_date=now_date,
+                expected_date=expected_date,
+                notes=f"Automated replenishment purchase order for {wh.name}",
+                payment_terms_days_snapshot=supplier.payment_terms_days if supplier else 30,
+                supplier_address_snapshot=supplier.address if supplier else None,
+                warehouse_address_snapshot=wh.address if wh else None,
+                created_by=creator_id,
+                updated_by=creator_id,
+            )
+            self.db.add(po)
+            self.db.flush()
+
+            subtotal = Decimal("0.0000")
+            tax_total = Decimal("0.0000")
+            grand_total = Decimal("0.0000")
+
+            for idx, it in enumerate(items, start=1):
+                prod = self.db.get(Product, it.product_id)
+                cost = (
+                    it.estimated_unit_cost
+                    or (prod.list_price if prod and prod.list_price else Decimal("0.0000"))
+                    or Decimal("0.0000")
+                )
+                qty = round_qty(it.suggested_qty)
+                rate = Decimal(str(default_tax_rate.rate)) if default_tax_rate else Decimal("0.12")
+                line_net = round_money(qty * cost)
+                line_tax = round_money(line_net * rate)
+                line_total = line_net + line_tax
+
+                subtotal += line_net
+                tax_total += line_tax
+                grand_total += line_total
+
+                item = PurchaseOrderItem(
+                    purchase_order_id=po.id,
+                    line_no=idx,
+                    product_id=it.product_id,
+                    description=prod.name if prod else it.product_name,
+                    uom=prod.uom if prod else it.product_uom,
+                    quantity=qty,
+                    unit_cost=cost,
+                    tax_rate_id=default_tax_rate.id if default_tax_rate else 1,
+                    tax_rate=rate,
+                    line_net=line_net,
+                    line_tax=line_tax,
+                    line_total=line_total,
+                    quantity_received=Decimal("0.000"),
+                    quantity_billed=Decimal("0.000"),
+                )
+                self.db.add(item)
+
+            po.subtotal = subtotal
+            po.tax_total = tax_total
+            po.grand_total = grand_total
+            self.db.flush()
+
+            record_status_change(
+                db=self.db,
+                entity_type="purchase_order",
+                entity_id=po.id,
+                to_status="draft",
+                reason="Auto-generated via replenishment evaluation",
+                changed_by=creator_id,
+                clock=self.clock,
+            )
+            self.db.commit()
+
+            created_pos.append(
+                GeneratedPOOut(
+                    id=po.id,
+                    po_no=po.po_no,
+                    supplier_id=supplier.id if supplier else sup_id,
+                    supplier_name=supplier.name if supplier else f"Supplier #{sup_id}",
+                    warehouse_id=wh.id,
+                    warehouse_name=wh.name,
+                    status=po.status,
+                    order_date=po.order_date,
+                    expected_date=po.expected_date,
+                    subtotal=po.subtotal,
+                    tax_total=po.tax_total,
+                    grand_total=po.grand_total,
+                    items_count=len(items),
+                )
+            )
+
+        return AutoGeneratePOsResultOut(
+            created_pos_count=len(created_pos),
+            po_ids=[p.id for p in created_pos],
+            purchase_orders=created_pos,
             unfulfilled_suggestions_count=len(unfulfilled),
             unfulfilled_suggestions=unfulfilled,
         )

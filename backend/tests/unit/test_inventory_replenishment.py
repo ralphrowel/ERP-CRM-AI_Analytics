@@ -562,12 +562,14 @@ def test_replenishment_and_transfer_fastapi_endpoints(
     from app.modules.identity.models import User
 
     auth_user = User(
-        id=1,
         email="inv_manager@parity.ph",
+        password_hash="mock_hash",
         full_name="Inventory Manager",
         is_active=True,
         is_superuser=True,
     )
+    inv_service.db.add(auth_user)
+    inv_service.db.flush()
     app.dependency_overrides[get_current_user] = lambda: auth_user
 
     try:

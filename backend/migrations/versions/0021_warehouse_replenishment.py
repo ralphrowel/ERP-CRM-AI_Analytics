@@ -55,7 +55,21 @@ def upgrade() -> None:
         ),
     )
 
-    # 2. Create warehouse_reorder_policies table
+    # 2. Update stock_transfers check constraints for expanded workflow statuses
+    op.drop_constraint("ck_stock_transfers_status", "stock_transfers", type_="check")
+    op.create_check_constraint(
+        "ck_stock_transfers_status",
+        "stock_transfers",
+        "status IN ('draft', 'approved', 'in_transit', 'posted', 'cancelled')",
+    )
+    op.drop_constraint("ck_stock_transfers_posted_has_no", "stock_transfers", type_="check")
+    op.create_check_constraint(
+        "ck_stock_transfers_executed_has_no",
+        "stock_transfers",
+        "status NOT IN ('in_transit', 'posted') OR transfer_no IS NOT NULL",
+    )
+
+    # 3. Create warehouse_reorder_policies table
     op.create_table(
         "warehouse_reorder_policies",
         sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True),
@@ -157,3 +171,16 @@ def downgrade() -> None:
     op.drop_column("stock_transfers", "dispatched_at")
     op.drop_column("stock_transfers", "approved_by")
     op.drop_column("stock_transfers", "approved_at")
+
+    op.drop_constraint("ck_stock_transfers_executed_has_no", "stock_transfers", type_="check")
+    op.create_check_constraint(
+        "ck_stock_transfers_posted_has_no",
+        "stock_transfers",
+        "status <> 'posted' OR transfer_no IS NOT NULL",
+    )
+    op.drop_constraint("ck_stock_transfers_status", "stock_transfers", type_="check")
+    op.create_check_constraint(
+        "ck_stock_transfers_status",
+        "stock_transfers",
+        "status IN ('draft', 'posted', 'cancelled')",
+    )

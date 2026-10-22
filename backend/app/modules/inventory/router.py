@@ -7,6 +7,8 @@ from app.core.database import get_db
 from app.modules.identity.dependencies import get_current_user
 from app.modules.identity.models import User
 from app.modules.inventory.schemas import (
+    AutoGeneratePOsPayload,
+    AutoGeneratePOsResultOut,
     AutoGenerateTransfersPayload,
     AutoGenerateTransfersResultOut,
     InventoryBalanceOut,
@@ -462,6 +464,24 @@ def auto_generate_replenishment_transfers(
 ) -> AutoGenerateTransfersResultOut:
     service = InventoryService(db)
     result = service.auto_generate_replenishment_transfers(
+        payload=payload, current_user_id=current_user.id
+    )
+    db.commit()
+    return result
+
+
+@router.post(
+    "/inventory/replenishment/auto-generate-pos",
+    response_model=AutoGeneratePOsResultOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def auto_generate_replenishment_pos(
+    payload: AutoGeneratePOsPayload,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> AutoGeneratePOsResultOut:
+    service = InventoryService(db)
+    result = service.auto_generate_replenishment_pos(
         payload=payload, current_user_id=current_user.id
     )
     db.commit()
