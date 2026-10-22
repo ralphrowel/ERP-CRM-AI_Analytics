@@ -66,6 +66,17 @@ class VisiqAgent:
 
         if tool_name == "dq_summary":
             tool_output = self.tools.dq_summary()
+        elif tool_name == "gl_reconciliation_audit":
+            tool_output = self.tools.gl_reconciliation_audit(
+                as_of_date=intent.get("as_of_date")
+            )
+        elif tool_name == "financial_statement_summary":
+            tool_output = self.tools.financial_statement_summary(
+                statement_type=intent.get("statement_type", "balance_sheet"),
+                as_of_date=intent.get("as_of_date"),
+                start_date=intent.get("start_date"),
+                end_date=intent.get("end_date"),
+            )
         elif tool_name == "explain_metric":
             tool_output = self.tools.explain_metric(intent["kpi_id"])
         elif tool_name == "compare_periods":
@@ -208,6 +219,38 @@ class VisiqAgent:
             for term in ("data quality", "dq summary", "health score", "defects")
         ):
             return {"tool": "dq_summary"}
+
+        # Check for GL Reconciliation audit
+        if any(
+            term in q_lower
+            for term in (
+                "reconciliation",
+                "reconcile",
+                "gl audit",
+                "ledger parity",
+                "balanced in the mart",
+                "debit credit parity",
+            )
+        ):
+            return {"tool": "gl_reconciliation_audit"}
+
+        # Check for Financial Statements (Balance Sheet / Income Statement / P&L)
+        if any(
+            term in q_lower
+            for term in (
+                "balance sheet",
+                "statement of financial position",
+                "income statement",
+                "profit and loss",
+                "p&l",
+            )
+        ):
+            st_type = (
+                "income_statement"
+                if any(t in q_lower for t in ("income", "p&l", "profit and loss"))
+                else "balance_sheet"
+            )
+            return {"tool": "financial_statement_summary", "statement_type": st_type}
 
         # Check for Explain Metric
         if any(
@@ -439,5 +482,73 @@ class VisiqAgent:
                 f"- **SQL Aggregation Formula:** `{output.get('calculation_formula')}`\n"
                 f"- **Business Caveats:** {output.get('business_caveats')}"
             )
+
+        elif tool_name == "gl_reconciliation_audit":
+            status = str(output.get("status", "unknown")).upper()
+            op_deb = output.get("operational_debit_total", 0.0)
+            op_cred = output.get("operational_credit_total", 0.0)
+            mart_deb = output.get("mart_debit_total", 0.0)
+            mart_cred = output.get("mart_credit_total", 0.0)
+            net_var = output.get("net_variance", 0.0)
+            accts = output.get("account_count", 0)
+            discrepant = len(output.get("discrepant_accounts", []))
+
+            reconciled_str = (
+                "**PERFECT RECONCILIATION ACHIEVED**: Exact centavo parity between OLTP General Ledger and OLAP analytical marts."
+                if status == "RECONCILED"
+                else f"**DISCREPANCY DETECTED**: {discrepant} accounts show variances requiring investigation."
+            )
+
+            return (
+                f"### General Ledger to Analytics Reconciliation Audit\n\n"
+                f"**Audit Status:** `{status}`\n\n"
+                f"{reconciled_str}\n\n"
+                f"- **Operational Total Debits:** ₱{op_deb:,.2f} | **Credits:** ₱{op_cred:,.2f}\n"
+                f"- **Analytical Mart Debits:** ₱{mart_deb:,.2f} | **Credits:** ₱{mart_cred:,.2f}\n"
+                f"- **Net Variance:** ₱{net_var:,.2f}\n"
+                f"- **Accounts Audited:** {accts} active accounts\n"
+                f"- **Discrepant Accounts Count:** {discrepant}"
+            )
+
+        elif tool_name == "financial_statement_summary":
+            st_type = output.get("statement_type", "balance_sheet")
+            if st_type == "balance_sheet":
+                assets = output.get("total_assets", 0.0)
+                liab = output.get("total_liabilities", 0.0)
+                equity = output.get("total_equity", 0.0)
+                net_inc = output.get("current_period_net_income", 0.0)
+                balanced = output.get("is_balanced", False)
+                status_txt = (
+                    "BALANCED (`Assets = Liabilities + Equity`)"
+                    if balanced
+                    else "IMBALANCED"
+                )
+
+                return (
+                    f"### Balance Sheet Summary (as of {output.get('as_of_date')})\n\n"
+                    f"**Accounting Equilibrium Status:** `{status_txt}`\n\n"
+                    f"- **Total Assets:** ₱{assets:,.2f}\n"
+                    f"- **Total Liabilities:** ₱{liab:,.2f}\n"
+                    f"- **Total Equity (including net income):** ₱{equity:,.2f}\n"
+                    f"  - *Current Period Net Income:* ₱{net_inc:,.2f}\n"
+                    f"- **Total Liabilities & Equity:** ₱{liab + equity:,.2f}"
+                )
+            else:
+                rev = output.get("total_revenue", 0.0)
+                cogs = output.get("total_cogs", 0.0)
+                gp = output.get("gross_profit", 0.0)
+                exp = output.get("total_operating_expenses", 0.0)
+                net_inc = output.get("net_income", 0.0)
+                margin = output.get("operating_margin_pct", 0.0)
+
+                return (
+                    f"### Income Statement (P&L) Summary\n\n"
+                    f"- **Total Revenue:** ₱{rev:,.2f}\n"
+                    f"- **Cost of Goods Sold (COGS):** ₱{cogs:,.2f}\n"
+                    f"- **Gross Profit:** ₱{gp:,.2f}\n"
+                    f"- **Operating Expenses:** ₱{exp:,.2f}\n"
+                    f"- **Net Income:** ₱{net_inc:,.2f}\n"
+                    f"- **Operating Margin:** {margin:.1f}%"
+                )
 
         return f"Completed analysis for query: {question}"

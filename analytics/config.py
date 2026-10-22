@@ -34,6 +34,7 @@ class AnalyticsSettings(BaseSettings):
         "tax_rates",
         "departments",
         "warehouses",
+        "currencies",
     ]
 
     # Core operational tables (extracted incrementally by updated_at / timestamp)
@@ -71,6 +72,11 @@ class AnalyticsSettings(BaseSettings):
         "status_history",
         "approval_requests",
         "users",
+        "accounts",
+        "fiscal_periods",
+        "journal_entries",
+        "journal_entry_lines",
+        "fx_rates",
     ]
 
     # Paths to Legacy Datasets

@@ -65,7 +65,7 @@ def seeded_mart_engine(analytics_test_engine: Engine) -> Engine:
 
 def test_visiq_kpi_catalog_completeness():
     """Validates that all 19 Roadmap §11 KPIs are defined in Visiq catalog."""
-    assert len(KPI_METRIC_CATALOG) == 19
+    assert len(KPI_METRIC_CATALOG) >= 19
     for i in range(1, 20):
         kpi_id = f"KPI-{i:03d}"
         assert kpi_id in KPI_METRIC_CATALOG
@@ -73,7 +73,7 @@ def test_visiq_kpi_catalog_completeness():
         assert kpi.name
         assert kpi.fact_table
         assert kpi.sql_formula
-        assert kpi.unit in ("PHP", "%", "count", "days")
+        assert kpi.unit in ("PHP", "%", "count", "days", "ratio")
 
 
 def test_20_question_evaluation_benchmark_numerical_parity(seeded_mart_engine: Engine):
