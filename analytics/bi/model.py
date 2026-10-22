@@ -167,6 +167,21 @@ class SemanticModel:
                     ModelColumn("is_active", "boolean"),
                 ],
             ),
+            ModelTable(
+                name="dim_account",
+                schema_name="mart",
+                is_fact=False,
+                description="General Ledger Chart of Accounts dimension (GAAP/PFRS compliant).",
+                columns=[
+                    ModelColumn("account_key", "int64", is_hidden=False),
+                    ModelColumn("account_id", "int64", is_hidden=True),
+                    ModelColumn("account_code", "string"),
+                    ModelColumn("account_name", "string"),
+                    ModelColumn("account_type", "string"),
+                    ModelColumn("normal_balance", "string"),
+                    ModelColumn("is_active", "boolean"),
+                ],
+            ),
             # 2. Fact Tables
             ModelTable(
                 name="fact_sales_line",
@@ -268,6 +283,29 @@ class SemanticModel:
                     ModelColumn("days_after_due", "int64"),
                 ],
             ),
+            ModelTable(
+                name="fact_gl_journal_line",
+                schema_name="mart",
+                is_fact=True,
+                description="Double-entry General Ledger journal line transactional fact table.",
+                columns=[
+                    ModelColumn("gl_fact_key", "int64", is_hidden=True),
+                    ModelColumn("line_id", "int64", is_hidden=True),
+                    ModelColumn("journal_entry_id", "int64", is_hidden=True),
+                    ModelColumn("account_key", "int64", is_hidden=True),
+                    ModelColumn("date_key", "int64", is_hidden=True),
+                    ModelColumn("entry_no", "string"),
+                    ModelColumn("posting_date", "dateTime"),
+                    ModelColumn("source_document_type", "string"),
+                    ModelColumn("source_document_id", "int64"),
+                    ModelColumn("status", "string"),
+                    ModelColumn("line_no", "int64"),
+                    ModelColumn("debit_amount", "decimal", format_string="₱#,##0.00"),
+                    ModelColumn("credit_amount", "decimal", format_string="₱#,##0.00"),
+                    ModelColumn("net_amount", "decimal", format_string="₱#,##0.00"),
+                    ModelColumn("line_description", "string"),
+                ],
+            ),
         ]
 
     def _build_relationships(self) -> list[ModelRelationship]:
@@ -326,6 +364,13 @@ class SemanticModel:
             ),
             ModelRelationship(
                 "fact_ar_allocation", "customer_key", "dim_customer", "customer_key"
+            ),
+            # fact_gl_journal_line relationships
+            ModelRelationship(
+                "fact_gl_journal_line", "account_key", "dim_account", "account_key"
+            ),
+            ModelRelationship(
+                "fact_gl_journal_line", "date_key", "dim_date", "date_key"
             ),
         ]
 

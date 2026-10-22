@@ -156,6 +156,13 @@ class VisiqQueryEngine:
         fact_tbl = self._qual("mart", kpi.fact_table)
         select_fields = [f"{kpi.sql_formula} AS value"]
         joins = []
+        if kpi.fact_table == "fact_gl_journal_line":
+            acct_join = (
+                "LEFT JOIN mart.dim_account a ON f.account_key = a.account_key"
+                if self.is_postgres
+                else "LEFT JOIN dim_account a ON f.account_key = a.account_key"
+            )
+            joins.append(acct_join)
         where_clauses = ["1=1"]
         params: dict[str, Any] = {}
 

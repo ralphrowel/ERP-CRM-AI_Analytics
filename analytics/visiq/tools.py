@@ -9,7 +9,7 @@ Exposes the 6 predefined deterministic analytical tools:
 6. explain_metric
 """
 
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy import Engine, text
@@ -330,3 +330,179 @@ class VisiqTools:
             "business_caveats": kpi.caveats,
             "freshness": self.query_engine.get_etl_freshness(),
         }
+
+    def financial_statement_summary(
+        self,
+        statement_type: str = "balance_sheet",
+        as_of_date: str | date | None = None,
+        start_date: str | date | None = None,
+        end_date: str | date | None = None,
+    ) -> dict[str, Any]:
+        """
+        Tool 7: financial_statement_summary (Roadmap §V2.5)
+        Evaluates formal Balance Sheet or Income Statement directly from General Ledger marts.
+        """
+        fact_table = (
+            "mart.fact_gl_journal_line"
+            if self.engine.dialect.name == "postgresql"
+            else "fact_gl_journal_line"
+        )
+        dim_table = (
+            "mart.dim_account"
+            if self.engine.dialect.name == "postgresql"
+            else "dim_account"
+        )
+
+        st_type = statement_type.lower()
+        if "income" in st_type or "p&l" in st_type or "profit" in st_type:
+            # Income Statement
+            where_clause = ""
+            params: dict[str, Any] = {}
+            if start_date and end_date:
+                where_clause = (
+                    "WHERE f.posting_date >= :s_date AND f.posting_date <= :e_date"
+                )
+                params = {"s_date": str(start_date), "e_date": str(end_date)}
+            elif end_date:
+                where_clause = "WHERE f.posting_date <= :e_date"
+                params = {"e_date": str(end_date)}
+
+            query = text(f"""
+                SELECT
+                    a.account_type,
+                    a.account_code,
+                    a.account_name,
+                    COALESCE(SUM(f.debit_amount), 0) AS total_debit,
+                    COALESCE(SUM(f.credit_amount), 0) AS total_credit
+                FROM {dim_table} a
+                LEFT JOIN {fact_table} f ON f.account_key = a.account_key
+                {where_clause}
+                WHERE a.account_type IN ('revenue', 'expense')
+                GROUP BY a.account_type, a.account_code, a.account_name
+                ORDER BY a.account_code
+            """)
+
+            try:
+                with self.engine.connect() as conn:
+                    rows = conn.execute(query, params).mappings().all()
+            except Exception:  # noqa: BLE001
+                rows = []
+
+            rev_total = 0.0
+            cogs_total = 0.0
+            exp_total = 0.0
+
+            for r in rows:
+                d = float(r["total_debit"])
+                c = float(r["total_credit"])
+                code = str(r["account_code"])
+                name = str(r["account_name"]).lower()
+
+                if r["account_type"] == "revenue":
+                    rev_total += c - d
+                elif r["account_type"] == "expense":
+                    if code == "5100" or "cogs" in name or "cost of goods" in name:
+                        cogs_total += d - c
+                    else:
+                        exp_total += d - c
+
+            gross_profit = rev_total - cogs_total
+            net_income = gross_profit - exp_total
+            op_margin_pct = (
+                round((gross_profit - exp_total) * 100.0 / rev_total, 2)
+                if rev_total > 0
+                else 0.0
+            )
+
+            return {
+                "tool": "financial_statement_summary",
+                "statement_type": "income_statement",
+                "start_date": str(start_date) if start_date else None,
+                "end_date": str(end_date)
+                if end_date
+                else str(as_of_date or datetime.now(UTC).date()),
+                "total_revenue": round(rev_total, 2),
+                "total_cogs": round(cogs_total, 2),
+                "gross_profit": round(gross_profit, 2),
+                "total_operating_expenses": round(exp_total, 2),
+                "net_income": round(net_income, 2),
+                "operating_margin_pct": op_margin_pct,
+                "freshness": self.query_engine.get_etl_freshness(),
+            }
+
+        # Default Balance Sheet
+        as_of_str = str(as_of_date) if as_of_date else str(datetime.now(UTC).date())
+        query = text(f"""
+            SELECT
+                a.account_type,
+                a.account_code,
+                a.account_name,
+                COALESCE(SUM(f.debit_amount), 0) AS total_debit,
+                COALESCE(SUM(f.credit_amount), 0) AS total_credit
+            FROM {dim_table} a
+            LEFT JOIN {fact_table} f ON f.account_key = a.account_key AND f.posting_date <= :as_of
+            GROUP BY a.account_type, a.account_code, a.account_name
+            ORDER BY a.account_code
+        """)
+
+        try:
+            with self.engine.connect() as conn:
+                rows = conn.execute(query, {"as_of": as_of_str}).mappings().all()
+        except Exception:  # noqa: BLE001
+            rows = []
+
+        assets = 0.0
+        liabilities = 0.0
+        equity_base = 0.0
+        rev_to_date = 0.0
+        exp_to_date = 0.0
+
+        for r in rows:
+            d = float(r["total_debit"])
+            c = float(r["total_credit"])
+            atype = r["account_type"]
+
+            if atype == "asset":
+                assets += d - c
+            elif atype == "liability":
+                liabilities += c - d
+            elif atype == "equity":
+                equity_base += c - d
+            elif atype == "revenue":
+                rev_to_date += c - d
+            elif atype == "expense":
+                exp_to_date += d - c
+
+        net_income = rev_to_date - exp_to_date
+        total_equity = equity_base + net_income
+        total_liab_equity = liabilities + total_equity
+        balanced = abs(assets - total_liab_equity) < 0.01
+
+        return {
+            "tool": "financial_statement_summary",
+            "statement_type": "balance_sheet",
+            "as_of_date": as_of_str,
+            "total_assets": round(assets, 2),
+            "total_liabilities": round(liabilities, 2),
+            "contributed_equity": round(equity_base, 2),
+            "current_period_net_income": round(net_income, 2),
+            "total_equity": round(total_equity, 2),
+            "total_liabilities_and_equity": round(total_liab_equity, 2),
+            "is_balanced": balanced,
+            "freshness": self.query_engine.get_etl_freshness(),
+        }
+
+    def gl_reconciliation_audit(
+        self, as_of_date: str | date | None = None
+    ) -> dict[str, Any]:
+        """
+        Tool 8: gl_reconciliation_audit (Roadmap §V2.5)
+        Audits operational GL (erp_crm) against analytical mart (erp_analytics.mart).
+        """
+        from analytics.reconciliation.gl_reconciliation import GLReconciler
+
+        reconciler = GLReconciler(analytics_engine=self.engine)
+        report = reconciler.audit(as_of_date=as_of_date)
+        res = report.to_dict()
+        res["tool"] = "gl_reconciliation_audit"
+        return res

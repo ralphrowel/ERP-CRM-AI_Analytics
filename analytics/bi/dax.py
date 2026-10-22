@@ -290,6 +290,107 @@ def get_kpi_dax_catalog() -> list[DaxMeasure]:
             expression="AVERAGE(dq_results[score])",
             format_string='0.0 "%"',
         ),
+        # ---------------------------------------------------------------------
+        # 9. Enterprise Financial Intelligence & Liquidity (KPI-020 - KPI-027) (Roadmap §V2.5)
+        # ---------------------------------------------------------------------
+        DaxMeasure(
+            kpi_id="KPI-020",
+            name="KPI-020 Current Ratio",
+            domain="financial",
+            description="Current Assets divided by Current Liabilities: standard metric of short-term liquidity.",
+            table="fact_gl_journal_line",
+            expression=(
+                'VAR CurrentAssets = CALCULATE(SUM(fact_gl_journal_line[debit_amount]) - SUM(fact_gl_journal_line[credit_amount]), dim_account[account_type] = "asset", dim_account[account_code] IN {"1110", "1120", "1200", "1300", "1400"}) '
+                'VAR CurrentLiabilities = CALCULATE(SUM(fact_gl_journal_line[credit_amount]) - SUM(fact_gl_journal_line[debit_amount]), dim_account[account_type] = "liability", dim_account[account_code] IN {"2100", "2150", "2210"}) '
+                "RETURN DIVIDE(CurrentAssets, CurrentLiabilities, 0)"
+            ),
+            format_string="0.00",
+        ),
+        DaxMeasure(
+            kpi_id="KPI-021",
+            name="KPI-021 Quick Ratio",
+            domain="financial",
+            description="Quick Assets (Cash + AR) divided by Current Liabilities: acid-test liquidity excluding inventory.",
+            table="fact_gl_journal_line",
+            expression=(
+                'VAR QuickAssets = CALCULATE(SUM(fact_gl_journal_line[debit_amount]) - SUM(fact_gl_journal_line[credit_amount]), dim_account[account_type] = "asset", dim_account[account_code] IN {"1110", "1120", "1200"}) '
+                'VAR CurrentLiabilities = CALCULATE(SUM(fact_gl_journal_line[credit_amount]) - SUM(fact_gl_journal_line[debit_amount]), dim_account[account_type] = "liability", dim_account[account_code] IN {"2100", "2150", "2210"}) '
+                "RETURN DIVIDE(QuickAssets, CurrentLiabilities, 0)"
+            ),
+            format_string="0.00",
+        ),
+        DaxMeasure(
+            kpi_id="KPI-022",
+            name="KPI-022 Working Capital",
+            domain="financial",
+            description="Current Assets minus Current Liabilities: net liquid operating capital buffer.",
+            table="fact_gl_journal_line",
+            expression=(
+                'VAR CurrentAssets = CALCULATE(SUM(fact_gl_journal_line[debit_amount]) - SUM(fact_gl_journal_line[credit_amount]), dim_account[account_type] = "asset", dim_account[account_code] IN {"1110", "1120", "1200", "1300", "1400"}) '
+                'VAR CurrentLiabilities = CALCULATE(SUM(fact_gl_journal_line[credit_amount]) - SUM(fact_gl_journal_line[debit_amount]), dim_account[account_type] = "liability", dim_account[account_code] IN {"2100", "2150", "2210"}) '
+                "RETURN CurrentAssets - CurrentLiabilities"
+            ),
+            format_string="₱#,##0.00",
+        ),
+        DaxMeasure(
+            kpi_id="KPI-023",
+            name="KPI-023 Operating Margin %",
+            domain="financial",
+            description="Operating Profit (Revenue - COGS - Operating Expenses) divided by Net Revenue.",
+            table="fact_gl_journal_line",
+            expression=(
+                'VAR OperatingProfit = [KPI-002 Gross Margin] - CALCULATE(SUM(fact_gl_journal_line[debit_amount]) - SUM(fact_gl_journal_line[credit_amount]), dim_account[account_code] = "6100") '
+                "RETURN DIVIDE(OperatingProfit, [KPI-001 Net Revenue], 0)"
+            ),
+            format_string="0.0%",
+        ),
+        DaxMeasure(
+            kpi_id="KPI-024",
+            name="KPI-024 Net Profit Margin %",
+            domain="financial",
+            description="Net Income after all expenses and FX gains/losses divided by Net Revenue.",
+            table="fact_gl_journal_line",
+            expression=(
+                'VAR NetInc = CALCULATE(SUM(fact_gl_journal_line[credit_amount]) - SUM(fact_gl_journal_line[debit_amount]), dim_account[account_type] = "revenue") - CALCULATE(SUM(fact_gl_journal_line[debit_amount]) - SUM(fact_gl_journal_line[credit_amount]), dim_account[account_type] = "expense") '
+                "RETURN DIVIDE(NetInc, [KPI-001 Net Revenue], 0)"
+            ),
+            format_string="0.0%",
+        ),
+        DaxMeasure(
+            kpi_id="KPI-025",
+            name="KPI-025 Debt to Equity",
+            domain="financial",
+            description="Total Liabilities divided by Total Equity: long-term leverage and solvency.",
+            table="fact_gl_journal_line",
+            expression=(
+                'VAR Liabilities = CALCULATE(SUM(fact_gl_journal_line[credit_amount]) - SUM(fact_gl_journal_line[debit_amount]), dim_account[account_type] = "liability") '
+                'VAR Equity = CALCULATE(SUM(fact_gl_journal_line[credit_amount]) - SUM(fact_gl_journal_line[debit_amount]), dim_account[account_type] = "equity") '
+                "RETURN DIVIDE(Liabilities, Equity, 0)"
+            ),
+            format_string="0.00",
+        ),
+        DaxMeasure(
+            kpi_id="KPI-026",
+            name="KPI-026 Return on Equity",
+            domain="financial",
+            description="Net Income divided by Total Shareholder Equity (ROE).",
+            table="fact_gl_journal_line",
+            expression=(
+                'VAR NetInc = CALCULATE(SUM(fact_gl_journal_line[credit_amount]) - SUM(fact_gl_journal_line[debit_amount]), dim_account[account_type] = "revenue") - CALCULATE(SUM(fact_gl_journal_line[debit_amount]) - SUM(fact_gl_journal_line[credit_amount]), dim_account[account_type] = "expense") '
+                'VAR Equity = CALCULATE(SUM(fact_gl_journal_line[credit_amount]) - SUM(fact_gl_journal_line[debit_amount]), dim_account[account_type] = "equity") '
+                "RETURN DIVIDE(NetInc, Equity, 0)"
+            ),
+            format_string="0.0%",
+        ),
+        DaxMeasure(
+            kpi_id="KPI-027",
+            name="KPI-027 GL Balance Integrity",
+            domain="financial",
+            description="Absolute difference between total debits and total credits across all posted GL lines. Must always evaluate to 0.00.",
+            table="fact_gl_journal_line",
+            expression="ABS(SUM(fact_gl_journal_line[debit_amount]) - SUM(fact_gl_journal_line[credit_amount]))",
+            format_string="₱#,##0.00",
+        ),
     ]
 
 
