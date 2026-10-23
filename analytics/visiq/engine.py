@@ -24,7 +24,10 @@ class VisiqQueryEngine:
     def __init__(self, engine: Engine):
         self.engine = engine
         self.is_postgres = engine.dialect.name == "postgresql"
-        init_analytics_db(self.engine)
+        try:
+            init_analytics_db(self.engine)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("VisiqQueryEngine skipped init_analytics_db: %s", exc)
 
     def _qual(self, schema: str, table: str) -> str:
         """Returns dialect-qualified table name."""

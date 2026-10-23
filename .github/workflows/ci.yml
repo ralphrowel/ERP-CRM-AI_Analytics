@@ -71,10 +71,12 @@ jobs:
               END IF;
             END
             \$\$;
-            GRANT ALL ON DATABASE erp_crm TO erp_owner;
+            GRANT ALL ON DATABASE erp_crm TO erp_owner, erp_app;
             ALTER SCHEMA public OWNER TO erp_owner;
-            GRANT USAGE ON SCHEMA public TO erp_app, etl_reader;
+            GRANT USAGE, CREATE ON SCHEMA public TO erp_app;
+            GRANT USAGE ON SCHEMA public TO etl_reader;
             GRANT CONNECT ON DATABASE erp_crm TO etl_reader;
+
             ALTER DEFAULT PRIVILEGES FOR ROLE erp_owner IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO erp_app;
             ALTER DEFAULT PRIVILEGES FOR ROLE erp_owner IN SCHEMA public GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO erp_app;
             ALTER DEFAULT PRIVILEGES FOR ROLE erp_owner IN SCHEMA public GRANT SELECT ON TABLES TO etl_reader;

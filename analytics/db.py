@@ -4,12 +4,15 @@ Handles engine creation, schema initialization (raw, staging, dq, mart, etl),
 and multi-dialect support (PostgreSQL and SQLite).
 """
 
+import logging
 from collections.abc import Generator
 
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from analytics.config import analytics_settings
+
+logger = logging.getLogger("analytics.db")
 
 
 def get_erp_engine(url: str | None = None) -> Engine:
@@ -30,14 +33,20 @@ def init_analytics_db(engine: Engine) -> None:
     In PostgreSQL, creates schemas: raw, staging, dq, mart, etl.
     """
     if engine.dialect.name == "postgresql":
-        with engine.begin() as conn:
-            for schema in analytics_settings.SCHEMAS:
-                conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema};"))
-        import analytics.dq.models
-        import analytics.mart.models
-        from analytics.extract.models import Base
+        try:
+            with engine.begin() as conn:
+                for schema in analytics_settings.SCHEMAS:
+                    conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema};"))
+            import analytics.dq.models
+            import analytics.mart.models
+            from analytics.extract.models import Base
 
-        Base.metadata.create_all(bind=engine)
+            Base.metadata.create_all(bind=engine)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug(
+                "Skipping schema creation in init_analytics_db (insufficient DDL permissions or pre-existing): %s",
+                exc,
+            )
     else:
         # SQLite schema emulation: map schemas to default
         import analytics.dq.models

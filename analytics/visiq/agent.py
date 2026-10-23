@@ -105,6 +105,12 @@ class VisiqAgent:
                 end_date=intent.get("end_date"),
                 filters=intent.get("filters"),
             )
+        elif tool_name == "forecast_demand":
+            tool_output = self.tools.forecast_demand(
+                product_name_or_sku=intent.get("product"),
+                horizon_days=intent.get("horizon_days", 30),
+                model=intent.get("model", "auto"),
+            )
         else:
             # Default get_metric
             tool_output = self.tools.get_metric(
@@ -233,6 +239,47 @@ class VisiqAgent:
             )
         ):
             return {"tool": "gl_reconciliation_audit"}
+
+        # Check for Demand Forecasting / Predictive Analytics
+        if any(
+            term in q_lower
+            for term in (
+                "forecast",
+                "predict demand",
+                "predict sales",
+                "demand forecast",
+                "sales forecast",
+                "future demand",
+                "safety stock",
+            )
+        ):
+            m_days = re.search(r"(\d+)\s*(?:day|days)", q_lower)
+            horizon = int(m_days.group(1)) if m_days else 30
+            clean_q = q_lower
+            for stop in [
+                "forecast demand for",
+                "forecast sales for",
+                "demand forecast for",
+                "predict demand for",
+                "predict sales for",
+                "forecast for",
+                "forecast",
+                "predict",
+                "demand",
+                "sales",
+                "over the next",
+                "next",
+                f"{horizon} days",
+                "days",
+            ]:
+                clean_q = clean_q.replace(stop, " ")
+            prod_candidate = clean_q.strip() or "All Products"
+            return {
+                "tool": "forecast_demand",
+                "product": prod_candidate,
+                "horizon_days": horizon,
+                "model": "auto",
+            }
 
         # Check for Financial Statements (Balance Sheet / Income Statement / P&L)
         if any(
@@ -550,5 +597,29 @@ class VisiqAgent:
                     f"- **Net Income:** ₱{net_inc:,.2f}\n"
                     f"- **Operating Margin:** {margin:.1f}%"
                 )
+
+        elif tool_name == "forecast_demand":
+            prod = output.get("product", "All Products")
+            model = output.get("model_name", "ML Model").upper()
+            horizon = output.get("horizon_days", 30)
+            total_fc = output.get("total_forecast_demand", 0.0)
+            avg_daily = output.get("average_daily_demand", 0.0)
+            std_dev = output.get("demand_std_dev", 0.0)
+            ss_rec = output.get("safety_stock_recommendation", {})
+            ss_val = ss_rec.get("safety_stock", 0.0)
+            rop_val = ss_rec.get("reorder_point", 0.0)
+            mape = output.get("evaluation", {}).get("mape", 0.0)
+
+            return (
+                f"### Predictive Demand Forecast: {prod}\n\n"
+                f"**Optimal Forecasting Model:** `{model}` (Backtest MAPE: **{mape:.1f}%**)\n\n"
+                f"- **Projected Demand ({horizon} Days):** **{total_fc:,.1f} units**\n"
+                f"- **Average Daily Demand:** **{avg_daily:,.2f} units/day** (Std Dev: **{std_dev:,.2f}**)\n\n"
+                f"#### Dynamic Safety Stock & Inventory Optimization (95% Service Level):\n"
+                f"- **Recommended Safety Stock:** **{ss_val:,.1f} units**\n"
+                f"- **Recommended Reorder Point (ROP):** **{rop_val:,.1f} units**\n"
+                f"- **Recommended Target Level:** **{ss_rec.get('recommended_max', 0.0):,.1f} units**\n\n"
+                f"*Inventory Intelligence:* Dynamic replenishment thresholds absorb volatility in supplier lead times and historical demand swings."
+            )
 
         return f"Completed analysis for query: {question}"

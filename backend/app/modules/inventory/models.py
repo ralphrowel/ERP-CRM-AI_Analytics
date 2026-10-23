@@ -537,6 +537,12 @@ class WarehouseReorderPolicy(Base, AuditMixin, VersionMixin):
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="true"
     )
+    service_level: Mapped[Decimal] = mapped_column(
+        Numeric(5, 4), nullable=False, default=Decimal("0.9500"), server_default="0.9500"
+    )
+    safety_stock: Mapped[Decimal | None] = mapped_column(Numeric(14, 3), nullable=True)
+    last_tuned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    tuning_method: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     # Relationships
     warehouse: Mapped["Warehouse"] = relationship("Warehouse", foreign_keys=[warehouse_id])

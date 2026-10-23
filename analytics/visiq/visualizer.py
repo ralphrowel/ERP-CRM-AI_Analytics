@@ -64,6 +64,8 @@ class PlotlyVisualizer:
                 return cls._build_breakdown_bar_spec(tool_output, theme_cfg)
         elif tool_name == "dq_summary":
             return cls._build_dq_score_gauge_spec(tool_output, theme_cfg)
+        elif tool_name == "forecast_demand":
+            return cls._build_forecast_line_spec(tool_output, theme_cfg)
 
         # Default fallback indicator
         return cls._build_indicator_spec(tool_output, theme_cfg)
@@ -284,6 +286,95 @@ class PlotlyVisualizer:
         layout["height"] = 280
         return {
             "data": [trace],
+            "layout": layout,
+            "config": {"responsive": True, "displayModeBar": False},
+        }
+
+    @classmethod
+    def _build_forecast_line_spec(
+        cls, output: dict[str, Any], theme_cfg: dict[str, str]
+    ) -> dict[str, Any]:
+        hist_points = output.get("historical_points", [])
+        fc_points = output.get("forecast_points", [])
+        product = output.get("product", "Product")
+        model = output.get("model_name", "ML Model")
+
+        traces = []
+
+        # 1. Historical Actuals
+        if hist_points:
+            traces.append(
+                {
+                    "type": "scatter",
+                    "mode": "lines+markers",
+                    "name": "Historical Demand",
+                    "x": [h["date"] for h in hist_points],
+                    "y": [h["actual"] for h in hist_points],
+                    "line": {"color": "#3b82f6", "width": 2},
+                    "marker": {"size": 4},
+                }
+            )
+
+        # 2. Upper and Lower Confidence Bounds (Shaded Band)
+        if fc_points:
+            fc_dates = [f["date"] for f in fc_points]
+            fc_values = [f["forecast"] for f in fc_points]
+            fc_lowers = [f["lower_bound"] for f in fc_points]
+            fc_uppers = [f["upper_bound"] for f in fc_points]
+
+            # Lower bound (invisible baseline)
+            traces.append(
+                {
+                    "type": "scatter",
+                    "mode": "lines",
+                    "name": "95% Lower Bound",
+                    "x": fc_dates,
+                    "y": fc_lowers,
+                    "line": {"width": 0, "color": "rgba(0,0,0,0)"},
+                    "showlegend": False,
+                    "hoverinfo": "skip",
+                }
+            )
+            # Upper bound (fills to lower bound)
+            traces.append(
+                {
+                    "type": "scatter",
+                    "mode": "lines",
+                    "name": "95% Confidence Band",
+                    "x": fc_dates,
+                    "y": fc_uppers,
+                    "fill": "tonexty",
+                    "fillcolor": "rgba(245, 158, 11, 0.15)",
+                    "line": {"width": 0, "color": "rgba(0,0,0,0)"},
+                    "hoverinfo": "skip",
+                }
+            )
+
+            # Forecast trajectory line
+            traces.append(
+                {
+                    "type": "scatter",
+                    "mode": "lines+markers",
+                    "name": f"Forecast ({model})",
+                    "x": fc_dates,
+                    "y": fc_values,
+                    "line": {"color": "#f59e0b", "width": 3, "dash": "dash"},
+                    "marker": {"size": 5, "symbol": "circle"},
+                }
+            )
+
+        title = f"Demand Forecast: {product} ({model})"
+        layout = cls._base_layout(title, theme_cfg)
+        layout["xaxis"] = {"gridcolor": theme_cfg["grid_color"], "title": "Date"}
+        layout["yaxis"] = {
+            "gridcolor": theme_cfg["grid_color"],
+            "title": "Units Demanded",
+        }
+        layout["height"] = 380
+        layout["legend"] = {"orientation": "h", "y": -0.2}
+
+        return {
+            "data": traces,
             "layout": layout,
             "config": {"responsive": True, "displayModeBar": False},
         }

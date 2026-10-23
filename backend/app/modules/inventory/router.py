@@ -7,14 +7,17 @@ from app.core.database import get_db
 from app.modules.identity.dependencies import get_current_user
 from app.modules.identity.models import User
 from app.modules.inventory.schemas import (
+    ApplyPolicyTuningPayload,
     AutoGeneratePOsPayload,
     AutoGeneratePOsResultOut,
     AutoGenerateTransfersPayload,
     AutoGenerateTransfersResultOut,
+    DemandForecastOut,
     InventoryBalanceOut,
     InventoryReconciliationOut,
     InventoryTransactionOut,
     OpeningBalancesCreatePayload,
+    PolicyTuningRecommendationOut,
     ReplenishmentSuggestionOut,
     ShipmentCreatePayload,
     ShipmentOut,
@@ -483,6 +486,65 @@ def auto_generate_replenishment_pos(
     service = InventoryService(db)
     result = service.auto_generate_replenishment_pos(
         payload=payload, current_user_id=current_user.id
+    )
+    db.commit()
+    return result
+
+
+# ── Milestone V3.3: Demand Forecasting & Policy Tuning Endpoints ────
+@router.get(
+    "/inventory/forecasting/demand",
+    response_model=DemandForecastOut,
+)
+def get_demand_forecast(
+    warehouse_id: int,
+    product_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    horizon_days: int = Query(30, ge=1, le=365, description="Forecast horizon in days"),
+    model: str = Query(
+        "auto", description="Forecasting model: auto, holt_winters, holt_linear, croston, ses, sma"
+    ),
+    days_back: int = Query(90, ge=7, le=730, description="Historical lookback window in days"),
+) -> DemandForecastOut:
+    service = InventoryService(db)
+    return service.forecast_product_demand(
+        warehouse_id=warehouse_id,
+        product_id=product_id,
+        horizon_days=horizon_days,
+        model=model,
+        days_back=days_back,
+    )
+
+
+@router.get(
+    "/inventory/forecasting/policy-recommendations",
+    response_model=list[PolicyTuningRecommendationOut],
+)
+def get_policy_tuning_recommendations(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    warehouse_id: int | None = Query(None, description="Filter by warehouse ID"),
+    product_id: int | None = Query(None, description="Filter by product ID"),
+) -> list[PolicyTuningRecommendationOut]:
+    service = InventoryService(db)
+    prod_ids = [product_id] if product_id else None
+    return service.recommend_policy_tuning(warehouse_id=warehouse_id, product_ids=prod_ids)
+
+
+@router.post(
+    "/inventory/reorder-policies/{policy_id}/apply-tuning",
+    response_model=WarehouseReorderPolicyOut,
+)
+def apply_policy_tuning(
+    policy_id: int,
+    payload: ApplyPolicyTuningPayload,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> WarehouseReorderPolicyOut:
+    service = InventoryService(db)
+    result = service.apply_policy_tuning(
+        policy_id=policy_id, payload=payload, current_user_id=current_user.id
     )
     db.commit()
     return result

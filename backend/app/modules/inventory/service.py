@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -11,6 +11,7 @@ from app.core.numbering import generate_next_number
 from app.core.status_history import record_status_change
 from app.modules.catalog.models import Product
 from app.modules.identity.models import User
+from app.modules.inventory.forecasting import generate_demand_forecast
 from app.modules.inventory.models import (
     InventoryBalance,
     InventoryTransaction,
@@ -24,17 +25,24 @@ from app.modules.inventory.models import (
     Warehouse,
     WarehouseReorderPolicy,
 )
+from app.modules.inventory.safety_stock import evaluate_policy_tuning
 from app.modules.inventory.schemas import (
+    ApplyPolicyTuningPayload,
     AutoGeneratePOsPayload,
     AutoGeneratePOsResultOut,
     AutoGenerateTransfersPayload,
     AutoGenerateTransfersResultOut,
+    DemandForecastOut,
+    ForecastPointOut,
     GeneratedPOOut,
+    HistoricalPointOut,
     InventoryBalanceOut,
     InventoryReconciliationItem,
     InventoryReconciliationOut,
     InventoryTransactionOut,
+    ModelEvaluationOut,
     OpeningBalancesCreatePayload,
+    PolicyTuningRecommendationOut,
     ReplenishmentSuggestionOut,
     ShipmentCreatePayload,
     ShipmentItemOut,
@@ -1920,6 +1928,10 @@ class InventoryService:
             else None,
             lead_time_days=p.lead_time_days,
             is_active=p.is_active,
+            service_level=p.service_level or Decimal("0.9500"),
+            safety_stock=p.safety_stock,
+            last_tuned_at=p.last_tuned_at,
+            tuning_method=p.tuning_method,
             version=p.version,
             created_at=p.created_at,
             updated_at=p.updated_at,
@@ -2004,6 +2016,7 @@ class InventoryService:
             preferred_supplier_id=payload.preferred_supplier_id,
             lead_time_days=payload.lead_time_days,
             is_active=payload.is_active,
+            service_level=payload.service_level or Decimal("0.9500"),
             created_by=resolved_user,
             updated_by=resolved_user,
         )
@@ -2120,6 +2133,8 @@ class InventoryService:
             policy.lead_time_days = payload.lead_time_days
         if payload.is_active is not None:
             policy.is_active = payload.is_active
+        if payload.service_level is not None:
+            policy.service_level = payload.service_level
 
         policy.version += 1
         policy.updated_by = self._resolve_user_id(current_user_id)
@@ -2518,3 +2533,237 @@ class InventoryService:
             unfulfilled_suggestions_count=len(unfulfilled),
             unfulfilled_suggestions=unfulfilled,
         )
+
+    # ── Milestone V3.3: Demand Forecasting & Dynamic Safety Stock ─────
+    def get_historical_product_demand(
+        self, warehouse_id: int, product_id: int, days_back: int = 90
+    ) -> tuple[list[date], list[float]]:
+        """Extracts continuous daily demand history for a given warehouse and product.
+
+        Combines inventory transaction outflows ('shipment', 'transfer_out')
+        and fills zero-demand days for full time-series continuity.
+        """
+        now_dt = self.clock.now()
+        today = now_dt.date()
+        start_date = today - timedelta(days=days_back)
+        start_dt = datetime.combine(start_date, datetime.min.time(), tzinfo=now_dt.tzinfo)
+
+        # 1. Fetch aggregated outbound transactions from inventory_transactions
+        txn_stmt = (
+            select(
+                func.date(InventoryTransaction.occurred_at).label("tx_date"),
+                func.sum(func.abs(InventoryTransaction.quantity)).label("qty"),
+            )
+            .where(
+                InventoryTransaction.warehouse_id == warehouse_id,
+                InventoryTransaction.product_id == product_id,
+                InventoryTransaction.txn_type.in_(["issue", "transfer_out"]),
+                InventoryTransaction.occurred_at >= start_dt,
+            )
+            .group_by(func.date(InventoryTransaction.occurred_at))
+        )
+        tx_rows = self.db.execute(txn_stmt).all()
+        demand_map: dict[date, float] = {}
+        for r in tx_rows:
+            d_val = r[0]
+            if isinstance(d_val, str):
+                d_val = date.fromisoformat(d_val[:10])
+            demand_map[d_val] = float(r[1])
+
+        # 2. Also inspect posted shipment_items if no inventory transactions found
+        if not demand_map:
+            ship_stmt = (
+                select(
+                    func.date(Shipment.shipped_at).label("ship_date"),
+                    func.sum(ShipmentItem.quantity).label("qty"),
+                )
+                .join(Shipment, ShipmentItem.shipment_id == Shipment.id)
+                .where(
+                    Shipment.warehouse_id == warehouse_id,
+                    ShipmentItem.product_id == product_id,
+                    Shipment.status == "posted",
+                    Shipment.shipped_at >= start_dt,
+                )
+                .group_by(func.date(Shipment.shipped_at))
+            )
+            ship_rows = self.db.execute(ship_stmt).all()
+            for r in ship_rows:
+                d_val = r[0]
+                if isinstance(d_val, str):
+                    d_val = date.fromisoformat(d_val[:10])
+                demand_map[d_val] = float(r[1])
+
+        # Generate complete date range from start_date to today
+        dates: list[date] = []
+        values: list[float] = []
+        curr = start_date
+        while curr <= today:
+            dates.append(curr)
+            values.append(demand_map.get(curr, 0.0))
+            curr += timedelta(days=1)
+
+        return dates, values
+
+    def forecast_product_demand(
+        self,
+        warehouse_id: int,
+        product_id: int,
+        horizon_days: int = 30,
+        model: str = "auto",
+        days_back: int = 90,
+    ) -> DemandForecastOut:
+        wh = self.get_warehouse(warehouse_id)
+        prod = self.db.get(Product, product_id)
+        if not prod:
+            raise NotFoundError(f"Product with ID {product_id} not found.")
+
+        dates, values = self.get_historical_product_demand(
+            warehouse_id=warehouse_id, product_id=product_id, days_back=days_back
+        )
+
+        fc_out = generate_demand_forecast(
+            historical_dates=dates,
+            historical_values=values,
+            horizon_days=horizon_days,
+            model=model,
+        )
+
+        return DemandForecastOut(
+            warehouse_id=wh.id,
+            warehouse_code=wh.code,
+            product_id=prod.id,
+            product_sku=prod.sku,
+            product_name=prod.name,
+            model_name=fc_out.model_name,
+            parameters=fc_out.parameters,
+            evaluation=ModelEvaluationOut(
+                mae=Decimal(str(fc_out.evaluation.mae)),
+                rmse=Decimal(str(fc_out.evaluation.rmse)),
+                mape=Decimal(str(fc_out.evaluation.mape)),
+            ),
+            historical=[
+                HistoricalPointOut(
+                    date=h["date"],
+                    actual=Decimal(str(round(h["actual"], 3))),
+                    fitted=Decimal(str(round(h["fitted"], 3))),
+                )
+                for h in fc_out.historical_points
+            ],
+            forecast=[
+                ForecastPointOut(
+                    date=p.date,
+                    forecast=Decimal(str(round(p.forecast, 3))),
+                    lower_bound=Decimal(str(round(p.lower_bound, 3))),
+                    upper_bound=Decimal(str(round(p.upper_bound, 3))),
+                )
+                for p in fc_out.forecast_points
+            ],
+            total_forecast_demand=Decimal(str(round(fc_out.total_forecast_demand, 3))),
+            avg_daily_demand=Decimal(str(round(fc_out.average_daily_demand, 3))),
+            demand_std_dev=Decimal(str(round(fc_out.demand_std_dev, 3))),
+            intermittent_ratio=Decimal(str(round(fc_out.intermittent_ratio, 4))),
+            diagnostics=fc_out.model_diagnostics,
+        )
+
+    def recommend_policy_tuning(
+        self,
+        warehouse_id: int | None = None,
+        product_ids: list[int] | None = None,
+    ) -> list[PolicyTuningRecommendationOut]:
+        stmt = (
+            select(WarehouseReorderPolicy)
+            .options(
+                joinedload(WarehouseReorderPolicy.warehouse),
+                joinedload(WarehouseReorderPolicy.product),
+            )
+            .where(WarehouseReorderPolicy.is_active.is_(True))
+        )
+        if warehouse_id is not None:
+            stmt = stmt.where(WarehouseReorderPolicy.warehouse_id == warehouse_id)
+        if product_ids:
+            stmt = stmt.where(WarehouseReorderPolicy.product_id.in_(product_ids))
+
+        policies = self.db.execute(stmt).unique().scalars().all()
+        results: list[PolicyTuningRecommendationOut] = []
+
+        for p in policies:
+            dates, values = self.get_historical_product_demand(
+                warehouse_id=p.warehouse_id, product_id=p.product_id, days_back=90
+            )
+            fc_out = generate_demand_forecast(
+                historical_dates=dates,
+                historical_values=values,
+                horizon_days=30,
+                model="auto",
+            )
+            rec = evaluate_policy_tuning(
+                policy_id=p.id,
+                warehouse_id=p.warehouse_id,
+                warehouse_code=p.warehouse.code if p.warehouse else "",
+                product_id=p.product_id,
+                product_sku=p.product.sku if p.product else "",
+                product_name=p.product.name if p.product else "",
+                current_min_qty=p.min_qty,
+                current_max_qty=p.max_qty,
+                lead_time_days=p.lead_time_days,
+                avg_daily_demand=fc_out.average_daily_demand,
+                demand_std_dev=fc_out.demand_std_dev,
+                service_level=float(p.service_level or Decimal("0.9500")),
+                forecast_model=fc_out.model_name,
+            )
+            results.append(
+                PolicyTuningRecommendationOut(
+                    policy_id=rec.policy_id,
+                    warehouse_id=rec.warehouse_id,
+                    warehouse_code=rec.warehouse_code,
+                    product_id=rec.product_id,
+                    product_sku=rec.product_sku,
+                    product_name=rec.product_name,
+                    current_min_qty=rec.current_min_qty,
+                    current_max_qty=rec.current_max_qty,
+                    current_lead_time_days=rec.current_lead_time_days,
+                    current_service_level=Decimal(str(rec.current_service_level)),
+                    recommended_safety_stock=rec.recommended_safety_stock,
+                    recommended_min_qty=rec.recommended_min_qty,
+                    recommended_max_qty=rec.recommended_max_qty,
+                    recommended_reorder_qty=rec.recommended_reorder_qty,
+                    avg_daily_demand=rec.avg_daily_demand,
+                    demand_std_dev=rec.demand_std_dev,
+                    lead_time_std_dev=rec.lead_time_std_dev,
+                    z_score=rec.z_score,
+                    forecast_model=rec.forecast_model,
+                    risk_assessment=rec.risk_assessment,
+                    variance_reason=rec.variance_reason,
+                )
+            )
+
+        return results
+
+    def apply_policy_tuning(
+        self,
+        policy_id: int,
+        payload: ApplyPolicyTuningPayload,
+        current_user_id: int | None = None,
+    ) -> WarehouseReorderPolicyOut:
+        policy = self.get_reorder_policy(policy_id)
+
+        if payload.recommended_min_qty is not None:
+            policy.min_qty = round_qty(payload.recommended_min_qty)
+        if payload.recommended_max_qty is not None:
+            policy.max_qty = round_qty(payload.recommended_max_qty)
+        if policy.max_qty < policy.min_qty:
+            policy.max_qty = policy.min_qty
+
+        if payload.recommended_reorder_qty is not None:
+            policy.reorder_quantity = round_qty(payload.recommended_reorder_qty)
+        if payload.service_level is not None:
+            policy.service_level = payload.service_level
+        if payload.recommended_safety_stock is not None:
+            policy.safety_stock = round_qty(payload.recommended_safety_stock)
+
+        policy.tuning_method = payload.tuning_method or "statistical_auto"
+        policy.last_tuned_at = self.clock.now()
+        policy.version += 1
+        policy.updated_by = self._resolve_user_id(current_user_id)
+        self.db.flush()
+        return self._map_reorder_policy_out(policy)
