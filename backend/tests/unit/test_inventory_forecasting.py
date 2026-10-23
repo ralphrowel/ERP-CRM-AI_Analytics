@@ -423,11 +423,39 @@ def test_forecasting_fastapi_endpoints(db_session, test_warehouse, test_product,
 
 # ── 6. Visiq AI Forecast Demand Tool & Agent Tests ───────────────────
 def test_visiq_forecast_demand_tool_and_agent(db_session):
+    import os
+
     from analytics.visiq.agent import VisiqAgent
     from analytics.visiq.tools import VisiqTools
+    from sqlalchemy import create_engine
+    from sqlalchemy.pool import StaticPool
+
+    erp_engine = db_session.get_bind()
+    if erp_engine.dialect.name == "postgresql":
+        analytics_url = os.getenv(
+            "ANALYTICS_DATABASE_URL",
+            "postgresql+psycopg://analytics_owner:analytics_owner_password@localhost:5432/erp_analytics",
+        )
+        try:
+            engine = create_engine(analytics_url, pool_pre_ping=True)
+            with engine.connect():
+                pass
+        except Exception:  # noqa: BLE001
+            engine = create_engine(
+                "sqlite:///:memory:",
+                connect_args={"check_same_thread": False},
+                poolclass=StaticPool,
+            )
+    else:
+        engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
 
     # 1. Direct tool execution
-    tools = VisiqTools(db_session.bind)
+    tools = VisiqTools(engine)
+
     out = tools.forecast_demand(
         product_name_or_sku="SKU-MOTOR-200",
         horizon_days=30,
@@ -439,7 +467,7 @@ def test_visiq_forecast_demand_tool_and_agent(db_session):
     assert "safety_stock_recommendation" in out
 
     # 2. Agent conversational routing & narrative synthesis
-    agent = VisiqAgent(db_session.bind)
+    agent = VisiqAgent(engine)
     response = agent.ask(
         "Forecast demand for Industrial Motor over the next 30 days and recommend safety stock",
         theme="light",
