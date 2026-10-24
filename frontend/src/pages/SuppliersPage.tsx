@@ -120,7 +120,7 @@ export const SuppliersPage: React.FC = () => {
 
   const loadProducts = async () => {
     try {
-      const res = await productsApi.list({ page: 1, page_size: 200 })
+      const res = await productsApi.list({ page: 1, page_size: 100 })
       setAvailableProducts(res.items)
     } catch {
       // ignore
