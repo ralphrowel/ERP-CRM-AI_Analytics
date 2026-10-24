@@ -64,7 +64,7 @@ def list_products(
     _: Annotated[User, Depends(get_current_user)],
     service: Annotated[CatalogService, Depends(get_catalog_service)],
     page: int = Query(1, ge=1),
-    page_size: int = Query(25, ge=1, le=100),
+    page_size: int = Query(25, ge=1, le=500),
     category_id: int | None = Query(None),
     search: str | None = Query(None),
     is_active: bool | None = Query(None),

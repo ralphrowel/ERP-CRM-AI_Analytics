@@ -5,7 +5,7 @@ Pydantic Schemas for Audit Logs & Activity Feed (Roadmap §V0.8)
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class AuditLogResponse(BaseModel):
@@ -21,6 +21,13 @@ class AuditLogResponse(BaseModel):
     changes: dict[str, Any] | None = None
     request_id: str | None = None
     ip_address: str | None = None
+
+    @field_validator("ip_address", mode="before")
+    @classmethod
+    def serialize_ip_address(cls, v: Any) -> str | None:
+        if v is None:
+            return None
+        return str(v)
 
 
 class PaginatedAuditLogResponse(BaseModel):

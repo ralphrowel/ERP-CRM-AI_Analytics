@@ -93,7 +93,7 @@ export const PurchaseOrdersPage: React.FC = () => {
         }),
         suppliersApi.list({ page: 1, page_size: 100, is_active: true }),
         warehousesApi.list(true),
-        productsApi.list({ page: 1, page_size: 200 }),
+        productsApi.list({ page: 1, page_size: 100 }),
         salesApi.listTaxRates(),
       ])
       setOrders(poRes.items)

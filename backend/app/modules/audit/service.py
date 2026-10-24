@@ -168,7 +168,7 @@ class AuditService:
                 entity_id=log.entity_id,
                 changes=log.changes,
                 request_id=log.request_id,
-                ip_address=log.ip_address,
+                ip_address=str(log.ip_address) if log.ip_address is not None else None,
             )
             for log in items
         ]
