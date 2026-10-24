@@ -176,6 +176,39 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
     { id: 'settings', label: 'Company Settings', icon: <Building2 size={18} /> },
   ]
 
+  const renderNavItem = (item: { id: NavTab; label: string; icon: React.ReactNode }) => {
+    const isActive = activeTab === item.id
+    return (
+      <button
+        key={item.id}
+        id={`nav-${item.id}`}
+        onClick={() => onTabChange(item.id)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          padding: '0.625rem 1rem',
+          borderRadius: '9999px',
+          border: 'none',
+          cursor: 'pointer',
+          fontSize: '0.85rem',
+          fontWeight: isActive ? 700 : 500,
+          textAlign: 'left',
+          transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+          backgroundColor: isActive ? '#c6f135' : 'transparent',
+          color: isActive ? '#090e17' : 'var(--text-muted)',
+          boxShadow: isActive ? '0 4px 14px rgba(198, 241, 53, 0.35)' : 'none',
+          transform: isActive ? 'scale(1.02)' : 'none',
+        }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', color: isActive ? '#090e17' : 'inherit' }}>
+          {item.icon}
+        </span>
+        <span style={{ color: isActive ? '#090e17' : 'inherit' }}>{item.label}</span>
+      </button>
+    )
+  }
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-app)' }}>
       {/* Sidebar */}
@@ -207,15 +240,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
             style={{
               width: '38px',
               height: '38px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+              borderRadius: '12px',
+              background: '#c6f135',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
-              color: '#ffffff',
+              boxShadow: '0 4px 14px rgba(198, 241, 53, 0.4)',
+              color: '#090e17',
               fontWeight: 800,
-              fontSize: '1.1rem',
+              fontSize: '1.15rem',
             }}
           >
             E
@@ -254,35 +287,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
             Analytics & KPIs
           </div>
 
-          {analyticsItems.map((item) => {
-            const isActive = activeTab === item.id
-            return (
-              <button
-                key={item.id}
-                id={`nav-${item.id}`}
-                onClick={() => onTabChange(item.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: '0.65rem 0.85rem',
-                  borderRadius: '8px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  fontWeight: isActive ? 600 : 500,
-                  textAlign: 'left',
-                  transition: 'all 0.15s ease',
-                  backgroundColor: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                  color: isActive ? '#a5b4fc' : 'var(--text-muted)',
-                  borderLeft: isActive ? '3px solid #6366f1' : '3px solid transparent',
-                }}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </button>
-            )
-          })}
+          {analyticsItems.map(renderNavItem)}
 
           <div
             style={{
@@ -296,36 +301,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
           >
             CRM Operations
           </div>
-
-          {crmItems.map((item) => {
-            const isActive = activeTab === item.id
-            return (
-              <button
-                key={item.id}
-                id={`nav-${item.id}`}
-                onClick={() => onTabChange(item.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: '0.65rem 0.85rem',
-                  borderRadius: '8px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  fontWeight: isActive ? 600 : 500,
-                  textAlign: 'left',
-                  transition: 'all 0.15s ease',
-                  backgroundColor: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                  color: isActive ? '#a5b4fc' : 'var(--text-muted)',
-                  borderLeft: isActive ? '3px solid #6366f1' : '3px solid transparent',
-                }}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </button>
-            )
-          })}
+          {crmItems.map(renderNavItem)}
 
           <div
             style={{
@@ -339,36 +315,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
           >
             Commercial Sales
           </div>
-
-          {salesItems.map((item) => {
-            const isActive = activeTab === item.id
-            return (
-              <button
-                key={item.id}
-                id={`nav-${item.id}`}
-                onClick={() => onTabChange(item.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: '0.65rem 0.85rem',
-                  borderRadius: '8px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  fontWeight: isActive ? 600 : 500,
-                  textAlign: 'left',
-                  transition: 'all 0.15s ease',
-                  backgroundColor: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                  color: isActive ? '#a5b4fc' : 'var(--text-muted)',
-                  borderLeft: isActive ? '3px solid #6366f1' : '3px solid transparent',
-                }}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </button>
-            )
-          })}
+          {salesItems.map(renderNavItem)}
 
           <div
             style={{
@@ -382,36 +329,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
           >
             Procurement & Purchasing
           </div>
-
-          {procurementItems.map((item) => {
-            const isActive = activeTab === item.id
-            return (
-              <button
-                key={item.id}
-                id={`nav-${item.id}`}
-                onClick={() => onTabChange(item.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: '0.65rem 0.85rem',
-                  borderRadius: '8px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  fontWeight: isActive ? 600 : 500,
-                  textAlign: 'left',
-                  transition: 'all 0.15s ease',
-                  backgroundColor: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                  color: isActive ? '#a5b4fc' : 'var(--text-muted)',
-                  borderLeft: isActive ? '3px solid #6366f1' : '3px solid transparent',
-                }}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </button>
-            )
-          })}
+          {procurementItems.map(renderNavItem)}
 
           <div
             style={{
@@ -425,36 +343,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
           >
             Inventory & Logistics
           </div>
-
-          {inventoryItems.map((item) => {
-            const isActive = activeTab === item.id
-            return (
-              <button
-                key={item.id}
-                id={`nav-${item.id}`}
-                onClick={() => onTabChange(item.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: '0.65rem 0.85rem',
-                  borderRadius: '8px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  fontWeight: isActive ? 600 : 500,
-                  textAlign: 'left',
-                  transition: 'all 0.15s ease',
-                  backgroundColor: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                  color: isActive ? '#a5b4fc' : 'var(--text-muted)',
-                  borderLeft: isActive ? '3px solid #6366f1' : '3px solid transparent',
-                }}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </button>
-            )
-          })}
+          {inventoryItems.map(renderNavItem)}
 
           <div
             style={{
@@ -468,36 +357,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
           >
             Workflow & Governance
           </div>
-
-          {workflowItems.map((item) => {
-            const isActive = activeTab === item.id
-            return (
-              <button
-                key={item.id}
-                id={`nav-${item.id}`}
-                onClick={() => onTabChange(item.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: '0.65rem 0.85rem',
-                  borderRadius: '8px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  fontWeight: isActive ? 600 : 500,
-                  textAlign: 'left',
-                  transition: 'all 0.15s ease',
-                  backgroundColor: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                  color: isActive ? '#a5b4fc' : 'var(--text-muted)',
-                  borderLeft: isActive ? '3px solid #6366f1' : '3px solid transparent',
-                }}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </button>
-            )
-          })}
+          {workflowItems.map(renderNavItem)}
 
           <div
             style={{
@@ -511,36 +371,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
           >
             Master Data
           </div>
-
-          {masterDataItems.map((item) => {
-            const isActive = activeTab === item.id
-            return (
-              <button
-                key={item.id}
-                id={`nav-${item.id}`}
-                onClick={() => onTabChange(item.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: '0.65rem 0.85rem',
-                  borderRadius: '8px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  fontWeight: isActive ? 600 : 500,
-                  textAlign: 'left',
-                  transition: 'all 0.15s ease',
-                  backgroundColor: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                  color: isActive ? '#a5b4fc' : 'var(--text-muted)',
-                  borderLeft: isActive ? '3px solid #6366f1' : '3px solid transparent',
-                }}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </button>
-            )
-          })}
+          {masterDataItems.map(renderNavItem)}
         </nav>
 
         {/* User Card & Logout */}
@@ -561,7 +392,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
               </div>
             </div>
             {user?.is_superuser && (
-              <span className="badge badge-emerald" title="Superuser Privileges">
+              <span className="badge badge-lime" title="Superuser Privileges">
                 <ShieldCheck size={12} /> Root
               </span>
             )}
@@ -592,8 +423,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
         <header
           style={{
             height: '64px',
-            backgroundColor: 'rgba(13, 18, 31, 0.8)',
-            backdropFilter: 'blur(12px)',
+            backgroundColor: 'rgba(16, 21, 32, 0.85)',
+            backdropFilter: 'blur(16px)',
             borderBottom: '1px solid var(--border-subtle)',
             display: 'flex',
             alignItems: 'center',
@@ -607,16 +438,16 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-dim)' }}>Enterprise Core</span>
             <span style={{ color: 'var(--text-dim)' }}>/</span>
-            <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)', textTransform: 'capitalize' }}>
+            <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f8fafc', textTransform: 'capitalize' }}>
               {activeTab}
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', position: 'relative' }}>
-            <span className="badge badge-subtle">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', position: 'relative' }}>
+            <span className="badge badge-lime">
               PHP (₱) · VAT 12%
             </span>
-            <span className="badge badge-cyan">
+            <span className="badge badge-subtle">
               Asia/Manila (UTC+8)
             </span>
 
@@ -627,17 +458,17 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ activeTab, onTabChange, ch
                 onClick={toggleBellDropdown}
                 title="Notifications"
                 style={{
-                  background: showBellDropdown ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                  background: showBellDropdown ? 'rgba(198, 241, 53, 0.2)' : 'rgba(255, 255, 255, 0.05)',
                   border: '1px solid',
-                  borderColor: showBellDropdown ? '#6366f1' : 'var(--border-subtle)',
-                  borderRadius: '8px',
+                  borderColor: showBellDropdown ? '#c6f135' : 'var(--border-subtle)',
+                  borderRadius: '9999px',
                   width: '38px',
                   height: '38px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
-                  color: showBellDropdown ? '#a5b4fc' : 'var(--text-main)',
+                  color: showBellDropdown ? '#c6f135' : 'var(--text-main)',
                   position: 'relative',
                   transition: 'all 0.15s ease',
                 }}
