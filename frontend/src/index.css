@@ -2,40 +2,55 @@
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  --bg-app: #080c14;
-  --bg-sidebar: #0d121f;
-  --bg-surface: #121929;
-  --bg-card: rgba(22, 31, 49, 0.7);
-  --bg-card-hover: rgba(30, 43, 67, 0.85);
-  --bg-input: #0e1524;
+  /* Rich Neo-Dark Charcoal & Slate (Fintech Dashboard aesthetic) */
+  --bg-app: #0c1017;
+  --bg-sidebar: #101520;
+  --bg-surface: #141b29;
+  --bg-card: rgba(21, 29, 45, 0.82);
+  --bg-card-hover: rgba(28, 39, 60, 0.95);
+  --bg-input: #101624;
 
-  --border-subtle: rgba(255, 255, 255, 0.07);
-  --border-card: rgba(255, 255, 255, 0.1);
-  --border-focus: #6366f1;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-card: rgba(255, 255, 255, 0.11);
+  --border-focus: #c6f135;
 
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
   --text-dim: #64748b;
 
-  --primary: #6366f1;
-  --primary-hover: #4f46e5;
-  --primary-glow: rgba(99, 102, 241, 0.25);
-  
-  --emerald: #10b981;
-  --emerald-bg: rgba(16, 185, 129, 0.12);
-  --emerald-border: rgba(16, 185, 129, 0.25);
+  /* Hero Accent: Volt Neon Lime from design */
+  --primary: #c6f135;
+  --primary-hover: #b5e024;
+  --primary-text: #090e17;
+  --primary-glow: rgba(198, 241, 53, 0.35);
+
+  /* Showcase Vibrant Palette from design */
+  --accent-blue: #3054f5;
+  --accent-orange: #ff6426;
+  --accent-fuchsia: #d926aa;
+  --accent-emerald: #10b981;
+  --accent-coral: #f43f5e;
+  --accent-cyan: #06b6d4;
+
+  --emerald: #22c55e;
+  --emerald-bg: rgba(34, 197, 94, 0.14);
+  --emerald-border: rgba(34, 197, 94, 0.3);
 
   --amber: #f59e0b;
-  --amber-bg: rgba(245, 158, 11, 0.12);
-  --amber-border: rgba(245, 158, 11, 0.25);
+  --amber-bg: rgba(245, 158, 11, 0.14);
+  --amber-border: rgba(245, 158, 11, 0.3);
 
   --rose: #ef4444;
-  --rose-bg: rgba(239, 68, 68, 0.12);
-  --rose-border: rgba(239, 68, 68, 0.25);
+  --rose-bg: rgba(239, 68, 68, 0.14);
+  --rose-border: rgba(239, 68, 68, 0.3);
 
   --cyan: #06b6d4;
-  --cyan-bg: rgba(6, 182, 212, 0.12);
-  --cyan-border: rgba(6, 182, 212, 0.25);
+  --cyan-bg: rgba(6, 182, 212, 0.14);
+  --cyan-border: rgba(6, 182, 212, 0.3);
+
+  --lime: #c6f135;
+  --lime-bg: rgba(198, 241, 53, 0.16);
+  --lime-border: rgba(198, 241, 53, 0.35);
 }
 
 * {
@@ -70,24 +85,25 @@ body {
   background: rgba(255, 255, 255, 0.25);
 }
 
-/* Glassmorphism card utility */
+/* Glassmorphism modern card utility */
 .glass-panel {
   background: var(--bg-card);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-card);
-  border-radius: 12px;
+  border-radius: 20px;
 }
 
 .glass-panel-elevated {
-  background: rgba(24, 34, 54, 0.85);
+  background: rgba(24, 33, 52, 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 24px;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
-/* Buttons */
+/* Buttons - Modern Pill Aesthetic */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -95,9 +111,9 @@ body {
   gap: 0.5rem;
   font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 0.875rem;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
+  font-size: 0.85rem;
+  padding: 0.55rem 1.15rem;
+  border-radius: 9999px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   border: none;
@@ -111,17 +127,20 @@ body {
 }
 
 .btn:not(:disabled):active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-  color: #ffffff;
-  box-shadow: 0 4px 12px var(--primary-glow);
+  background: #c6f135;
+  color: #090e17;
+  font-weight: 700;
+  box-shadow: 0 4px 14px var(--primary-glow);
 }
 .btn-primary:not(:disabled):hover {
-  background: linear-gradient(135deg, #7073f3 0%, #5d54ed 100%);
-  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+  background: #b8e626;
+  color: #090e17;
+  box-shadow: 0 6px 20px rgba(198, 241, 53, 0.5);
+  transform: translateY(-1px);
 }
 
 .btn-secondary {
@@ -130,17 +149,17 @@ body {
   border: 1px solid var(--border-subtle);
 }
 .btn-secondary:not(:disabled):hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.11);
   border-color: rgba(255, 255, 255, 0.2);
 }
 
 .btn-danger {
-  background: rgba(239, 68, 68, 0.15);
+  background: rgba(239, 68, 68, 0.16);
   color: #fca5a5;
   border: 1px solid var(--rose-border);
 }
 .btn-danger:not(:disabled):hover {
-  background: rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.26);
   color: #ffffff;
 }
 
@@ -149,9 +168,9 @@ body {
   width: 100%;
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: 12px;
   color: var(--text-main);
-  padding: 0.6rem 0.85rem;
+  padding: 0.65rem 0.95rem;
   font-size: 0.875rem;
   font-family: var(--font-sans);
   transition: all 0.15s ease;
@@ -170,12 +189,18 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.2rem 0.6rem;
+  padding: 0.25rem 0.75rem;
   border-radius: 9999px;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
+}
+
+.badge-lime {
+  background: var(--lime-bg);
+  color: var(--lime);
+  border: 1px solid var(--lime-border);
 }
 
 .badge-emerald {
@@ -212,8 +237,9 @@ body {
 .erp-table-container {
   width: 100%;
   overflow-x: auto;
-  border-radius: 10px;
+  border-radius: 16px;
   border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
 }
 
 .erp-table {
@@ -224,18 +250,18 @@ body {
 }
 
 .erp-table th {
-  background: rgba(14, 21, 35, 0.9);
+  background: rgba(16, 22, 34, 0.95);
   color: var(--text-dim);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  padding: 0.75rem 1rem;
+  padding: 0.85rem 1.1rem;
   border-bottom: 1px solid var(--border-subtle);
 }
 
 .erp-table td {
-  padding: 0.85rem 1rem;
+  padding: 0.9rem 1.1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   color: var(--text-main);
 }
@@ -249,7 +275,7 @@ body {
 }
 
 .erp-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.035);
 }
 
 /* Monospace ID badge */
@@ -258,7 +284,31 @@ body {
   font-size: 0.8rem;
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 0.15rem 0.45rem;
-  border-radius: 4px;
-  color: #a5b4fc;
+  padding: 0.18rem 0.5rem;
+  border-radius: 6px;
+  color: #c6f135;
 }
+
+/* Vibrant Showcase Card utility (like the image) */
+.showcase-card {
+  padding: 1.25rem;
+  border-radius: 20px;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.showcase-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+}
+.showcase-blue { background: linear-gradient(135deg, #3054f5 0%, #1f40d8 100%); }
+.showcase-orange { background: linear-gradient(135deg, #ff6426 0%, #e04f14 100%); }
+.showcase-fuchsia { background: linear-gradient(135deg, #d926aa 0%, #b8168e 100%); }
+.showcase-emerald { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+.showcase-coral { background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%); }
+.showcase-teal { background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); }

@@ -152,11 +152,11 @@ export const ReportsPage: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div
               style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '8px',
-                backgroundColor: 'rgba(99, 102, 241, 0.15)',
-                color: '#818cf8',
+                width: '38px',
+                height: '38px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(198, 241, 53, 0.15)',
+                color: '#c6f135',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -164,7 +164,7 @@ export const ReportsPage: React.FC = () => {
             >
               <BarChart3 size={20} />
             </div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
               Operational Analytics & KPIs
             </h1>
           </div>
@@ -179,9 +179,10 @@ export const ReportsPage: React.FC = () => {
             style={{
               display: 'flex',
               backgroundColor: 'var(--bg-card)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '8px',
-              padding: '2px',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '9999px',
+              padding: '3px',
+              gap: '2px',
             }}
           >
             {(
@@ -196,14 +197,15 @@ export const ReportsPage: React.FC = () => {
                 onClick={() => setTimeRange(opt.id)}
                 style={{
                   padding: '6px 14px',
-                  borderRadius: '6px',
+                  borderRadius: '9999px',
                   fontSize: '0.82rem',
-                  fontWeight: 500,
+                  fontWeight: timeRange === opt.id ? 700 : 500,
                   border: 'none',
-                  backgroundColor: timeRange === opt.id ? 'var(--primary-color)' : 'transparent',
-                  color: timeRange === opt.id ? '#ffffff' : 'var(--text-muted)',
+                  backgroundColor: timeRange === opt.id ? '#c6f135' : 'transparent',
+                  color: timeRange === opt.id ? '#090e17' : 'var(--text-muted)',
                   cursor: 'pointer',
-                  transition: 'all 0.15s ease',
+                  transition: 'all 0.18s ease',
+                  boxShadow: timeRange === opt.id ? '0 2px 10px rgba(198, 241, 53, 0.3)' : 'none',
                 }}
               >
                 {opt.label}
@@ -214,18 +216,13 @@ export const ReportsPage: React.FC = () => {
           <button
             onClick={loadData}
             disabled={isLoading}
+            className="btn btn-primary"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-              backgroundColor: 'var(--bg-card)',
-              color: 'var(--text-main)',
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              fontWeight: 500,
+              padding: '7px 16px',
+              fontSize: '0.82rem',
             }}
           >
             <RefreshCw size={14} className={isLoading ? 'spin' : ''} />
@@ -256,9 +253,8 @@ export const ReportsPage: React.FC = () => {
       <div
         style={{
           display: 'flex',
-          gap: '0.5rem',
-          borderBottom: '1px solid var(--border-color)',
-          paddingBottom: '0.5rem',
+          gap: '0.6rem',
+          paddingBottom: '0.75rem',
           overflowX: 'auto',
         }}
       >
@@ -271,30 +267,36 @@ export const ReportsPage: React.FC = () => {
             { id: 'inventory', label: 'Inventory Valuation', icon: <Warehouse size={16} /> },
             { id: 'procurement', label: 'Procurement & Spend', icon: <Truck size={16} /> },
           ] as const
-        ).map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveSection(tab.id)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              border: 'none',
-              backgroundColor: activeSection === tab.id ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
-              color: activeSection === tab.id ? '#818cf8' : 'var(--text-muted)',
-              fontWeight: activeSection === tab.id ? 600 : 500,
-              fontSize: '0.88rem',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            {tab.icon}
-            <span>{tab.label}</span>
-          </button>
-        ))}
+        ).map((tab) => {
+          const isActive = activeSection === tab.id
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSection(tab.id)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 18px',
+                borderRadius: '9999px',
+                border: isActive ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
+                backgroundColor: isActive ? '#c6f135' : 'rgba(255, 255, 255, 0.04)',
+                color: isActive ? '#090e17' : 'var(--text-muted)',
+                fontWeight: isActive ? 700 : 500,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                boxShadow: isActive ? '0 4px 14px rgba(198, 241, 53, 0.35)' : 'none',
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', color: isActive ? '#090e17' : 'inherit' }}>
+                {tab.icon}
+              </span>
+              <span style={{ color: isActive ? '#090e17' : 'inherit' }}>{tab.label}</span>
+            </button>
+          )
+        })}
       </div>
 
       {/* ────────────────────────────────────────────────────────────────────── */}
