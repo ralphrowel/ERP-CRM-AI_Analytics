@@ -1,5 +1,13 @@
+# ruff: noqa: E402
 import logging
+import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+# Ensure project root is in sys.path so top-level packages (like analytics) can be imported
+_ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(_ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(_ROOT_DIR))
 
 from fastapi import FastAPI, Response, status
 from sqlalchemy import select, text
@@ -237,6 +245,7 @@ app.include_router(catalog_router, prefix=API_PREFIX)
 app.include_router(sales_router, prefix=API_PREFIX)
 app.include_router(inventory_router, prefix=API_PREFIX)
 app.include_router(purchasing_router, prefix=API_PREFIX)
+app.include_router(purchasing_router, prefix=f"{API_PREFIX}/purchasing")
 app.include_router(workflow_router, prefix=API_PREFIX)
 app.include_router(audit_router, prefix=API_PREFIX)
 app.include_router(reporting_router, prefix=API_PREFIX)
