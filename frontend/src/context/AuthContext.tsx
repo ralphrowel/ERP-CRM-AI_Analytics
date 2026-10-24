@@ -31,13 +31,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true)
 
   const refreshUser = async () => {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 3500)
     try {
-      const res = await authApi.getMe()
+      const res = await authApi.getMe(controller.signal)
+      clearTimeout(timeoutId)
       setUser(res.user)
       setRoles(res.roles || [])
       setPermissions(res.permissions || {})
       setDepartmentId(res.department_id ?? null)
     } catch {
+      clearTimeout(timeoutId)
       setUser(null)
       setRoles([])
       setPermissions({})

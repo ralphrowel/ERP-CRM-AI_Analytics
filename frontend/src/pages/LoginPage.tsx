@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { ArrowRight, Lock, Mail, ShieldAlert } from 'lucide-react'
+import { ArrowRight, Eye, EyeOff, Lock, Mail, ShieldAlert } from 'lucide-react'
 import { ApiError } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
@@ -7,6 +7,7 @@ export const LoginPage: React.FC = () => {
   const { login } = useAuth()
   const [email, setEmail] = useState('admin@example.com')
   const [password, setPassword] = useState('AdminPassword123!')
+  const [showPassword, setShowPassword] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -18,11 +19,19 @@ export const LoginPage: React.FC = () => {
       await login(email, password)
     } catch (err: unknown) {
       if (err instanceof ApiError) {
-        setErrorMsg(err.problem.detail || 'Authentication failed.')
+        if (err.isUnauthorized) {
+          setErrorMsg('Invalid email or password. Please check your credentials and try again.')
+        } else if (err.problem.status === 502 || err.problem.status === 504) {
+          setErrorMsg('Backend server unavailable (502/504). Please ensure FastAPI is running.')
+        } else {
+          setErrorMsg(err.problem.detail || 'Authentication failed. Please try again.')
+        }
+      } else if (err instanceof TypeError && err.message.toLowerCase().includes('fetch')) {
+        setErrorMsg('Cannot reach backend server. Please check that FastAPI is running on port 8000.')
       } else if (err instanceof Error) {
         setErrorMsg(err.message)
       } else {
-        setErrorMsg('An unexpected error occurred.')
+        setErrorMsg('An unexpected error occurred during sign-in.')
       }
     } finally {
       setIsSubmitting(false)
@@ -142,14 +151,39 @@ export const LoginPage: React.FC = () => {
               />
               <input
                 id="login-password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
                 className="input-field"
-                style={{ paddingLeft: '2.5rem' }}
+                style={{ paddingLeft: '2.5rem', paddingRight: '2.5rem' }}
               />
+              <button
+                type="button"
+                id="login-password-toggle-btn"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                title={showPassword ? 'Hide password' : 'Show password'}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: showPassword ? 'var(--color-primary-400, #818cf8)' : 'var(--text-dim)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '4px',
+                  borderRadius: '4px',
+                  transition: 'color 0.2s',
+                }}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
           </div>
 

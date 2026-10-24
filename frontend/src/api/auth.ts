@@ -1,4 +1,4 @@
-import { api } from './client'
+import { api, apiRequest } from './client'
 
 export interface User {
   id: number
@@ -31,5 +31,5 @@ export const authApi = {
   login: (email: string, password: string) =>
     api.post<LoginResponse>('/api/v1/auth/login', { email, password }),
   logout: () => api.post<{ message: string }>('/api/v1/auth/logout'),
-  getMe: () => api.get<AuthMeResponse>('/api/v1/auth/me'),
+  getMe: (signal?: AbortSignal) => apiRequest<AuthMeResponse>('/api/v1/auth/me', { method: 'GET', signal }),
 }
